@@ -196,6 +196,9 @@ export default function OpportunitySlideV2({ index = 4 }) {
   const totalBase = computed.reduce((s, c) => s + c.base[period], 0)
   const totalCurrent = computed.reduce((s, c) => s + c.current[period], 0)
   const totalDelta = totalCurrent - totalBase
+  const totalSeats = computed.reduce((s, c) => s + c.current.seats, 0)
+  const totalBaseSeats = computed.reduce((s, c) => s + c.base.seats, 0)
+  const seatsDelta = totalSeats - totalBaseSeats
 
   return (
     <Slide index={index} className={styles.slide}>
@@ -439,6 +442,14 @@ export default function OpportunitySlideV2({ index = 4 }) {
             </div>
 
             <div className={styles.revTotal}>
+              <div className={styles.revTotalSeats}>
+                {totalSeats.toLocaleString()} seats
+                {seatsDelta !== 0 && (
+                  <span className={seatsDelta > 0 ? styles.revUp : styles.revDown}>
+                    {' '}{seatsDelta > 0 ? '+' : ''}{seatsDelta.toLocaleString()}
+                  </span>
+                )}
+              </div>
               <div className={styles.revTotalLabel}>Total {yearly ? 'Annual' : 'Monthly'} Revenue</div>
               <div className={styles.revTotalVal}>{fmtSmart(totalCurrent)}<small>{periodLabel}</small></div>
               {Math.abs(totalDelta) > (yearly ? 1000 : 100) && (
