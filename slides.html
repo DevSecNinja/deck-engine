@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub AI Activation Series</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-deep: #080b10;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --blue-bright: #79c0ff;
+    --blue-glow: #1f6feb;
+    --purple: #bc8cff;
+    --purple-deep: #6e40c9;
+    --pink: #f778ba;
+    --cyan: #56d4dd;
+    --green: #3fb950;
+    --orange: #d29922;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text);
+  }
+
+  /* ── Slide Engine ── */
+  .deck {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(60px);
+    overflow: hidden;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+  .slide.exit-left {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* ── Shared Decorations ── */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(2px);
+    opacity: 0.7;
+  }
+  .grid-dots {
+    position: absolute;
+    width: 200px; height: 200px;
+    background-image: radial-gradient(circle, rgba(139,148,158,0.25) 1px, transparent 1px);
+    background-size: 18px 18px;
+    opacity: 0.5;
+  }
+  .line-connector {
+    position: absolute;
+    opacity: 0.35;
+  }
+
+  /* Accent bar left */
+  .accent-bar {
+    position: absolute;
+    left: 48px; top: 15%; bottom: 15%;
+    width: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to bottom, var(--purple), var(--accent), var(--cyan));
+  }
+
+  /* ── Bottom Bar ── */
+  .bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 44px;
+    background: rgba(13,17,23,0.85);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    z-index: 100;
+  }
+  .slide-counter {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  /* ── Navigation ── */
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 200;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(22,27,34,0.8);
+    backdrop-filter: blur(8px);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    opacity: 0.5;
+  }
+  .nav-btn:hover { opacity: 1; border-color: var(--accent); background: rgba(31,111,235,0.2); }
+  .nav-btn.prev { left: 20px; }
+  .nav-btn.next { right: 20px; }
+  .nav-btn svg { width: 20px; height: 20px; }
+  .nav-btn:disabled { opacity: 0.15; cursor: default; pointer-events: none; }
+
+  /* ── Progress Bar ── */
+  .progress-track {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: rgba(48,54,61,0.6);
+    z-index: 300;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--accent), var(--cyan));
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  /* ════════════════════════════════
+     SLIDE 1 — COVER
+     ════════════════════════════════ */
+  .cover {
+    background: var(--bg-deep);
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 100px 44px 100px;
+  }
+
+  /* Orbs */
+  .cover .orb-1 {
+    width: 520px; height: 520px;
+    top: -120px; right: -80px;
+    background: radial-gradient(circle at 40% 40%, var(--accent), var(--blue-glow) 50%, transparent 70%);
+  }
+  .cover .orb-2 {
+    width: 380px; height: 380px;
+    top: -40px; right: 120px;
+    background: radial-gradient(circle at 50% 50%, var(--purple-deep), rgba(110,64,201,0.3) 60%, transparent 75%);
+  }
+  .cover .orb-3 {
+    width: 300px; height: 300px;
+    bottom: -60px; right: 80px;
+    background: radial-gradient(circle at 50% 50%, var(--cyan), rgba(86,212,221,0.2) 60%, transparent 75%);
+  }
+  .cover .orb-4 {
+    width: 200px; height: 200px;
+    bottom: 80px; right: 320px;
+    background: radial-gradient(circle at 50% 50%, var(--pink), rgba(247,120,186,0.15) 60%, transparent 75%);
+  }
+
+  .cover .grid-dots {
+    right: 40px; top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* Connector lines */
+  .cover .connector-svg {
+    position: absolute;
+    top: 80px; right: 200px;
+    width: 300px; height: 300px;
+    opacity: 0.3;
+  }
+
+  .cover-content {
+    position: relative;
+    z-index: 10;
+    max-width: 700px;
+  }
+  .cover-content h1 {
+    font-size: clamp(42px, 5vw, 72px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+  .cover-content h1 .highlight {
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover-content .subtitle {
+    font-size: clamp(18px, 2vw, 24px);
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-bottom: 48px;
+    line-height: 1.5;
+  }
+  .cover-presenters {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--purple-deep), var(--purple));
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 24px rgba(110,64,201,0.35);
+  }
+  .cover-presenters svg { flex-shrink: 0; }
+
+  /* ════════════════════════════════
+     SLIDE 2 — AGENDA
+     ════════════════════════════════ */
+  .agenda {
+    background: var(--bg-deep);
+    flex-direction: row;
+    padding: 0 0 44px 0;
+  }
+
+  .agenda-left {
+    width: 42%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .agenda-left .orb-a {
+    width: 500px; height: 500px;
+    bottom: -160px; left: -120px;
+    background: radial-gradient(circle, var(--accent), rgba(31,111,235,0.2) 55%, transparent 70%);
+  }
+  .agenda-left .orb-b {
+    width: 350px; height: 350px;
+    top: -80px; left: -60px;
+    background: radial-gradient(circle, var(--purple-deep), rgba(110,64,201,0.2) 55%, transparent 70%);
+  }
+  .agenda-left .orb-c {
+    width: 250px; height: 250px;
+    top: 60px; right: -60px;
+    background: radial-gradient(circle, var(--cyan), rgba(86,212,221,0.15) 55%, transparent 70%);
+  }
+  .agenda-left .grid-dots {
+    bottom: 40px; right: 0;
+  }
+
+  .agenda-left h2 {
+    position: relative;
+    z-index: 10;
+    font-size: clamp(40px, 4vw, 60px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    text-align: center;
+  }
+  .agenda-left h2 .muted { color: var(--text-muted); font-weight: 300; }
+
+  /* Decorative circuit line */
+  .circuit-svg {
+    position: absolute;
+    top: 30px; left: 30px;
+    width: 120px; height: 120px;
+    opacity: 0.25;
+  }
+
+  .agenda-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px 60px 40px;
+    position: relative;
+  }
+
+  .agenda-card {
+    width: 100%;
+    max-width: 560px;
+    background: rgba(48,54,61,0.2);
+    border: 1px solid rgba(48,54,61,0.6);
+    border-radius: 16px;
+    padding: 48px 40px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+  .agenda-card::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 50%; transform: translateX(-50%);
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--accent));
+    border-radius: 0 0 3px 3px;
+  }
+
+  .agenda-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.4);
+    cursor: default;
+    transition: all 0.3s ease;
+  }
+  .agenda-item:last-child { border-bottom: none; }
+  .agenda-item:hover { transform: translateX(6px); }
+  .agenda-item:hover .agenda-num { 
+    background: linear-gradient(135deg, var(--purple), var(--accent));
+    border-color: transparent;
+    color: #fff;
+  }
+
+  .agenda-num {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(22,27,34,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--accent);
+    transition: all 0.3s ease;
+  }
+
+  .agenda-text h3 {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+  .agenda-text p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .agenda-right .grid-dots {
+    top: 20px; right: 20px;
+  }
+
+  /* ── Keyboard hint ── */
+  /* ════════════════════════════════
+     SLIDE 3 — OPPORTUNITY (iframe)
+     ════════════════════════════════ */
+  .opportunity {
+    background: var(--bg-deep);
+    flex-direction: column;
+    padding: 0;
+  }
+  .opp-header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 40px 16px 72px;
+    flex-shrink: 0;
+  }
+  .opp-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .opp-header h2 span { color: var(--accent); }
+  .opp-header .tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(63,185,80,0.15);
+    color: var(--green);
+    border: 1px solid rgba(63,185,80,0.25);
+  }
+  .opp-iframe-wrap {
+    flex: 1;
+    position: relative;
+    margin: 0 24px 68px 24px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  .opp-iframe-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg);
+  }
+
+  /* ════════════════════════════════
+     SLIDE 4 — INTENT
+     ════════════════════════════════ */
+  .intent-slide {
+    background: var(--bg-deep);
+    flex-direction: column;
+    padding: 0 80px 44px 80px;
+    overflow-y: auto !important;
+  }
+  .intent-header {
+    position: relative;
+    z-index: 10;
+    padding: 36px 0 8px 0;
+    flex-shrink: 0;
+  }
+  .intent-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .intent-header h2 span { color: var(--accent); }
+
+  .intent-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin: 24px 0;
+    flex-shrink: 0;
+  }
+  .pillar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  .pillar:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+  }
+  .pillar-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 14px;
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+  .pillar-icon--purple {
+    background: rgba(188,140,255,0.1);
+    border-color: rgba(188,140,255,0.2);
+    color: var(--purple);
+  }
+  .pillar-icon--cyan {
+    background: rgba(86,212,221,0.1);
+    border-color: rgba(86,212,221,0.2);
+    color: var(--cyan);
+  }
+  .pillar h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    line-height: 1.3;
+    letter-spacing: -0.3px;
+  }
+  .pillar p {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .pillar p strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .intent-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 20px;
+    margin-top: 8px;
+    flex-shrink: 0;
+  }
+  .intent-detail {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: rgba(48,54,61,0.15);
+    border: 1px solid rgba(48,54,61,0.4);
+    border-radius: 12px;
+    padding: 20px 16px;
+  }
+  .intent-detail-icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+  .intent-detail-icon--purple {
+    background: rgba(188,140,255,0.1);
+    border-color: rgba(188,140,255,0.15);
+    color: var(--purple);
+  }
+  .intent-detail-icon--green {
+    background: rgba(63,185,80,0.1);
+    border-color: rgba(63,185,80,0.15);
+    color: var(--green);
+  }
+  .intent-detail h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .intent-detail p {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .metrics-table {
+    background: rgba(48,54,61,0.15);
+    border: 1px solid rgba(48,54,61,0.4);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+  }
+  .metrics-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+  }
+  .metrics-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 4px 8px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .metrics-table tbody td {
+    padding: 7px 8px;
+    border-bottom: 1px solid rgba(48,54,61,0.3);
+    color: var(--text-muted);
+  }
+  .metrics-table tbody td:first-child { color: var(--text); font-weight: 500; }
+  .metrics-table tbody tr:last-child td { border-bottom: none; }
+
+  /* ════════════════════════════════
+     SLIDE 5 — APPROACH
+     ════════════════════════════════ */
+  .approach-slide {
+    background: var(--bg-deep);
+    flex-direction: column;
+    padding: 0 80px 44px 80px;
+    overflow-y: auto !important;
+  }
+  .approach-header {
+    position: relative;
+    z-index: 10;
+    padding: 36px 0 4px 0;
+    flex-shrink: 0;
+  }
+  .approach-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .approach-header h2 span { color: var(--accent); }
+  .approach-intro {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 12px 0 24px;
+    max-width: 1000px;
+  }
+  .approach-intro strong { color: var(--text); font-weight: 600; }
+
+  .approach-columns {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+  .approach-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+  }
+  .approach-col h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--purple);
+  }
+  .approach-col ul {
+    list-style: none;
+    padding: 0;
+  }
+  .approach-col ul li {
+    position: relative;
+    padding: 8px 0 8px 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .approach-col ul li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 15px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .approach-col ul li strong { color: var(--text); font-weight: 600; }
+
+  .format-table {
+    margin-top: 20px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .format-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(48,54,61,0.3);
+  }
+  .format-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(48,54,61,0.3);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  .format-table tbody td:first-child { color: var(--text); font-weight: 500; }
+  .format-table tbody tr:last-child td { border-bottom: none; }
+  .format-table tbody tr:hover { background: rgba(48,54,61,0.2); }
+
+  /* ════════════════════════════════
+     SLIDE 6 — PRESENTERS & TOPICS
+     ════════════════════════════════ */
+  .presenters-slide {
+    background: var(--bg-deep);
+    flex-direction: column;
+    padding: 0 60px 44px 60px;
+    overflow-y: auto !important;
+  }
+  .presenters-header {
+    position: relative;
+    z-index: 10;
+    padding: 32px 20px 0 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .presenters-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .presenters-header h2 span { color: var(--accent); }
+  .presenters-header .ninja-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(110,64,201,0.25), rgba(88,166,255,0.15));
+    color: var(--purple);
+    border: 1px solid rgba(188,140,255,0.25);
+  }
+  .presenters-intro {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 10px 20px 20px;
+    max-width: 900px;
+  }
+
+  .ninja-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+
+  .ninja-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 0;
+    overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), border-color 0.35s ease, box-shadow 0.35s ease;
+    position: relative;
+  }
+  .ninja-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 40px rgba(88,166,255,0.12), 0 0 0 1px rgba(88,166,255,0.1);
+  }
+  .ninja-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .ninja-card:hover::after { opacity: 1; }
+  .ninja-card:nth-child(6n+1)::after { background: linear-gradient(90deg, var(--accent), var(--cyan)); }
+  .ninja-card:nth-child(6n+2)::after { background: linear-gradient(90deg, var(--purple), var(--pink)); }
+  .ninja-card:nth-child(6n+3)::after { background: linear-gradient(90deg, var(--cyan), var(--green)); }
+  .ninja-card:nth-child(6n+4)::after { background: linear-gradient(90deg, var(--green), var(--accent)); }
+  .ninja-card:nth-child(6n+5)::after { background: linear-gradient(90deg, var(--pink), var(--orange)); }
+  .ninja-card:nth-child(6n+6)::after { background: linear-gradient(90deg, var(--orange), var(--purple)); }
+
+  .ninja-photo {
+    width: 100%; height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .ninja-photo-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.6;
+  }
+  .ninja-photo-bg--1 { background: linear-gradient(135deg, #1a2332, #162032 40%, rgba(88,166,255,0.15)); }
+  .ninja-photo-bg--2 { background: linear-gradient(135deg, #1e1a2e, #1a1830 40%, rgba(188,140,255,0.15)); }
+  .ninja-photo-bg--3 { background: linear-gradient(135deg, #162228, #12222a 40%, rgba(86,212,221,0.12)); }
+  .ninja-photo-bg--4 { background: linear-gradient(135deg, #162218, #142015 40%, rgba(63,185,80,0.12)); }
+  .ninja-photo-bg--5 { background: linear-gradient(135deg, #261a22, #221520 40%, rgba(247,120,186,0.12)); }
+  .ninja-photo-bg--6 { background: linear-gradient(135deg, #26200e, #221f10 40%, rgba(210,153,34,0.12)); }
+
+  .ninja-avatar {
+    position: relative; z-index: 2;
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    border: 3px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .ninja-avatar--blue { background: linear-gradient(135deg, #1a3a5c, #1f5091); color: var(--accent); }
+  .ninja-avatar--purple { background: linear-gradient(135deg, #2d1f50, #4a2d8a); color: var(--purple); }
+  .ninja-avatar--cyan { background: linear-gradient(135deg, #1a3a3f, #1d5055); color: var(--cyan); }
+  .ninja-avatar--green { background: linear-gradient(135deg, #1a3a20, #1d5028); color: var(--green); }
+  .ninja-avatar--pink { background: linear-gradient(135deg, #3a1a30, #5a2048); color: var(--pink); }
+  .ninja-avatar--orange { background: linear-gradient(135deg, #3a2a10, #5a4018); color: var(--orange); }
+
+  .ninja-body {
+    padding: 16px 18px 18px;
+  }
+  .ninja-name {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    margin-bottom: 3px;
+  }
+  .ninja-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .ninja-topic {
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(48,54,61,0.3);
+    border-left: 3px solid var(--accent);
+    color: var(--text-muted);
+  }
+  .ninja-topic strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .ninja-org {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+  .ninja-org--gh { background: rgba(88,166,255,0.1); color: var(--accent); }
+  .ninja-org--ms { background: rgba(188,140,255,0.1); color: var(--purple); }
+  .ninja-org--csu { background: rgba(86,212,221,0.1); color: var(--cyan); }
+  .ninja-org--gbb { background: rgba(210,153,34,0.1); color: var(--orange); }
+  .ninja-org--eng { background: rgba(63,185,80,0.1); color: var(--green); }
+
+  .presenters-note {
+    margin: 16px 20px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.6;
+  }
+
+  /* ════════════════════════════════
+     SLIDE 7 — GOVERNANCE
+     ════════════════════════════════ */
+  .governance-slide {
+    background: var(--bg-deep);
+    flex-direction: column;
+    padding: 60px 80px 44px;
+  }
+  .governance-header h2 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .governance-header h2 span { color: var(--accent); }
+  .governance-subtitle {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+  .governance-table {
+    width: 100%;
+    max-width: 860px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .governance-table thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    padding: 16px 28px;
+    background: rgba(88,166,255,0.06);
+    border-bottom: 2px solid var(--border);
+  }
+  .governance-table tbody td {
+    padding: 16px 28px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(48,54,61,0.4);
+    vertical-align: top;
+  }
+  .governance-table tbody td:first-child {
+    color: var(--text);
+    font-weight: 600;
+    width: 45%;
+  }
+  .governance-table tbody td:last-child {
+    color: var(--text-muted);
+  }
+  .governance-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .governance-table tbody tr:hover {
+    background: rgba(88,166,255,0.03);
+  }
+  .governance-table .assigned-name {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .governance-table .assigned-tbd {
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.7;
+  }
+  .governance-table .industry-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .governance-table .industry-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tag-fsi   { background: rgba(88,166,255,0.1); color: var(--accent); }
+  .tag-retail { background: rgba(63,185,80,0.1); color: var(--green); }
+  .tag-mfg   { background: rgba(210,153,34,0.1); color: var(--orange); }
+  .tag-public { background: rgba(188,140,255,0.1); color: var(--purple); }
+
+  /* ════════════════════════════════
+     SLIDE 8 — THANK YOU
+     ════════════════════════════════ */
+  .thankyou-slide {
+    background: var(--bg-deep);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Ambient glow orbs */
+  .ty-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+  }
+  .ty-glow--1 { width: 500px; height: 500px; top: -15%; left: -10%; background: rgba(88,166,255,0.08); animation: tyPulse 6s ease-in-out infinite; }
+  .ty-glow--2 { width: 400px; height: 400px; bottom: -10%; right: -5%; background: rgba(188,140,255,0.07); animation: tyPulse 8s ease-in-out 2s infinite; }
+  .ty-glow--3 { width: 300px; height: 300px; top: 40%; left: 50%; transform: translateX(-50%); background: rgba(86,212,221,0.05); animation: tyPulse 7s ease-in-out 1s infinite; }
+
+  @keyframes tyPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50%      { opacity: 1; transform: scale(1.15); }
+  }
+
+  /* Speed streaks — thin horizontal light beams */
+  .speed-streak {
+    position: absolute;
+    height: 1px;
+    border-radius: 1px;
+    opacity: 0;
+    animation: streak 3s ease-out infinite;
+  }
+  .speed-streak:nth-child(4) { top: 15%; width: 120px; background: linear-gradient(90deg, transparent 0%, var(--accent) 60%, transparent 100%); animation-delay: 0s; }
+  .speed-streak:nth-child(5) { top: 28%; width: 200px; background: linear-gradient(90deg, transparent 0%, var(--purple) 60%, transparent 100%); animation-delay: 0.7s; }
+  .speed-streak:nth-child(6) { top: 42%; width: 160px; background: linear-gradient(90deg, transparent 0%, var(--cyan) 60%, transparent 100%); animation-delay: 1.4s; }
+  .speed-streak:nth-child(7) { top: 58%; width: 240px; background: linear-gradient(90deg, transparent 0%, var(--accent) 60%, transparent 100%); animation-delay: 0.3s; }
+  .speed-streak:nth-child(8) { top: 72%; width: 140px; background: linear-gradient(90deg, transparent 0%, var(--green) 60%, transparent 100%); animation-delay: 1.0s; }
+  .speed-streak:nth-child(9) { top: 82%; width: 180px; background: linear-gradient(90deg, transparent 0%, var(--purple) 60%, transparent 100%); animation-delay: 1.8s; }
+  .speed-streak:nth-child(10) { top: 22%; width: 100px; background: linear-gradient(90deg, transparent 0%, var(--pink) 60%, transparent 100%); animation-delay: 2.2s; }
+  .speed-streak:nth-child(11) { top: 90%; width: 220px; background: linear-gradient(90deg, transparent 0%, var(--cyan) 60%, transparent 100%); animation-delay: 0.5s; }
+
+  @keyframes streak {
+    0%   { transform: translateX(-100px); opacity: 0; }
+    10%  { opacity: 0.5; }
+    100% { transform: translateX(calc(100vw + 200px)); opacity: 0; }
+  }
+
+  /* Logo area */
+  .ty-logos {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    position: relative;
+    z-index: 10;
+    margin-bottom: 48px;
+  }
+  .ty-logo-github {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ty-logo-github svg {
+    width: 56px; height: 56px;
+    fill: #c9d1d9;
+    filter: drop-shadow(0 0 24px rgba(88,166,255,0.3));
+    transition: filter 0.4s ease;
+  }
+  .ty-logo-plus {
+    font-size: 22px;
+    font-weight: 300;
+    color: rgba(139,148,158,0.4);
+  }
+  .ty-logo-ms {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    filter: drop-shadow(0 0 24px rgba(188,140,255,0.2));
+  }
+  .ty-logo-ms span {
+    width: 22px; height: 22px;
+    display: block;
+  }
+  .ty-logo-ms span:nth-child(1) { background: #f25022; }
+  .ty-logo-ms span:nth-child(2) { background: #7fba00; }
+  .ty-logo-ms span:nth-child(3) { background: #00a4ef; }
+  .ty-logo-ms span:nth-child(4) { background: #ffb900; }
+
+  /* Rocket trail behind logos */
+  .ty-trail {
+    position: absolute;
+    left: -60px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 80px;
+    height: 40px;
+    background: linear-gradient(90deg, transparent, rgba(88,166,255,0.15), rgba(188,140,255,0.1));
+    filter: blur(20px);
+    border-radius: 50%;
+    animation: trailPulse 2s ease-in-out infinite alternate;
+  }
+  @keyframes trailPulse {
+    0%   { opacity: 0.3; width: 60px; }
+    100% { opacity: 0.7; width: 100px; }
+  }
+
+  /* Main text */
+  .ty-content {
+    text-align: center;
+    z-index: 10;
+    position: relative;
+  }
+  .ty-content h2 {
+    font-size: 64px;
+    font-weight: 900;
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, var(--accent) 40%, var(--purple) 70%, var(--cyan) 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradShift 4s ease-in-out infinite;
+  }
+  @keyframes gradShift {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .ty-content p {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .ty-divider {
+    width: 60px;
+    height: 2px;
+    margin: 32px auto;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    border-radius: 2px;
+  }
+  .ty-tagline {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+  .ty-cta {
+    margin-top: 40px;
+    display: flex;
+    gap: 12px;
+    z-index: 10;
+    position: relative;
+  }
+  .ty-cta a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  .ty-cta .cta-primary {
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    color: #fff;
+    border: none;
+  }
+  .ty-cta .cta-primary:hover {
+    box-shadow: 0 8px 30px rgba(88,166,255,0.3);
+    transform: translateY(-2px);
+  }
+  .ty-cta .cta-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .ty-cta .cta-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .key-hint {
+    position: fixed;
+    bottom: 56px; right: 40px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: opacity 3s ease;
+  }
+  .key-hint.fade { opacity: 0; }
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px; height: 22px;
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+
+<!-- Nav buttons -->
+<button class="nav-btn prev" id="btnPrev" disabled onclick="go(-1)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<button class="nav-btn next" id="btnNext" onclick="go(1)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
+</button>
+
+<!-- Keyboard hint -->
+<div class="key-hint" id="keyHint">
+  <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> or click arrows to navigate
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- ═══════════ SLIDE 1 — COVER ═══════════ -->
+  <div class="slide cover active" data-slide="0">
+
+    <!-- Decorative elements -->
+    <div class="accent-bar"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+    <div class="grid-dots" style="right:40px;top:45%"></div>
+
+    <!-- Connector lines SVG -->
+    <svg class="connector-svg" viewBox="0 0 300 300" fill="none" stroke="rgba(139,148,158,0.4)" stroke-width="1.2">
+      <path d="M20,280 Q80,200 140,180 T260,60" />
+      <circle cx="140" cy="180" r="4" fill="none" stroke="rgba(88,166,255,0.6)" stroke-width="1.5"/>
+      <circle cx="200" cy="120" r="3" fill="none" stroke="rgba(188,140,255,0.6)" stroke-width="1.5"/>
+      <circle cx="260" cy="60" r="5" fill="none" stroke="rgba(86,212,221,0.6)" stroke-width="1.5"/>
+      <line x1="260" y1="60" x2="290" y2="30" />
+      <circle cx="290" cy="30" r="3" fill="none" stroke="rgba(247,120,186,0.6)" stroke-width="1.5"/>
+    </svg>
+
+    <div class="cover-content">
+      <h1>GitHub <span class="highlight">AI</span> Activation Series</h1>
+      <p class="subtitle">Increasing utilization and adoption</p>
+      <div class="cover-presenters">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+          <path d="M10.5 5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm.514 2.63a4 4 0 10-6.028 0A4.002 4.002 0 001 11.5V13a2 2 0 002 2h10a2 2 0 002-2v-1.5a4.002 4.002 0 00-3.986-3.87z"/>
+        </svg>
+        Eric Laan &amp; Leandro Lopez
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">1 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 2 — AGENDA ═══════════ -->
+  <div class="slide agenda" data-slide="1">
+
+    <div class="accent-bar"></div>
+
+    <!-- Left panel -->
+    <div class="agenda-left">
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="orb orb-c"></div>
+      <div class="grid-dots"></div>
+
+      <svg class="circuit-svg" viewBox="0 0 120 120" fill="none" stroke="rgba(139,148,158,0.5)" stroke-width="1.2">
+        <path d="M10,60 H50 Q60,60 60,50 V20"/>
+        <path d="M60,20 Q60,10 70,10 H110"/>
+        <circle cx="10" cy="60" r="3" fill="rgba(86,212,221,0.6)" stroke="none"/>
+        <circle cx="110" cy="10" r="3" fill="rgba(188,140,255,0.6)" stroke="none"/>
+        <path d="M50,60 Q60,60 60,70 V100"/>
+        <circle cx="60" cy="100" r="3" fill="rgba(88,166,255,0.6)" stroke="none"/>
+      </svg>
+
+      <h2>Table <span class="muted">of</span><br>Contents</h2>
+    </div>
+
+    <!-- Right panel -->
+    <div class="agenda-right">
+      <div class="grid-dots"></div>
+
+      <div class="agenda-card">
+        <div class="agenda-item clickable" onclick="goTo(2)" style="cursor:pointer">
+          <div class="agenda-num">1</div>
+          <div class="agenda-text">
+            <h3>Opportunity</h3>
+            <p>The revenue landscape — seats, penetration, and ACR expansion across accounts.</p>
+          </div>
+        </div>
+        <div class="agenda-item clickable" onclick="goTo(3)" style="cursor:pointer">
+          <div class="agenda-num">2</div>
+          <div class="agenda-text">
+            <h3>Intent</h3>
+            <p>Why this series exists — driving consumption, managing inquiries, building community.</p>
+          </div>
+        </div>
+        <div class="agenda-item clickable" onclick="goTo(4)" style="cursor:pointer">
+          <div class="agenda-num">3</div>
+          <div class="agenda-text">
+            <h3>Approach</h3>
+            <p>The engagement model, cadence, and how we'll measure progress together.</p>
+          </div>
+        </div>
+        <div class="agenda-item clickable" onclick="goTo(5)" style="cursor:pointer">
+          <div class="agenda-num">4</div>
+          <div class="agenda-text">
+            <h3>Presenters &amp; Topics</h3>
+            <p>Who's presenting what — deep dives, demos, and hands-on sessions.</p>
+          </div>
+        </div>
+        <div class="agenda-item clickable" onclick="goTo(6)" style="cursor:pointer">
+          <div class="agenda-num">5</div>
+          <div class="agenda-text">
+            <h3>Governance</h3>
+            <p>Lightweight governance with clear owners and industry pool leads.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">2 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 3 — OPPORTUNITY ═══════════ -->
+  <div class="slide opportunity" data-slide="2">
+
+    <div class="accent-bar"></div>
+
+    <div class="opp-header">
+      <h2><span>01</span> &mdash; Opportunity</h2>
+      <div class="tag">Live Dashboard</div>
+    </div>
+
+    <div class="opp-iframe-wrap">
+      <iframe src="ghcp-opportunity.html" loading="eager"></iframe>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">3 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 4 — INTENT ═══════════ -->
+  <div class="slide intent-slide" data-slide="3">
+
+    <div class="accent-bar"></div>
+    <div class="grid-dots" style="right:30px;bottom:80px"></div>
+
+    <!-- Header -->
+    <div class="intent-header">
+      <h2><span>02</span> &mdash; Intent</h2>
+    </div>
+
+    <!-- Three pillars -->
+    <div class="intent-pillars">
+      <div class="pillar">
+        <div class="pillar-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <h3>Increase GitHub<br>AI Consumption</h3>
+        <p>Increase GitHub token and PRU usage alongside the deployment of GitHub SKUs (GHCP, GHEC, GHAS).</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon pillar-icon--purple">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+        </div>
+        <h3>Manage Customer<br>Inquiries</h3>
+        <p>Transforming spontaneous client requests into a <strong>well-organized, recurring series</strong> to promote adoption. Expert sessions with Microsoft and GitHub engineers regularly draw <strong>200–400+ participants</strong>.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon pillar-icon--cyan">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </div>
+        <h3>Build Community<br>&amp; Increase Momentum</h3>
+        <p>Support the development of a customer community centered on GitHub AI to enhance adoption and promote active usage.</p>
+      </div>
+    </div>
+
+    <!-- Bottom section: Segmentation, Pilot, Measure -->
+    <div class="intent-bottom">
+      <div class="intent-detail">
+        <div class="intent-detail-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div>
+          <h4>Customer Segmentation</h4>
+          <p>Strategic clients with high GitHub activity get individual sessions; others participate in shared sessions.</p>
+        </div>
+      </div>
+      <div class="intent-detail">
+        <div class="intent-detail-icon intent-detail-icon--purple">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+        </div>
+        <div>
+          <h4>Pilot</h4>
+          <p>Begin with 5 clients for the pilot phase — ING Bank N.V. account plus 4 clients, ensuring accountability from STU, CSU, and accounts.</p>
+        </div>
+      </div>
+      <div class="intent-detail">
+        <div class="intent-detail-icon intent-detail-icon--green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+        </div>
+        <div>
+          <h4>Measure</h4>
+          <p>Standard 3-metric scorecard per customer — lightweight approach to measure impact.</p>
+        </div>
+      </div>
+      <div class="metrics-table">
+        <table>
+          <thead><tr><th>Metric</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>% of active Copilot users</td><td>Adoption depth</td></tr>
+            <tr><td>Copilot / Agent usage delta (pre/post)</td><td>Consumption</td></tr>
+            <tr><td>Attendance → replay views</td><td>Reach &amp; reuse</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">4 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 5 — APPROACH ═══════════ -->
+  <div class="slide approach-slide" data-slide="4">
+
+    <div class="accent-bar"></div>
+    <div class="grid-dots" style="right:30px;top:30px"></div>
+
+    <div class="approach-header">
+      <h2><span>03</span> &mdash; Approach</h2>
+    </div>
+
+    <p class="approach-intro">
+      Transform the scattered client requests into a <strong>bi-weekly, demo-focused expert series</strong> featuring
+      <strong>speakers and content provided by MSFT/GitHub</strong>, while <strong>customers lead internal engagement efforts</strong>,
+      supported by a customer engineer demonstration to enhance peer-to-peer learning.
+    </p>
+
+    <div class="approach-columns">
+      <!-- Cadence -->
+      <div class="approach-col">
+        <h3>Cadence</h3>
+        <ul>
+          <li><strong>Bi-weekly meetings</strong> featuring a <strong>specific topic and demonstrations</strong> presented by Microsoft and GitHub speakers.</li>
+          <li>The <strong>strategic customer manages the internal aspects</strong> such as audience coordination, promotion, and community engagement, while <strong>Microsoft and GitHub provide the speakers and content</strong>. For non-strategic customers, sessions can be conducted in a shared webinar format.</li>
+          <li>Speakers from Microsoft and GitHub rotate regularly, including GitHub Sales Engineers/CSAs and Microsoft SEs, CSAs, GBBs, and Developer Advocates.</li>
+        </ul>
+      </div>
+
+      <!-- Format -->
+      <div class="approach-col">
+        <h3>Format</h3>
+        <ul>
+          <li>A one-hour meeting led by the customer sponsor or champion, requiring at least <strong>200 attendees</strong>.</li>
+          <li>Customer champions participate to facilitate the discussion and provide relevant customer insights.</li>
+          <li>We highlight our skills development opportunities, including the ESI program and Microsoft Learn.</li>
+        </ul>
+
+        <table class="format-table">
+          <thead>
+            <tr><th>What</th><th>Why</th><th>Duration</th><th>Speaker</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GitHub/Microsoft hands-on demo on one or more topics — minimum/no slides</td>
+              <td>Position new features or show existing features to drive adoption</td>
+              <td>30-40 min</td>
+              <td>GitHub / Microsoft</td>
+            </tr>
+            <tr>
+              <td>Q &amp; A</td>
+              <td>Ability to ask questions on all sorts of things</td>
+              <td>10 min</td>
+              <td>GitHub / Microsoft + Customer</td>
+            </tr>
+            <tr>
+              <td>Customer engineer demo</td>
+              <td>Create internal FOMO by sparking internal replication and excitement</td>
+              <td>10-20 min</td>
+              <td>Customer</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">5 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 6 — PRESENTERS & TOPICS ═══════════ -->
+  <div class="slide presenters-slide" data-slide="5">
+
+    <div class="accent-bar"></div>
+    <div class="grid-dots" style="right:30px;bottom:80px"></div>
+
+    <div class="presenters-header">
+      <h2><span>04</span> &mdash; Presenters &amp; Topics</h2>
+      <div class="ninja-badge">✨ Expert Lineup</div>
+    </div>
+
+    <p class="presenters-intro">
+      GitHub Sales Engineers, Microsoft CSAs, GBBs, Developer Advocates, and Engineering leaders.
+      Each speaker brings hands-on expertise and real-world demos that drive adoption at scale.
+    </p>
+
+    <div class="ninja-grid">
+
+      <!-- Simona Toader -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--1"></div>
+          <div class="ninja-avatar ninja-avatar--blue">ST</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Simona Toader</div>
+          <div class="ninja-title">Sales Engineer, GitHub</div>
+          <div class="ninja-topic"><strong>Copilot in the IDE</strong> — Real-time code suggestions, chat workflows, and maximizing daily developer productivity.</div>
+          <div class="ninja-org ninja-org--gh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </div>
+        </div>
+      </div>
+
+      <!-- Ali Soliman -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--2"></div>
+          <div class="ninja-avatar ninja-avatar--purple">AS</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Ali Soliman</div>
+          <div class="ninja-title">Sales Engineer, GitHub</div>
+          <div class="ninja-topic"><strong>Copilot for Security</strong> — AI-powered vulnerability detection, code scanning, and secure development workflows with GHAS.</div>
+          <div class="ninja-org ninja-org--gh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </div>
+        </div>
+      </div>
+
+      <!-- Pascal van der Heiden -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--3"></div>
+          <div class="ninja-avatar ninja-avatar--cyan">PH</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Pascal van der Heiden</div>
+          <div class="ninja-title">Sales Engineer, GitHub</div>
+          <div class="ninja-topic"><strong>Spec Driven Development</strong> — From requirements to code using Copilot Workspace and spec-first engineering practices.</div>
+          <div class="ninja-org ninja-org--gh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </div>
+        </div>
+      </div>
+
+      <!-- Anton Sizikov -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--4"></div>
+          <div class="ninja-avatar ninja-avatar--green">AS</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Anton Sizikov</div>
+          <div class="ninja-title">Sales Engineer, GitHub</div>
+          <div class="ninja-topic"><strong>Copilot Agent Mode</strong> — Autonomous multi-file editing, agentic workflows, and next-gen AI pair programming.</div>
+          <div class="ninja-org ninja-org--gh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </div>
+        </div>
+      </div>
+
+      <!-- Floris -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--5"></div>
+          <div class="ninja-avatar ninja-avatar--pink">FL</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Floris</div>
+          <div class="ninja-title">Cloud Solution Architect, Microsoft</div>
+          <div class="ninja-topic"><strong>Enterprise DevSecOps</strong> — Integrating Copilot into CI/CD pipelines, Azure DevOps, and platform engineering.</div>
+          <div class="ninja-org ninja-org--ms">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft
+          </div>
+        </div>
+      </div>
+
+      <!-- Karol -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--6"></div>
+          <div class="ninja-avatar ninja-avatar--orange">KA</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Karol</div>
+          <div class="ninja-title">Cloud Solution Architect, Microsoft</div>
+          <div class="ninja-topic"><strong>Copilot for Infrastructure</strong> — Infrastructure-as-Code generation, Bicep/Terraform workflows, and cloud automation.</div>
+          <div class="ninja-org ninja-org--ms">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft
+          </div>
+        </div>
+      </div>
+
+      <!-- CSU 1 -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--1"></div>
+          <div class="ninja-avatar ninja-avatar--blue">C1</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">CSU Speaker 1</div>
+          <div class="ninja-title">Customer Success, Microsoft</div>
+          <div class="ninja-topic"><strong>Adoption Acceleration</strong> — Rollout strategies, onboarding playbooks, and scaling Copilot across large engineering orgs.</div>
+          <div class="ninja-org ninja-org--csu">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft CSU
+          </div>
+        </div>
+      </div>
+
+      <!-- CSU 2 -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--2"></div>
+          <div class="ninja-avatar ninja-avatar--purple">C2</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">CSU Speaker 2</div>
+          <div class="ninja-title">Customer Success, Microsoft</div>
+          <div class="ninja-topic"><strong>Measuring ROI</strong> — Quantifying developer productivity gains, usage analytics, and building the business case.</div>
+          <div class="ninja-org ninja-org--csu">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft CSU
+          </div>
+        </div>
+      </div>
+
+      <!-- Gerarld Versluis -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--3"></div>
+          <div class="ninja-avatar ninja-avatar--cyan">GV</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Gerald Versluis</div>
+          <div class="ninja-title">Sr. Software Engineer, Microsoft CoreAI</div>
+          <div class="ninja-topic"><strong>.NET MAUI + Agent Fleet</strong> — Building cross-platform apps with Copilot and managing a fleet of agents via Copilot CLI.</div>
+          <div class="ninja-org ninja-org--eng">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft Engineering
+          </div>
+        </div>
+      </div>
+
+      <!-- Engineering 2 -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--4"></div>
+          <div class="ninja-avatar ninja-avatar--green">E2</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Engineering Speaker</div>
+          <div class="ninja-title">Software Engineer, Microsoft</div>
+          <div class="ninja-topic"><strong>Copilot Extensibility</strong> — Building custom Copilot extensions, MCP servers, and integrating with internal tools.</div>
+          <div class="ninja-org ninja-org--eng">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft Engineering
+          </div>
+        </div>
+      </div>
+
+      <!-- GBB -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--6"></div>
+          <div class="ninja-avatar ninja-avatar--orange">GB</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">GBB Speaker</div>
+          <div class="ninja-title">Global Black Belt, Microsoft</div>
+          <div class="ninja-topic"><strong>AI-Powered Testing</strong> — Automated test generation, code review intelligence, and quality engineering with Copilot.</div>
+          <div class="ninja-org ninja-org--gbb">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft GBB
+          </div>
+        </div>
+      </div>
+
+      <!-- Emile -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--5"></div>
+          <div class="ninja-avatar ninja-avatar--pink">EM</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Emile</div>
+          <div class="ninja-title">Developer Advocate, Microsoft</div>
+          <div class="ninja-topic"><strong>Live Coding Masterclass</strong> — Building full-stack apps from scratch in 60 min using Copilot Chat and Agent Mode.</div>
+          <div class="ninja-org ninja-org--ms">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft
+          </div>
+        </div>
+      </div>
+
+      <!-- Soham -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--1"></div>
+          <div class="ninja-avatar ninja-avatar--blue">SO</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">Soham</div>
+          <div class="ninja-title">Developer Advocate, Microsoft</div>
+          <div class="ninja-topic"><strong>Copilot for Data &amp; AI</strong> — Python notebooks, data pipelines, and ML model development accelerated by Copilot.</div>
+          <div class="ninja-org ninja-org--ms">
+            <svg width="12" height="12" viewBox="0 0 23 23" fill="currentColor"><path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z"/></svg>
+            Microsoft
+          </div>
+        </div>
+      </div>
+
+      <!-- + GitHub -->
+      <div class="ninja-card">
+        <div class="ninja-photo"><div class="ninja-photo-bg ninja-photo-bg--2"></div>
+          <div class="ninja-avatar ninja-avatar--purple">+</div>
+        </div>
+        <div class="ninja-body">
+          <div class="ninja-name">+ More GitHub Speakers</div>
+          <div class="ninja-title">GitHub Engineering & CSA Team</div>
+          <div class="ninja-topic"><strong>Rotating Topics</strong> — Latest Copilot features, GitHub Actions AI, and emerging capabilities as they ship.</div>
+          <div class="ninja-org ninja-org--gh">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="presenters-note">Note: this list will be moved to a centrally managed location. Speaker photos to be added.</p>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">6 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 7 — GOVERNANCE ═══════════ -->
+  <div class="slide governance-slide" data-slide="6">
+
+    <div class="accent-bar"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="grid-dots" style="right:30px;bottom:80px"></div>
+
+    <div class="governance-header">
+      <h2><span>05</span> &mdash; Governance</h2>
+    </div>
+    <p class="governance-subtitle">A lightweight governance with clear owners</p>
+
+    <table class="governance-table">
+      <thead>
+        <tr><th>Role</th><th>Assigned</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Program Owner</td>
+          <td><span class="assigned-name">Leandro Lopez</span></td>
+        </tr>
+        <tr>
+          <td>GitHub Program Sponsor</td>
+          <td><span class="assigned-tbd">TBD</span></td>
+        </tr>
+        <tr>
+          <td>CSU Program Sponsor</td>
+          <td><span class="assigned-tbd">TBD</span></td>
+        </tr>
+        <tr>
+          <td>GitHub Speaker Pool Lead</td>
+          <td><span class="assigned-tbd">TBD</span></td>
+        </tr>
+        <tr>
+          <td>Microsoft Speaker Pool Lead</td>
+          <td><span class="assigned-tbd">TBD</span></td>
+        </tr>
+        <tr>
+          <td>Industry Pool Lead</td>
+          <td>
+            <div class="industry-list">
+              <span class="industry-tag tag-fsi">FSI</span>
+              <span class="industry-tag tag-retail">Retail</span>
+              <span class="industry-tag tag-mfg">Manufacturing</span>
+              <span class="industry-tag tag-public">Public</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">7 / 8</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ SLIDE 8 — THANK YOU ═══════════ -->
+  <div class="slide thankyou-slide" data-slide="7">
+
+    <!-- Ambient glows -->
+    <div class="ty-glow ty-glow--1"></div>
+    <div class="ty-glow ty-glow--2"></div>
+    <div class="ty-glow ty-glow--3"></div>
+
+    <!-- Speed streaks -->
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+    <div class="speed-streak"></div>
+
+    <!-- Logos: GitHub + Microsoft -->
+    <div class="ty-logos">
+      <div class="ty-trail"></div>
+      <div class="ty-logo-github">
+        <svg viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z" />
+        </svg>
+      </div>
+      <div class="ty-logo-plus">&plus;</div>
+      <div class="ty-logo-ms">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="ty-content">
+      <h2>Thank You</h2>
+      <p>Let&rsquo;s reimagine software development together &mdash; one sprint at a time.</p>
+      <div class="ty-divider"></div>
+      <div class="ty-tagline">GitHub Copilot &nbsp;&bull;&nbsp; AI Activation Series</div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span class="slide-counter">8 / 8</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let current = 0;
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  const progress = document.getElementById('progress');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+
+  function update() {
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'exit-left');
+      if (i === current) s.classList.add('active');
+      else if (i < current) s.classList.add('exit-left');
+    });
+    progress.style.width = ((current + 1) / total * 100) + '%';
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current === total - 1;
+  }
+
+  function go(dir) {
+    const next = current + dir;
+    if (next < 0 || next >= total) return;
+    current = next;
+    update();
+  }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= total) return;
+    current = idx;
+    update();
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+  });
+
+  // Touch swipe
+  let touchX = 0;
+  document.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) go(diff > 0 ? 1 : -1);
+  });
+
+  // Fade keyboard hint
+  setTimeout(() => document.getElementById('keyHint')?.classList.add('fade'), 5000);
+
+  update();
+</script>
+
+</body>
+</html>
