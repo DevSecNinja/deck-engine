@@ -41,7 +41,8 @@ const PEN_MID = 0.50, PRU_MID = PRU_ENT
 // Enterprise breakeven: where Business + overage = Enterprise flat price
 // $19 + (PRU-300)×$0.04 = $39  →  PRU = 300 + ($39-$19)/$0.04 = 800
 function calcBreakeven(disc) {
-  return PRU_BIZ + (applyDiscount(PRICE_ENTERPRISE, disc) - applyDiscount(PRICE_BUSINESS, disc)) / PRU_OVERAGE_RATE
+  const discountedRate = PRU_OVERAGE_RATE * (1 - disc)
+  return PRU_BIZ + (applyDiscount(PRICE_ENTERPRISE, disc) - applyDiscount(PRICE_BUSINESS, disc)) / discountedRate
 }
 
 // Map value → chart %
@@ -447,7 +448,7 @@ export default function OpportunitySlideV2({ index = 4 }) {
                           </span>
                         )}
                         {c.current.plan === 'Business' && c.pru >= PRU_BREAKEVEN && (
-                          <span className={styles.revUpgradeHint}>↑ Enterprise saves ${((c.pru - PRU_BIZ) * PRU_OVERAGE_RATE - (applyDiscount(PRICE_ENTERPRISE, totalDiscount) - applyDiscount(PRICE_BUSINESS, totalDiscount))).toFixed(0)}/seat/mo</span>
+                          <span className={styles.revUpgradeHint}>↑ Enterprise saves ${((c.pru - PRU_BIZ) * PRU_OVERAGE_RATE * (1 - totalDiscount) - (applyDiscount(PRICE_ENTERPRISE, totalDiscount) - applyDiscount(PRICE_BUSINESS, totalDiscount))).toFixed(0)}/seat/mo</span>
                         )}
                       </div>
                       <div className={styles.revAmounts}>
