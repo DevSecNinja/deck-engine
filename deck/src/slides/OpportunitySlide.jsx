@@ -304,11 +304,11 @@ export default function OpportunitySlide() {
                       </td>
                       <td>{c.ghcp.toLocaleString()}<span className={styles.custSub}>/{c.ghe.toLocaleString()}</span></td>
                       <td><span className={`${styles.penBadge} ${pen >= 0.55 ? styles.penGood : styles.penWarn}`}>{fmtPct(pen)}</span></td>
-                      <td>{fmtK(cur)}</td>
-                      <td>{fmtK(base)}</td>
-                      <td className={styles.up}>{fmtK(con)}</td>
-                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtK(best)}</td>
-                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtK(str)}</td>
+                      <td>{fmtM(cur)}</td>
+                      <td>{fmtM(base)}</td>
+                      <td className={styles.up}>{fmtM(con)}</td>
+                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtM(best)}</td>
+                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtM(str)}</td>
                     </tr>
                   )
                 })}
@@ -316,11 +316,11 @@ export default function OpportunitySlide() {
                   <td><strong>TOTAL</strong></td>
                   <td><strong>{totalGHCP.toLocaleString()}</strong><span className={styles.custSub}>/{customers.reduce((a,c) => a + c.ghe, 0).toLocaleString()}</span></td>
                   <td><span className={`${styles.penBadge} ${styles.penWarn}`}>{fmtPct(avgPen)}</span></td>
-                  <td><strong>{perYear ? fmtM(s.yrBase) : fmtK(s.moBaseCurrent)}</strong></td>
-                  <td><strong>{perYear ? fmtM(s.yrBase80) : fmtK(s.moBase80)}</strong></td>
-                  <td className={styles.up}><strong>{perYear ? fmtM(s.yrConservative) : fmtK(s.moConservative)}</strong></td>
-                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrBestCase) : fmtK(s.moBestCase)}</strong></td>
-                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrStretch) : fmtK(s.moStretch)}</strong></td>
+                  <td><strong>{perYear ? fmtM(s.yrBase) : fmtM(s.moBaseCurrent)}</strong></td>
+                  <td><strong>{perYear ? fmtM(s.yrBase80) : fmtM(s.moBase80)}</strong></td>
+                  <td className={styles.up}><strong>{perYear ? fmtM(s.yrConservative) : fmtM(s.moConservative)}</strong></td>
+                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrBestCase) : fmtM(s.moBestCase)}</strong></td>
+                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrStretch) : fmtM(s.moStretch)}</strong></td>
                 </tr>
               </tbody>
             </table>
