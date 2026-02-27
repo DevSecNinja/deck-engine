@@ -309,6 +309,39 @@
 .impactTable tbody tr:hover { background: rgba(88,166,255,0.03); }
 
 /* ── Customer breakdown table ── */
+.custHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.custHeader .impactTitle { margin-bottom: 2px; }
+.periodToggle {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.periodToggle span {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 8px;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+.periodActive {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent) !important;
+}
+
 .customerTable th,
 .customerTable td {
   padding: 8px 10px;

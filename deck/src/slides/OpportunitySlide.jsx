@@ -39,6 +39,7 @@ const tgtPctLabel = Math.round(TARGET_PENETRATION * 100) + '%'
 export default function OpportunitySlide() {
   const [active, setActive] = useState('horizontal')
   const [acdEnabled, setAcdEnabled] = useState(false)
+  const [perYear, setPerYear] = useState(true)
 
   const totalDiscount = DISCOUNT + (acdEnabled ? ACD_RATE : 0)
   const s = useMemo(() => computeScenarios(totalDiscount), [totalDiscount])
@@ -255,8 +256,20 @@ export default function OpportunitySlide() {
 
           {/* ── Customer Breakdown ── */}
           <div className={styles.impactSection}>
-            <h4 className={styles.impactTitle}>Customer Expansion Summary</h4>
-            <p className={styles.impactDesc}>Per-account view — current state and expansion potential at {tgtPctLabel} penetration target</p>
+            <div className={styles.custHeader}>
+              <div>
+                <h4 className={styles.impactTitle}>Customer Expansion Summary</h4>
+                <p className={styles.impactDesc}>Per-account view — current state and expansion potential at {tgtPctLabel} penetration target</p>
+              </div>
+              <button
+                className={styles.periodToggle}
+                onClick={(e) => { e.stopPropagation(); setPerYear(v => !v) }}
+                title={perYear ? 'Switch to monthly' : 'Switch to yearly'}
+              >
+                <span className={!perYear ? styles.periodActive : ''}>Mo</span>
+                <span className={perYear ? styles.periodActive : ''}>Yr</span>
+              </button>
+            </div>
             <table className={`${styles.impactTable} ${styles.customerTable}`}>
               <thead>
                 <tr>
@@ -274,11 +287,12 @@ export default function OpportunitySlide() {
                 {customers.map(c => {
                   const pen = c.ghcp / c.ghe
                   const tgt = Math.round(c.ghe * TARGET_PENETRATION)
-                  const curYr = c.ghcp * bizPrice * 12
-                  const baseYr = tgt * bizPrice * 12
-                  const conYr = baseYr + tgt * PRU_OVERAGE_BIZ_PCT * PRU_OVERAGE_BIZ_EXTRA * pruRate * 12
-                  const bestYr = tgt * entPrice * 12
-                  const strYr = bestYr + tgt * PRU_OVERAGE_ENT_PCT * PRU_OVERAGE_ENT_EXTRA * pruRate * 12
+                  const mul = perYear ? 12 : 1
+                  const cur = c.ghcp * bizPrice * mul
+                  const base = tgt * bizPrice * mul
+                  const con = base + tgt * PRU_OVERAGE_BIZ_PCT * PRU_OVERAGE_BIZ_EXTRA * pruRate * mul
+                  const best = tgt * entPrice * mul
+                  const str = best + tgt * PRU_OVERAGE_ENT_PCT * PRU_OVERAGE_ENT_EXTRA * pruRate * mul
                   return (
                     <tr key={c.name}>
                       <td>
@@ -290,11 +304,11 @@ export default function OpportunitySlide() {
                       </td>
                       <td>{c.ghcp.toLocaleString()}<span className={styles.custSub}>/{c.ghe.toLocaleString()}</span></td>
                       <td><span className={`${styles.penBadge} ${pen >= 0.55 ? styles.penGood : styles.penWarn}`}>{fmtPct(pen)}</span></td>
-                      <td>{fmtK(curYr)}</td>
-                      <td>{fmtK(baseYr)}</td>
-                      <td className={styles.up}>{fmtK(conYr)}</td>
-                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtK(bestYr)}</td>
-                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtK(strYr)}</td>
+                      <td>{fmtK(cur)}</td>
+                      <td>{fmtK(base)}</td>
+                      <td className={styles.up}>{fmtK(con)}</td>
+                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtK(best)}</td>
+                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtK(str)}</td>
                     </tr>
                   )
                 })}
@@ -302,11 +316,11 @@ export default function OpportunitySlide() {
                   <td><strong>TOTAL</strong></td>
                   <td><strong>{totalGHCP.toLocaleString()}</strong><span className={styles.custSub}>/{customers.reduce((a,c) => a + c.ghe, 0).toLocaleString()}</span></td>
                   <td><span className={`${styles.penBadge} ${styles.penWarn}`}>{fmtPct(avgPen)}</span></td>
-                  <td><strong>{fmtM(s.yrBase)}</strong></td>
-                  <td><strong>{fmtM(s.yrBase80)}</strong></td>
-                  <td className={styles.up}><strong>{fmtM(s.yrConservative)}</strong></td>
-                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{fmtM(s.yrBestCase)}</strong></td>
-                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{fmtM(s.yrStretch)}</strong></td>
+                  <td><strong>{perYear ? fmtM(s.yrBase) : fmtK(s.moBaseCurrent)}</strong></td>
+                  <td><strong>{perYear ? fmtM(s.yrBase80) : fmtK(s.moBase80)}</strong></td>
+                  <td className={styles.up}><strong>{perYear ? fmtM(s.yrConservative) : fmtK(s.moConservative)}</strong></td>
+                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrBestCase) : fmtK(s.moBestCase)}</strong></td>
+                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrStretch) : fmtK(s.moStretch)}</strong></td>
                 </tr>
               </tbody>
             </table>
