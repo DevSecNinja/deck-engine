@@ -145,6 +145,7 @@ export function computeScenarios(disc) {
 // ── Formatters ──
 export const fmtK   = (v) => '$' + (v / 1000).toFixed(1) + 'K'
 export const fmtM   = (v) => '$' + (v / 1e6).toFixed(1) + 'M'
+export const fmtAuto = (v) => Math.abs(v) >= 1e6 ? fmtM(v) : fmtK(v)
 export const fmtUSD = (v) => '$' + Math.round(v).toLocaleString('en-US')
 export const fmtPct = (v) => Math.round(v * 100) + '%'
 

@@ -10,7 +10,7 @@ import {
   PRU_OVERAGE_ENT_PCT, PRU_OVERAGE_ENT_EXTRA,
   TARGET_PENETRATION,
   totalGHCP, targetSeats,
-  fmtK, fmtM, fmtPct, barPct, avgPen,
+  fmtK, fmtM, fmtAuto, fmtPct, barPct, avgPen,
   computeScenarios,
 } from '../data/opportunity'
 
@@ -304,11 +304,11 @@ export default function OpportunitySlide() {
                       </td>
                       <td>{c.ghcp.toLocaleString()}<span className={styles.custSub}>/{c.ghe.toLocaleString()}</span></td>
                       <td><span className={`${styles.penBadge} ${pen >= 0.55 ? styles.penGood : styles.penWarn}`}>{fmtPct(pen)}</span></td>
-                      <td>{fmtM(cur)}</td>
-                      <td>{fmtM(base)}</td>
-                      <td className={styles.up}>{fmtM(con)}</td>
-                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtM(best)}</td>
-                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtM(str)}</td>
+                      <td>{fmtAuto(cur)}</td>
+                      <td>{fmtAuto(base)}</td>
+                      <td className={styles.up}>{fmtAuto(con)}</td>
+                      <td style={{color: 'var(--green)', fontWeight: 600}}>{fmtAuto(best)}</td>
+                      <td style={{color: 'var(--purple)', fontWeight: 600}}>{fmtAuto(str)}</td>
                     </tr>
                   )
                 })}
@@ -316,11 +316,11 @@ export default function OpportunitySlide() {
                   <td><strong>TOTAL</strong></td>
                   <td><strong>{totalGHCP.toLocaleString()}</strong><span className={styles.custSub}>/{customers.reduce((a,c) => a + c.ghe, 0).toLocaleString()}</span></td>
                   <td><span className={`${styles.penBadge} ${styles.penWarn}`}>{fmtPct(avgPen)}</span></td>
-                  <td><strong>{perYear ? fmtM(s.yrBase) : fmtM(s.moBaseCurrent)}</strong></td>
-                  <td><strong>{perYear ? fmtM(s.yrBase80) : fmtM(s.moBase80)}</strong></td>
-                  <td className={styles.up}><strong>{perYear ? fmtM(s.yrConservative) : fmtM(s.moConservative)}</strong></td>
-                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrBestCase) : fmtM(s.moBestCase)}</strong></td>
-                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{perYear ? fmtM(s.yrStretch) : fmtM(s.moStretch)}</strong></td>
+                  <td><strong>{perYear ? fmtAuto(s.yrBase) : fmtAuto(s.moBaseCurrent)}</strong></td>
+                  <td><strong>{perYear ? fmtAuto(s.yrBase80) : fmtAuto(s.moBase80)}</strong></td>
+                  <td className={styles.up}><strong>{perYear ? fmtAuto(s.yrConservative) : fmtAuto(s.moConservative)}</strong></td>
+                  <td style={{color: 'var(--green)', fontWeight: 700}}><strong>{perYear ? fmtAuto(s.yrBestCase) : fmtAuto(s.moBestCase)}</strong></td>
+                  <td style={{color: 'var(--purple)', fontWeight: 700}}><strong>{perYear ? fmtAuto(s.yrStretch) : fmtAuto(s.moStretch)}</strong></td>
                 </tr>
               </tbody>
             </table>
