@@ -2,7 +2,7 @@ import { useSlides } from '../context/SlideContext'
 import styles from './Navigation.module.css'
 import { useState, useEffect } from 'react'
 
-const INTERNAL_PDF_URL = 'https://microsofteur-my.sharepoint.com/:b:/g/personal/leandrolopez_microsoft_com/IQDpJ-b0ZYXmS70YsLX0czeEAa0f7IrsLhRQ_gvF8NxLlsA?e=crsrXJ'
+const INTERNAL_PDF_URL = 'https://microsofteur-my.sharepoint.com/:b:/g/personal/leandrolopez_microsoft_com/IQD4hQcOGVG8SpoqAAiCau_wAdwtd4zs0WsF5_VPwcy5x1M?e=M40yuI'
 
 export default function Navigation() {
   const { current, totalSlides, go, goTo, selectedCustomer, project } = useSlides()
