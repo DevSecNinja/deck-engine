@@ -1,0 +1,108 @@
+.cover {
+  background: var(--bg-deep);
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0 44px 0;
+}
+
+/* ── Orbs ── */
+.orb1 {
+  width: 520px; height: 520px;
+  top: -120px; right: -80px;
+  background: radial-gradient(circle at 40% 40%, var(--accent), var(--blue-glow) 50%, transparent 70%);
+}
+.orb2 {
+  width: 380px; height: 380px;
+  bottom: -80px; right: 140px;
+  background: radial-gradient(circle at 50% 50%, var(--purple-deep), rgba(110,64,201,0.3) 60%, transparent 75%);
+}
+.orb3 {
+  width: 260px; height: 260px;
+  top: 60px; right: 280px;
+  background: radial-gradient(circle at 50% 50%, var(--cyan), rgba(86,212,221,0.15) 60%, transparent 75%);
+}
+
+.connectorSvg {
+  position: absolute;
+  top: 80px; right: 200px;
+  width: 300px; height: 300px;
+  opacity: 0.25;
+}
+
+/* ── Content ── */
+.content {
+  position: relative;
+  z-index: 10;
+  max-width: 700px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.content h1 {
+  font-size: clamp(48px, 5.5vw, 80px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -2.5px;
+  margin-bottom: 24px;
+}
+
+.highlight {
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: clamp(16px, 1.8vw, 20px);
+  font-weight: 300;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 48px;
+  max-width: 580px;
+}
+
+/* ── Meta strip ── */
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 28px;
+  background: rgba(22, 27, 34, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metaLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
+
+.metaValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.metaDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+}

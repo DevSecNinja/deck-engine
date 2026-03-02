@@ -1,1 +1,8 @@
 publish-profile.xml
+
+# Temporary screenshot captures for visual inspection
+.github/eyes/
+
+# Environment variables (API keys)
+.env
+.env.local

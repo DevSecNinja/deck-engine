@@ -9,11 +9,15 @@
     "prebuild": "node scripts/sync-dashboard.mjs",
     "dev": "vite",
     "build": "vite build",
+    "build:ghcp": "cross-env VITE_PROJECT=ghcp vite build",
+    "build:dev-plan": "cross-env VITE_PROJECT=dev-plan vite build",
+    "build:devex-keynote": "cross-env VITE_PROJECT=devex-keynote vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "export:pdf": "node scripts/export-pdf.mjs",
     "export:internal": "node scripts/export-pdf.mjs --internal --from 2 --to 10",
-    "export:customer": "node scripts/export-pdf.mjs --customer --from 12 --to 19"
+    "export:customer": "node scripts/export-pdf.mjs --customer --from 12 --to 19",
+    "export:dev-plan": "node scripts/export-pdf.mjs --project dev-plan"
   },
   "dependencies": {
     "react": "^19.1.0",

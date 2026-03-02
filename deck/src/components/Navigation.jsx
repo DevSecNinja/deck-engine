@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 const INTERNAL_PDF_URL = 'https://microsofteur-my.sharepoint.com/:b:/g/personal/leandrolopez_microsoft_com/IQDpJ-b0ZYXmS70YsLX0czeEAa0f7IrsLhRQ_gvF8NxLlsA?e=crsrXJ'
 
 export default function Navigation() {
-  const { current, totalSlides, go, goTo, selectedCustomer } = useSlides()
+  const { current, totalSlides, go, goTo, selectedCustomer, project } = useSlides()
   const [hintVisible, setHintVisible] = useState(true)
 
   useEffect(() => {
@@ -15,22 +15,31 @@ export default function Navigation() {
 
   const progress = ((current + 1) / totalSlides) * 100
 
-  // Determine which deck we're in
-  const isInternal = current >= 1 && current <= 9
-  const isCustomer = current >= 11 && current <= 18
-  const showPdfLink = isInternal || isCustomer
+  // ── PDF link logic per project ──
+  let showPdfLink = false
+  let pdfUrl = null
+  let pdfLabel = 'Deck PDF'
 
-  const pdfUrl = isInternal
-    ? INTERNAL_PDF_URL
-    : selectedCustomer
-      ? `/exports/${selectedCustomer.name.toLowerCase()}-slides.pdf`
-      : null
-
-  const pdfLabel = isInternal
-    ? 'Internal deck PDF'
-    : selectedCustomer
-      ? `${selectedCustomer.name} deck PDF`
-      : 'Deck PDF'
+  if (project === 'ghcp') {
+    const isInternal = current >= 1 && current <= 9
+    const isCustomerSlide = current >= 11 && current <= 18
+    showPdfLink = isInternal || isCustomerSlide
+    pdfUrl = isInternal
+      ? INTERNAL_PDF_URL
+      : selectedCustomer
+        ? `/exports/${selectedCustomer.name.toLowerCase()}-slides.pdf`
+        : null
+    pdfLabel = isInternal
+      ? 'Internal deck PDF'
+      : selectedCustomer
+        ? `${selectedCustomer.name} deck PDF`
+        : 'Deck PDF'
+  } else if (project) {
+    // For any other project (dev-plan, etc.) always show the link
+    showPdfLink = true
+    pdfUrl = `/exports/${project}-slides.pdf`
+    pdfLabel = `${project} deck PDF`
+  }
 
   return (
     <>

@@ -17,6 +17,14 @@ const projects = [
     icon: '🌱',
     accent: 'var(--green)',
   },
+  {
+    id: 'devex-keynote',
+    title: 'DevEx Keynote',
+    subtitle: 'Developer Experience',
+    description: 'Keynote presentation on developer experience strategy, tooling & culture.',
+    icon: '🎤',
+    accent: 'var(--green)',
+  },
 ]
 
 export default function ProjectPicker() {

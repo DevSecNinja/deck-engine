@@ -1,9 +1,9 @@
 import styles from './BottomBar.module.css'
 
-export default function BottomBar() {
+export default function BottomBar({ text }) {
   return (
     <div className={styles.bar}>
-      <span>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</span>
+      <span>{text || <>GitHub Copilot &nbsp;&middot;&nbsp; Reimagine Software Development</>}</span>
     </div>
   )
 }

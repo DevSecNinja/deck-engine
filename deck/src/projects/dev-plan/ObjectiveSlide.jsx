@@ -9,8 +9,9 @@ const pillars = [
     accent: 'var(--purple)',
     items: [
       { text: 'Learn the soft skills needed to be a Solution Engineer', highlight: true },
-      { text: 'Reverse-shadow experienced SEs → simulation exercises' },
+      { text: 'Reverse-shadowed by experienced SEs & SSPs → simulation exercises' },
       { text: 'Shadow experienced SEs → real customer work' },
+      { text: 'Brand Building — establish presence and credibility in the field' },
     ],
   },
   {
@@ -18,9 +19,9 @@ const pillars = [
     title: 'Hard Skills',
     accent: 'var(--accent)',
     items: [
-      { text: 'Fundamental technical skills for the role', highlight: true },
-      { text: 'Skills of tomorrow — AI, Agentic Engineering, platform thinking' },
-      { text: 'Industry certifications & credentials' },
+      { text: 'Core Infrastructure & Solutions Architecture', highlight: true },
+      { text: 'Container Platforms & Cloud Native' },
+      { text: 'Modern AI Engineering Practices with GitHub Copilot' },
     ],
   },
   {
@@ -30,13 +31,14 @@ const pillars = [
     items: [
       { text: 'Navigate a complex organization with confidence', highlight: true },
       { text: 'Create a safe and empowering environment for growth' },
+      { text: 'Manager-owned: build a safe, functional ecosystem within the pod and account teams' },
     ],
   },
 ]
 
 export default function ObjectiveSlide() {
   return (
-    <Slide index={0} className={styles.slide}>
+    <Slide index={1} className={styles.slide}>
       <div className="accent-bar" />
       <div className={`${styles.content} content-frame content-gutter`}>
         <h1 className={styles.title}>Objective</h1>
@@ -60,7 +62,7 @@ export default function ObjectiveSlide() {
           ))}
         </div>
       </div>
-      <BottomBar />
+      <BottomBar text="Aspire Development Plan · Dilruba Turan" />
     </Slide>
   )
 }

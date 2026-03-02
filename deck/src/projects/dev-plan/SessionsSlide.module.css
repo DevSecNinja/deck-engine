@@ -1,0 +1,133 @@
+.slide {
+  background: var(--bg-deep);
+  flex-direction: column;
+  padding: 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: clamp(36px, 4vw, 52px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 36px;
+  max-width: 680px;
+  line-height: 1.55;
+}
+
+/* ── Cards row ── */
+.cards {
+  display: flex;
+  gap: 24px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--session-color);
+  opacity: 0.8;
+}
+
+.card:hover {
+  border-color: var(--session-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* Icon */
+.iconWrap {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.cardTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--session-color);
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+
+.tagline {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+.skills {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skills li {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+
+.skills li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--session-color);
+  opacity: 0.5;
+}

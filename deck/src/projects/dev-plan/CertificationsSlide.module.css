@@ -1,0 +1,137 @@
+.slide {
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0 44px 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.heading {
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+}
+
+/* ── Cards grid ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 3px solid transparent;
+  transition: border-color 0.2s;
+}
+
+/* Color accents */
+.blue  { border-top-color: var(--accent); }
+.purple { border-top-color: var(--purple); }
+.cyan  { border-top-color: #326CE5; }
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logoWrap {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.logoWrap svg {
+  width: 100%;
+  height: 100%;
+}
+
+.badgeCode {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+
+.provider {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.certTitle {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.credential {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.skillList {
+  list-style: none;
+  padding: 0;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.skillList li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  padding-left: 14px;
+  position: relative;
+}
+
+.skillList li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+}
+
+/* Color-coded bullets per card */
+.blue .skillList li::before { color: var(--accent); }
+.purple .skillList li::before { color: var(--purple); }
+.cyan .skillList li::before { color: #326CE5; }

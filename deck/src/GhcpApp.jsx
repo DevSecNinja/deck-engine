@@ -22,7 +22,7 @@ const TOTAL = 20
 
 export default function GhcpApp() {
   return (
-    <SlideProvider totalSlides={TOTAL}>
+    <SlideProvider totalSlides={TOTAL} project="ghcp">
       <Navigation />
       <div className="deck">
         <SelectorSlide />

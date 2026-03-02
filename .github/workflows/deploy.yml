@@ -3,6 +3,17 @@ name: Deploy to Azure App Service
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to deploy (ghcp, dev-plan, devex-keynote)'
+        required: false
+        default: 'ghcp'
+        type: choice
+        options:
+          - ghcp
+          - dev-plan
+          - devex-keynote
 
 permissions:
   id-token: write
@@ -23,6 +34,8 @@ jobs:
 
       - name: Install & Build
         working-directory: deck
+        env:
+          VITE_PROJECT: ${{ github.event.inputs.project || 'ghcp' }}
         run: |
           npm ci
           npm run build

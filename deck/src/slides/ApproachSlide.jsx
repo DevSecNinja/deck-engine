@@ -55,7 +55,7 @@ export default function ApproachSlide({ index = 6 }) {
               </div>
               <ul className={styles.bulletList}>
                 <li>Customer champion opens &amp; provides internal context</li>
-                <li><strong>Demo-led sessions</strong> — hands-on Agentic Engineering skills showing how GitHub &amp; Microsoft engineers build with AI</li>
+                <li><strong>Demo-led sessions</strong> — hands-on Agentic Engineering skills showing how GitHub &amp; Microsoft engineers build with AI and how to use latest features</li>
                 <li><strong>Live expert panel</strong> — GitHub &amp; Microsoft engineers join the chat alongside the presenter to answer questions and clear doubts in real time</li>
               </ul>
             </div>
@@ -106,7 +106,7 @@ export default function ApproachSlide({ index = 6 }) {
                   <div className={styles.agendaBar} style={{background: 'var(--green)'}} />
                   <div className={styles.agendaContent}>
                     <h4>Customer Engineer Demo</h4>
-                    <p>Create opportunity for customer engineers to share best practices &amp; skills</p>
+                    <p>Create opportunity for customer engineers to share best practices &amp; skills and create FOMO</p>
                     <span className={styles.agendaSpeaker}>Customer</span>
                   </div>
                 </div>

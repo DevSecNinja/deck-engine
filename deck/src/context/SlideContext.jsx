@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 
 const SlideContext = createContext()
 
-export function SlideProvider({ children, totalSlides }) {
+export function SlideProvider({ children, totalSlides, project }) {
   const [current, setCurrent] = useState(0)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
 
@@ -45,7 +45,7 @@ export function SlideProvider({ children, totalSlides }) {
   }, [go])
 
   return (
-    <SlideContext.Provider value={{ current, totalSlides, go, goTo, selectedCustomer, setSelectedCustomer }}>
+    <SlideContext.Provider value={{ current, totalSlides, go, goTo, selectedCustomer, setSelectedCustomer, project }}>
       {children}
     </SlideContext.Provider>
   )
