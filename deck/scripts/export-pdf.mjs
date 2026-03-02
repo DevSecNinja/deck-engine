@@ -40,7 +40,9 @@ const CUSTOMER_NAME = getStringArg('customer-name', null)
 const PROJECT = getStringArg('project', null)
 const isCustomer = flag('customer')
 const outFile = PROJECT
-  ? `${PROJECT}-slides.pdf`
+  ? (CUSTOMER_NAME
+    ? `${CUSTOMER_NAME.toLowerCase()}-slides.pdf`
+    : `${PROJECT}-slides.pdf`)
   : isCustomer
     ? `${(CUSTOMER_NAME || 'customer').toLowerCase()}-slides.pdf`
     : flag('internal') ? 'internal-slides.pdf' : 'slides.pdf'
@@ -178,6 +180,28 @@ async function exportProjectPDF() {
   await sleep(1500) // let CSS transitions & fonts settle
 
   await hideNav(page)
+
+  // Customer selection within project mode
+  if (CUSTOMER_NAME) {
+    console.log(`👤 Selecting customer: ${CUSTOMER_NAME}`)
+    const clicked = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find(b => b.textContent.includes('Customer Facing'))
+      if (btn) { btn.click(); return true }
+      return false
+    })
+    if (!clicked) { console.error('❌ "Customer Facing" button not found'); await browser.close(); await server.close(); process.exit(1) }
+    await sleep(800)
+
+    const picked = await page.evaluate(name => {
+      const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim().includes(name))
+      if (btn) { btn.click(); return true }
+      return false
+    }, CUSTOMER_NAME)
+    if (!picked) { console.error(`❌ Customer "${CUSTOMER_NAME}" not found`); await browser.close(); await server.close(); process.exit(1) }
+    await sleep(1000)
+    console.log('✅ Customer selected')
+    await hideNav(page)
+  }
 
   const totalSlides = await page.evaluate(() => document.querySelectorAll('.slide').length)
   const fromIdx = FROM ? FROM - 1 : 0
