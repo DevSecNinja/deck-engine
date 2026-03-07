@@ -1,10 +1,10 @@
-name: Publish Canvas Engine
+name: Publish Deck Engine
 
 on:
   push:
     branches: [main]
     paths:
-      - 'packages/canvas-engine/**'
+      - 'packages/deck-engine/**'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/canvas-engine
+        working-directory: packages/deck-engine
     steps:
       - uses: actions/checkout@v4
 

@@ -1,8 +1,7 @@
 {
-  "name": "canvas-workspace",
+  "name": "deck-engine",
   "private": true,
   "workspaces": [
-    "packages/*",
-    "deck"
+    "packages/*"
   ]
 }
