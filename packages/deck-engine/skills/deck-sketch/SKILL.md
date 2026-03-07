@@ -1,4 +1,3 @@
-````skill
 ---
 name: deck-sketch
 description: Sketch a slide on Whiteboard, capture the sketch, and use it as inspiration to create a new slide. Use this when the user wants to draw, sketch, or wireframe a slide before building it.
@@ -90,5 +89,3 @@ Compare the rendered slide against the original sketch. If the user is present, 
 - Whiteboard sketches are rough — interpret intent, not exact pixels.
 - If text is hard to read, ask the user to clarify.
 - Screenshots are saved under `.github/eyes/` (gitignored) with a `sketch-` prefix.
-
-````

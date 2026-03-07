@@ -1,4 +1,3 @@
-````skill
 ---
 name: deck-validate-project
 description: Validate and audit a deck project for correctness. Use this when asked to validate, audit, polish, review, check, or verify slides.
@@ -79,5 +78,3 @@ Summarize findings:
 - [ ] BottomBar text is consistent across the project
 - [ ] CSS root classes have required properties
 - [ ] Project metadata (id, title, subtitle, icon, accent) is present
-
-````

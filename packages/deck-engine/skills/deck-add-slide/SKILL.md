@@ -1,4 +1,3 @@
-````skill
 ---
 name: deck-add-slide
 description: Guide for adding a new slide to a deck project. Use this when asked to create, add, or build a new slide component.
@@ -216,5 +215,3 @@ export default {
 - [ ] Import added to `deck.config.js`
 - [ ] Component added to `slides` array at correct position
 - [ ] `BottomBar text` matches project convention
-
-````

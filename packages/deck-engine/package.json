@@ -1,6 +1,6 @@
 {
   "name": "@lopezleandro03/deck-engine",
-  "version": "1.6.0",
+  "version": "1.7.3",
   "type": "module",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
@@ -27,7 +27,8 @@
     "slides",
     "styles",
     "scripts",
-    "skills"
+    "skills",
+    "instructions"
   ],
   "sideEffects": [
     "**/*.css"

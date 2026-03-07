@@ -1,4 +1,3 @@
-````skill
 ---
 name: deck-delete-slide
 description: Guide for removing a slide from a deck project. Use this when asked to delete, remove, or drop a slide.
@@ -50,5 +49,3 @@ The dev server hot-reloads automatically. Navigate through all slides and confir
 - [ ] Deleted slide `.jsx` and `.module.css` files
 - [ ] No orphaned references to the deleted slide
 - [ ] No console errors, all slides navigable
-
-````

@@ -1,4 +1,3 @@
-````skill
 ---
 name: deck-generate-image
 description: Generate images (icons, illustrations, diagrams) using chatgpt-image-latest for use in slide components. Use this when a slide needs a visual element too complex for pure HTML/CSS.
@@ -84,5 +83,3 @@ For simple icons, write SVG markup directly in JSX:
 ```
 
 Prefer inline SVG for geometric shapes. Use image generation for complex illustrations.
-
-````

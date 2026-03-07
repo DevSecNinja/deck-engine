@@ -11,7 +11,7 @@
  *
  * Idempotent — safe to re-run. Updates skills, preserves state.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, copyFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, copyFileSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -50,10 +50,13 @@ function copySkills() {
   const destSkills = join(projectRoot, '.github', 'skills')
   let count = 0
 
+  // Collect engine skill names to detect stale skills
+  const engineSkillNames = new Set()
   for (const entry of readdirSync(srcSkills, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
     const skillFile = join(srcSkills, entry.name, 'SKILL.md')
     if (!existsSync(skillFile)) continue
+    engineSkillNames.add(entry.name)
 
     const destDir = join(destSkills, entry.name)
     mkdirSync(destDir, { recursive: true })
@@ -61,7 +64,64 @@ function copySkills() {
     count++
   }
 
+  // Remove stale skills no longer in the engine
+  if (existsSync(destSkills)) {
+    for (const entry of readdirSync(destSkills, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      if (!engineSkillNames.has(entry.name)) {
+        rmSync(join(destSkills, entry.name), { recursive: true, force: true })
+        console.log(`   Removed stale skill: ${entry.name}`)
+      }
+    }
+  }
+
   return count
+}
+
+// ── Copy instructions ──
+
+function copyInstructions() {
+  const srcInstructions = join(engineRoot, 'instructions')
+  if (!existsSync(srcInstructions)) {
+    console.warn('⚠️  No instructions directory in engine package')
+    return 0
+  }
+
+  const destInstructions = join(projectRoot, '.github', 'instructions')
+  mkdirSync(destInstructions, { recursive: true })
+  let count = 0
+
+  // Collect engine instruction names to detect stale instructions
+  const engineInstrNames = new Set()
+  for (const entry of readdirSync(srcInstructions, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.instructions.md')) continue
+    engineInstrNames.add(entry.name)
+    copyFileSync(
+      join(srcInstructions, entry.name),
+      join(destInstructions, entry.name)
+    )
+    count++
+  }
+
+  // Remove stale instructions no longer in the engine
+  for (const entry of readdirSync(destInstructions, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.instructions.md')) continue
+    if (!engineInstrNames.has(entry.name)) {
+      rmSync(join(destInstructions, entry.name), { force: true })
+      console.log(`   Removed stale instruction: ${entry.name}`)
+    }
+  }
+
+  return count
+}
+
+// ── Copy AGENTS.md ──
+
+function copyAgentsMd() {
+  const src = join(engineRoot, 'instructions', 'AGENTS.md')
+  if (!existsSync(src)) return false
+  copyFileSync(src, join(projectRoot, 'AGENTS.md'))
+  return true
 }
 
 // ── Bootstrap state.md ──
@@ -115,6 +175,12 @@ console.log(`\n🎯 Initializing deck project: ${meta.title} (${meta.id})`)
 
 const skillCount = copySkills()
 console.log(`   Copied ${skillCount} Copilot skills to .github/skills/`)
+
+const instrCount = copyInstructions()
+console.log(`   Copied ${instrCount} Copilot instructions to .github/instructions/`)
+
+const agentsCopied = copyAgentsMd()
+if (agentsCopied) console.log('   Copied AGENTS.md to project root')
 
 bootstrapState(meta)
 createEyesDir()
