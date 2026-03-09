@@ -59,6 +59,8 @@ jobs:
       - name: Publish package to npm
         if: steps.check.outputs.exists == 'false'
         working-directory: ${{ matrix.package.path }}
-        run: npm publish --access public --provenance
+        run: |
+          npm config delete //registry.npmjs.org/:_authToken
+          npm publish --access public --provenance
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
