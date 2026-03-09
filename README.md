@@ -1,6 +1,17 @@
-# Built with [Deckio](https://deckio.art)
+# [Deckio](https://deckio.art)
 
-## How to edit this deck?
+## Get started
+
+Create a new Deckio project with the scaffolder:
+
+```bash
+npm create @deckio/deck-project cool-deck
+npx @deckio/create-deck-project cool-deck
+```
+
+This gives you a new Deckio presentation project powered by `@deckio/deck-engine`, with the base deck structure, Copilot instructions, and skills already in place.
+
+## How to work on Deckio?
 
 For a smooth ride, use `Dev Containers` locally or use `GitHub Codespaces`. That saves you from installing dependencies yourself. Once the container is up and running, the presentation starts in a simple browser session shared with GitHub Copilot and you can start editing.
 
