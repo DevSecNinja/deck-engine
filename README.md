@@ -102,6 +102,14 @@ Publishing is version-based. The workflow checks npm first and only publishes a 
 
 GitHub repository secrets required:
 
-- `NPM_TOKEN`: an npm automation token with publish access for the `@deckio` scope on `https://registry.npmjs.org`
+- None
 
-After adding `NPM_TOKEN` to the repository secrets, rerun the publish workflow or push the next version bump and GitHub Actions will publish both packages to npm.
+This workflow is set up for npm trusted publishing via GitHub Actions OIDC instead of an `NPM_TOKEN`.
+
+One-time npm setup required outside GitHub:
+
+- Configure npm trusted publishing for `@deckio/deck-engine`
+- Configure npm trusted publishing for `@deckio/create-deck-project`
+- Point both packages at this repository and the `.github/workflows/publish-engine.yml` workflow on the `main` branch
+
+Once trusted publishing is configured in npm, merges to `main` can publish new package versions without storing npm credentials in GitHub.

@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -60,5 +61,4 @@ jobs:
         working-directory: ${{ matrix.package.path }}
         run: npm publish --access public --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PUPPETEER_SKIP_DOWNLOAD: 'true'
