@@ -59,8 +59,7 @@ jobs:
       - name: Publish package to npm
         if: steps.check.outputs.exists == 'false'
         working-directory: ${{ matrix.package.path }}
-        run: |
-          sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG"
-          npm publish --access public --provenance
+        run: npm publish --access public --provenance
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PUPPETEER_SKIP_DOWNLOAD: 'true'
