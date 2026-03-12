@@ -1,4 +1,4 @@
-# @deckio/create-deck-project
+# 🐙 @deckio/create-deck-project
 
 Scaffold a new Deckio presentation project powered by `@deckio/deck-engine`.
 

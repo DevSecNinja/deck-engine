@@ -1,4 +1,4 @@
-# [Deckio](https://deckio.art)
+# 🐙 [Deckio](https://deckio.art)
 
 ## Get started
 
@@ -89,5 +89,5 @@ Before opening a PR:
 - update docs when behavior or developer workflow changes
 - include tests or validation steps when they are relevant
 
-Whether you are reporting issues, improving docs, or sending code, thank you for helping make Deckio better.
+Whether you are reporting issues, improving docs, or sending code, thank you for helping make Deckio better. 🐙
 
