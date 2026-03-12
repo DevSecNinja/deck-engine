@@ -36,7 +36,8 @@
   ],
   "dependencies": {
     "jspdf": "^3.0.3",
-    "modern-screenshot": "^4.6.8"
+    "modern-screenshot": "^4.6.8",
+    "pptxgenjs": "^3.12.0"
   },
   "peerDependencies": {
     "react": "^19.1.0",

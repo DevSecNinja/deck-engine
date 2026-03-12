@@ -2,6 +2,7 @@ import { useSlides } from '../context/SlideContext'
 import styles from './Navigation.module.css'
 import { useState, useEffect, useRef } from 'react'
 import { exportDeckPdf } from './exportDeckPdf.js'
+import { exportDeckPptx } from './exportDeckPptx.js'
 
 function resolveProp(value, context) {
   return typeof value === 'function' ? value(context) : value
@@ -13,6 +14,8 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   const [idle, setIdle] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [exportStatus, setExportStatus] = useState('PDF')
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef(null)
   const timerRef = useRef(null)
 
   useEffect(() => {
@@ -36,19 +39,34 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
     }
   }, [])
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    if (!exportMenuOpen) return
+    const handleClickOutside = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setExportMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [exportMenuOpen])
+
   const progress = ((current + 1) / totalSlides) * 100
   const navigationState = { current, totalSlides, selectedCustomer, project }
   const resolvedPdfPath = resolveProp(pdfPath, navigationState)
   const resolvedPdfLabel = resolveProp(pdfLabel, navigationState) || 'Deck PDF'
 
-  async function handleExportClick() {
-    if (resolvedPdfPath || isExporting) return
-
+  async function handleExport(format) {
+    if (isExporting) return
+    setExportMenuOpen(false)
     setIsExporting(true)
     setExportStatus('Preparing')
 
+    const exportFn = format === 'pptx' ? exportDeckPptx : exportDeckPdf
+    const label = format === 'pptx' ? 'PPTX' : 'PDF'
+
     try {
-      await exportDeckPdf({
+      await exportFn({
         current,
         goTo,
         project,
@@ -60,7 +78,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
       })
       setExportStatus('Done')
     } catch (error) {
-      console.error('PDF export failed', error)
+      console.error(`${label} export failed`, error)
       setExportStatus('Error')
     } finally {
       window.setTimeout(() => {
@@ -89,41 +107,63 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
         </button>
       )}
 
-      {resolvedPdfPath ? (
-        <a
-          className={styles.exportBtn}
-          href={resolvedPdfPath}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={resolvedPdfLabel}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          <span className={styles.exportLabel}>PDF</span>
-        </a>
-      ) : (
-        <button
-          className={`${styles.exportBtn} ${isExporting ? styles.exportBtnBusy : ''}`}
-          type="button"
-          onClick={handleExportClick}
-          disabled={isExporting}
-          title={isExporting ? 'Preparing deck PDF' : resolvedPdfLabel}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <path d="M12 12v6" />
-            <path d="M9 15l3 3 3-3" />
-            <path d="M8 10h8" />
-          </svg>
-          <span className={styles.exportLabel}>{isExporting ? exportStatus : '⬇ PDF'}</span>
-        </button>
-      )}
+      <div className={styles.exportGroup} ref={exportMenuRef}>
+        {resolvedPdfPath ? (
+          <a
+            className={styles.exportBtn}
+            href={resolvedPdfPath}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={resolvedPdfLabel}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <span className={styles.exportLabel}>PDF</span>
+          </a>
+        ) : (
+          <button
+            className={`${styles.exportBtn} ${isExporting ? styles.exportBtnBusy : ''}`}
+            type="button"
+            onClick={() => isExporting ? null : setExportMenuOpen(!exportMenuOpen)}
+            disabled={isExporting}
+            title={isExporting ? 'Exporting...' : 'Export deck'}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M12 12v6" />
+              <path d="M9 15l3 3 3-3" />
+              <path d="M8 10h8" />
+            </svg>
+            <span className={styles.exportLabel}>{isExporting ? exportStatus : '⬇'}</span>
+          </button>
+        )}
+
+        {exportMenuOpen && !isExporting && (
+          <div className={styles.exportMenu}>
+            <button className={styles.exportMenuItem} onClick={() => handleExport('pdf')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              PDF
+            </button>
+            <button className={styles.exportMenuItem} onClick={() => handleExport('pptx')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <path d="M8 21h8" />
+                <path d="M12 17v4" />
+              </svg>
+              PowerPoint
+            </button>
+          </div>
+        )}
+      </div>
 
       <button
         className={`${styles.navBtn} ${styles.prev}`}

@@ -6,10 +6,13 @@
  *   npm create @deckio/deck-project my-talk
  *   npx @deckio/create-deck-project my-talk
  */
-import { mkdirSync, writeFileSync } from 'fs'
-import { join, resolve } from 'path'
+import { mkdirSync, writeFileSync, copyFileSync } from 'fs'
+import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
 import { createInterface } from 'readline'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 function ask(rl, question, fallback) {
   return new Promise((res) => {
@@ -73,7 +76,7 @@ const INDEX_HTML = `\
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐙</text></svg>" />
+    <link rel="icon" type="image/png" href="/deckio.png" />
     <title>Deck</title>
   </head>
   <body>
@@ -443,6 +446,10 @@ async function main() {
   write(dir, 'AGENTS.md', agentsMd())
   write(dir, 'README.md', README())
   write(dir, '.gitignore', 'node_modules\ndist\n.vite\n')
+
+  // Copy deckio.png to public/ for favicon and branding
+  mkdirSync(join(dir, 'public'), { recursive: true })
+  copyFileSync(join(__dirname, 'deckio.png'), join(dir, 'public', 'deckio.png'))
 
   console.log('  📁 Project scaffolded!')
   console.log()
