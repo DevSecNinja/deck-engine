@@ -13,6 +13,8 @@ How to decide who handles what.
 | Visual audits, screenshot verification, CSS inspection | Virgil 🔒 | Playwright screenshots, visual regression, design token compliance, release gating |
 | Code review, architecture, scope | Rusty 🏗️ | Review PRs, architecture decisions, scope trade-offs |
 | Scope & priorities | Rusty 🏗️ | What to build next, trade-offs, decisions |
+| Theme descriptors, skill contracts, AI authoring procedures | Rusty 🏗️ | Descriptor architecture, theme-aware skills, squad memory / decision hygiene |
+| Scaffolder pipeline, asset sync, onboarding flow | Basher 🔧 | `copyEngineAssets()`, `@clack/prompts`, package exports, generated project bootstrap |
 | Async issue work (bugs, tests, small features) | @copilot 🤖 | Well-defined tasks matching capability profile |
 | Session logging | Scribe | Automatic — never needs routing |
 

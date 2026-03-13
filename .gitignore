@@ -7,6 +7,8 @@ tmpclaude-*
 
 # Temporary screenshot captures for visual inspection
 .github/eyes/
+test-screenshots/
+*.png
 
 # Environment variables (API keys)
 .env

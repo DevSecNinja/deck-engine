@@ -5,154 +5,117 @@ description: Validate and audit a deck project for correctness. Use this when as
 
 # Validate & Audit a Deck Project
 
-## Step 0 — Read `deck.config.js` → check `designSystem`
+## Step 0 — Read `deck.config.js`
 
-Open `deck.config.js` and read the `designSystem` field:
+Open `deck.config.js` and read:
 
-- **`designSystem: 'shadcn'`** → use the **shadcn validation rules** below.
-- **Any other value or field missing** → use the **default validation rules** below.
+- `theme`
+- `designSystem`
+- `slides`
 
-This determines which slide patterns are correct for this project.
+Then resolve the active theme descriptor using the same rules as `deck-add-slide`:
 
----
+- Built-ins: read `dark.md`, `light.md`, or `shadcn.md` from the engine package descriptors folder
+- Custom themes: read the project's custom `descriptor.md` or `*.descriptor.md`
+- If no custom descriptor exists, fall back to the built-in descriptor implied by `designSystem`
+
+Use the descriptor as the source of truth for required structure, required tokens, allowed components, decorative elements, and anti-patterns.
 
 ## Step 1: Audit `deck.config.js`
 
-Open `deck.config.js` and verify:
+Verify:
 
-### 1a. All imports resolve
+1. Every imported slide resolves to an existing file in `src/slides/`
+2. Every imported slide appears in the `slides` array
+3. There are no unused imports or undefined slide entries
+4. `slides` is non-empty
+5. `theme` and `designSystem` were not changed accidentally during unrelated work
 
-For each slide import at the top of the file, verify the target file exists in `src/slides/`.
+## Step 2: Validate slide structure against the descriptor
 
-### 1b. `slides` array matches imports
+For each slide `.jsx` file in `src/slides/`, check:
 
-- Every imported slide appears in the `slides` array.
-- No unused imports.
-- No undefined entries in the array.
-
----
-
-## Step 2: Verify slide structure
-
-For each slide `.jsx` file in `src/slides/`, verify:
-
-### Common checks (all design systems)
+### Common checks (all themes)
 
 - [ ] Imports `{ Slide, BottomBar }` from `'@deckio/deck-engine'`
-- [ ] Wrapped in `<Slide index={index} className={styles.xxx}>`
-- [ ] Content is inside a wrapper that includes `content-frame content-gutter`
-- [ ] `<BottomBar />` is the last child inside `<Slide>`
-- [ ] `BottomBar text` is consistent across slides
+- [ ] Uses `<Slide index={index} className={styles.xxx}>`
+- [ ] Uses a wrapper that includes `content-frame content-gutter`
+- [ ] Places `<BottomBar />` as the last child inside `<Slide>`
+- [ ] Uses consistent `BottomBar text` across slides
 
-### Default design system — additional checks
+### Descriptor-driven checks
 
-- [ ] Contains `<div className="accent-bar" />` as the first child
-- [ ] Contains at least one decorative orb (`<div className="orb ...">`)
-- [ ] Does **NOT** import from `'@/components/ui/'`
+Read the descriptor and verify the slide matches:
 
-### shadcn design system — additional checks
+- its **Exact JSX skeleton**
+- its **Decorative elements available** section
+- its **Available components** section
+- its **Anti-patterns** section
 
-- [ ] **NEVER** contains `<div className="accent-bar" />`
-- [ ] **NEVER** contains orb elements (`className="orb"` or `className={\`orb ...`)
-- [ ] **NEVER** references `var(--bg-deep)`, `var(--surface)`, `var(--text)`, or `var(--text-muted)`
-- [ ] If the slide imports UI components beyond deck-engine primitives, those imports come from `'@/components/ui/'`
+Examples:
 
-### CSS validation — default design system
+- If the descriptor requires `accent-bar` and orbs, those must be present
+- If the descriptor forbids `accent-bar`, `orb`, or deep-space ornament, they must be absent
+- If the descriptor allows shadcn / ReactBits imports, imports must stay inside that ecosystem
 
-For each `.module.css` file, verify the root class has:
+## Step 3: Validate CSS against the descriptor
 
-- [ ] `background: var(--background)` or `background: var(--slide-bg)`
-- [ ] `padding: 0 0 44px 0`
+For each `.module.css` file, check:
+
+### Common checks (all themes)
+
+- [ ] Root class includes `padding: 0 0 44px 0`
 - [ ] No `flex: 1` on the body wrapper
 - [ ] No redundant `flex-direction: column` on the slide root
-- [ ] Uses current semantic tokens such as `--background`, `--secondary`, `--foreground`, `--muted-foreground`
+- [ ] No obvious overflow-causing patterns
 
-### CSS validation — shadcn design system
+### Descriptor-driven checks
 
-For each `.module.css` file, verify the root class has:
+Read the descriptor and verify the CSS matches:
 
-- [ ] `background: color-mix(in oklch, var(--background) 85%, transparent)` or `background: var(--background)` — **NEVER** `var(--bg-deep)`
-- [ ] `padding: 0 0 44px 0`
-- [ ] No `flex: 1` on the body wrapper
-- [ ] No `--bg-deep`, `--surface`, `--text`, or `--text-muted`
-- [ ] No orb positioning classes (`.orb1`, `.orb2`, etc.)
-- [ ] Cards use `var(--card)` and `var(--border)` — **NEVER** gradient `::before` bars
+- its **Exact CSS skeleton**
+- its **Token table**
+- its **Anti-patterns**
 
----
+Examples:
 
-## Step 3: Check companion files
+- If the descriptor requires `var(--background)`, `var(--card)`, `var(--border)`, or other semantic tokens, use those exact names
+- If the descriptor forbids `var(--bg-deep)`, `var(--surface)`, `var(--text)`, or `var(--text-muted)`, flag them
+- If the descriptor forbids orb positioning classes or card `::before` bars, flag them
 
-- Every `.jsx` slide in `src/slides/` should have a matching `.module.css` file.
-- No orphaned `.module.css` files without a matching `.jsx`.
+## Step 4: Check companion files
 
----
+- Every `.jsx` slide in `src/slides/` should have a matching `.module.css`
+- No orphaned `.module.css` files without a matching `.jsx`
 
-## Step 4: Verify metadata
+## Step 5: Validate theme/design-system alignment
 
-Check `deck.config.js` exports these fields:
+Check whether the project configuration and descriptor agree:
 
-- [ ] `id` — string
-- [ ] `title` — display name
-- [ ] `subtitle` — tagline
-- [ ] `icon` — emoji
-- [ ] `accent` — CSS color value
-- [ ] `slides` — non-empty array
-
-### Additional shadcn metadata
-
-- [ ] `designSystem: 'shadcn'` is present
-- [ ] `theme` field is present and left unchanged unless the task explicitly changes theme
-
-> `theme` and `designSystem` are separate axes. Do **not** require `theme: 'shadcn'` just because `designSystem` is `'shadcn'`.
-
----
-
-## Step 5: Design-system consistency check
-
-### For shadcn projects, flag these as **design-system mismatches**
-
-| Finding | Severity | Fix |
-|---------|----------|-----|
-| Slide uses `accent-bar` class | 🔴 Error | Remove the `<div className="accent-bar" />` |
-| Slide uses `orb` class | 🔴 Error | Remove all orb `<div>` elements |
-| CSS uses `var(--bg-deep)` | 🔴 Error | Replace with `color-mix(in oklch, var(--background) 85%, transparent)` or `var(--background)` |
-| CSS uses `var(--surface)` | 🔴 Error | Replace with `var(--card)` or `var(--secondary)` |
-| CSS uses `var(--text)` | 🔴 Error | Replace with `var(--foreground)` |
-| CSS uses `var(--text-muted)` | 🔴 Error | Replace with `var(--muted-foreground)` |
-| Card has gradient `::before` bar | 🔴 Error | Remove it — shadcn cards use clean borders |
-| Heavy deep-space glow/orb decoration visible | 🔴 Error | Remove the default DECKIO decoration and use shadcn structure |
-
-### For default projects, flag these as **design-system mismatches**
-
-| Finding | Severity | Fix |
-|---------|----------|-----|
-| Slide missing `accent-bar` | 🔴 Error | Add `<div className="accent-bar" />` as first child |
-| Slide missing orbs | 🟡 Warning | Add 2–4 orb decorative elements |
-| Slide imports from `'@/components/ui/'` | 🔴 Error | Default projects do not use shadcn-only imports |
-| Card uses clean shadcn card styling with no DECKIO decoration | 🟡 Warning | Restore the default visual language if the deck uses it elsewhere |
-
----
+- If `designSystem === 'shadcn'`, the project should visually and structurally follow the shadcn descriptor rules
+- If `designSystem` is not `'shadcn'`, the project should follow a default DECKIO descriptor such as dark or light
+- If the descriptor and `designSystem` disagree, report an **architecture mismatch** even if individual slides render
 
 ## Step 6: Report results
 
-Summarize findings:
+Summarize:
 
-- Design system detected: **default** or **shadcn**
+- Active theme detected
+- Design system detected
+- Descriptor used
 - Number of slides validated
-- Design-system mismatches found (if any)
+- Descriptor mismatches found
 - Any issues found and fixed
 - Overall project health: **pass** or **issues found**
 
----
-
 ## Quick checklist
 
-- [ ] Read `designSystem` from `deck.config.js`
-- [ ] All imports in `deck.config.js` resolve to existing files
+- [ ] Read `theme` and `designSystem`
+- [ ] Read the active descriptor
+- [ ] All `deck.config.js` imports resolve
 - [ ] `slides` array matches imports
 - [ ] Every `.jsx` slide has a companion `.module.css`
-- [ ] All slides have `content-frame content-gutter` and `BottomBar`
-- [ ] Slides match the project's design system
-- [ ] `BottomBar` text is consistent across the project
-- [ ] CSS root classes have required properties and no `flex: 1` on the body wrapper
-- [ ] Project metadata is present
+- [ ] All slides match the descriptor and the design system
+- [ ] `BottomBar` is present and consistent
+- [ ] CSS root classes have required properties
+- [ ] No descriptor anti-patterns slipped in

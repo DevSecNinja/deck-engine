@@ -61,31 +61,38 @@ Write-Host "Sketch saved: $file"
 
 Reference the saved screenshot image. Study it carefully and identify:
 
-- **Layout structure** — columns/rows, content zones, header/footer areas.
-- **Text elements** — headings, labels, bullet points, callouts.
-- **Visual elements** — boxes, icons, images, dividers, backgrounds.
-- **Data patterns** — tables, grids, lists, charts, metrics.
+- **Layout structure** — columns/rows, content zones, header/footer areas
+- **Text elements** — headings, labels, bullet points, callouts
+- **Visual elements** — boxes, icons, images, dividers, backgrounds
+- **Data patterns** — tables, grids, lists, charts, metrics
 
 Describe what you see back to the user and confirm your interpretation.
 
-### Step 4 — Create the slide
+### Step 4 — Build the slide with the active descriptor
 
-Use the **deck-add-slide** skill to build the slide, guided by the sketch:
+Before creating code:
 
-1. Map sketch regions to CSS Grid or Flexbox layout.
-2. Translate hand-drawn text into real content with proper typography.
-3. Replace rough shapes with styled `<div>` containers using CSS Modules.
-4. Follow all deck-add-slide conventions (accent-bar, content-frame, BottomBar, imports from `@deckio/deck-engine`).
-5. Register the slide in `deck.config.js`.
+1. Read `deck.config.js`
+2. Read `theme` and `designSystem`
+3. Resolve the active theme descriptor using the same rules as `deck-add-slide`
+4. Use **deck-add-slide** plus that descriptor to build the real slide
+
+While translating the sketch:
+
+1. Map sketch regions to CSS Grid or Flexbox layout
+2. Translate hand-drawn text into real content with proper typography
+3. Replace rough shapes with styled containers using CSS Modules
+4. Follow the active descriptor for JSX skeleton, CSS skeleton, decoration, tokens, and allowed components
+5. Register the slide in `deck.config.js`
 
 ### Step 5 — Visual verification
 
-After creating the slide, use **deck-eyes** to capture a screenshot of the rendered result.
+After creating the slide, use **deck-inspect** to capture a screenshot of the rendered result.
 
 Compare the rendered slide against the original sketch. If the user is present, show both and ask if adjustments are needed.
 
 ## Notes
 
-- Whiteboard sketches are rough — interpret intent, not exact pixels.
-- If text is hard to read, ask the user to clarify.
-- Screenshots are saved under `.github/eyes/` (gitignored) with a `sketch-` prefix.
+- Whiteboard sketches are rough — interpret intent, not exact pixels
+- If text is hard to read, ask the user to clarify
+- Screenshots are saved under `.github/eyes/` (gitignored) with a `sketch-` prefix

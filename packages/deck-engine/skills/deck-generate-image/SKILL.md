@@ -31,17 +31,34 @@ OPENAI_API_KEY=sk-proj-...
 
 ## Workflow
 
-### Step 1 — Craft the prompt
+### Step 1 — Read the active theme descriptor
+
+Open `deck.config.js`, read `theme` and `designSystem`, then resolve the active theme descriptor using the same rules as `deck-add-slide`.
+
+Use the descriptor as the source of truth for:
+
+- palette and semantic token intent
+- overall image style
+- what decorative language belongs in the project
+- what to avoid so the image does not fight the slide system
+
+### Step 2 — Craft the prompt
 
 Write a detailed prompt including:
 
-- **Subject** — what the image depicts.
-- **Style** — flat icon, line art, illustration, isometric, etc.
-- **Colors** — match the design system: `#0d1117` (bg-deep), `#58a6ff` (accent), `#3fb950` (green), `#bc8cff` (purple).
-- **Background** — almost always "transparent background".
-- **Aspect ratio** — square (1024x1024) for icons, wide (1536x1024) for banners.
+- **Subject** — what the image depicts
+- **Style** — match the descriptor's slide personality and example direction
+- **Colors** — derive from the descriptor's token table and visual language instead of hardcoded hex values
+- **Background** — usually "transparent background"
+- **Aspect ratio** — square (`1024x1024`) for icons, wide (`1536x1024`) for banners
 
-### Step 2 — Generate
+Examples:
+
+- Dark descriptor → deep, high-contrast accents, presentation-friendly glow restraint
+- Light descriptor → brighter, cleaner palette with subtle contrast and restrained glow
+- shadcn descriptor → clean editorial/system aesthetic with semantic surfaces and no deep-space ornament
+
+### Step 3 — Generate
 
 Run from the project root:
 
@@ -60,7 +77,7 @@ node node_modules/@deckio/deck-engine/scripts/generate-image.mjs --prompt "..." 
 
 Images are saved to `src/data/generated/`.
 
-### Step 3 — Use in a slide
+### Step 4 — Use in a slide
 
 ```jsx
 import myIcon from '../data/generated/my-icon.png'
@@ -68,9 +85,9 @@ import myIcon from '../data/generated/my-icon.png'
 <img src={myIcon} alt="Bridge icon" style={{ width: 120, height: 120 }} />
 ```
 
-### Step 4 — Iterate
+### Step 5 — Iterate
 
-If the image doesn't match expectations, refine the prompt and re-run with the same `--name` to overwrite. Use **deck-eyes** to verify how it looks in the slide.
+If the image doesn't match expectations, refine the prompt and re-run with the same `--name` to overwrite. Use **deck-inspect** to verify how it looks in the slide.
 
 ## SVG alternative
 
@@ -78,7 +95,7 @@ For simple icons, write SVG markup directly in JSX:
 
 ```jsx
 <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-  <circle cx="24" cy="24" r="20" stroke="#58a6ff" strokeWidth="2" />
+  <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="2" />
 </svg>
 ```
 

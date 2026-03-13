@@ -107,7 +107,54 @@ Phase 2 will include a pluggable theme system with 3 initial themes (current dar
 
 ---
 
-### THEME-002: SlideContext Theme Integration
+### THEME-002: Theme Descriptor Architecture
+**Author:** Rusty | **Date:** 2026-03-15 | **Status:** Implemented
+
+1. **Theme authoring is descriptor-driven** — built-in themes no longer rely on hardcoded prose inside every skill. Each theme ships a dedicated authoring contract at `packages/deck-engine/themes/descriptors/<theme>.md`.
+2. **Built-in descriptors are first-class package assets** — `dark.md`, `light.md`, and `shadcn.md` live beside the theme CSS and are exported from `@deckio/deck-engine` for downstream decks and tools.
+3. **New themes scale without skill edits** — adding a theme means adding its CSS plus a descriptor file. Custom/on-demand themes can ship their own local descriptor and plug into the same workflow.
+4. **`designSystem` remains the safety rail, not the source of visual truth** — skills resolve the descriptor from `theme`, then use `designSystem` only to cross-check for structural mismatches.
+
+**Key files:**
+- `packages/deck-engine/themes/descriptors/dark.md`
+- `packages/deck-engine/themes/descriptors/light.md`
+- `packages/deck-engine/themes/descriptors/shadcn.md`
+
+---
+
+### SKILL-001: Theme-Aware Skills
+**Author:** Rusty | **Date:** 2026-03-15 | **Status:** Implemented
+
+1. **Skills now start from project config** — Step 0 reads `deck.config.js`, captures `theme` and `designSystem`, and resolves the active descriptor before any slide work begins.
+2. **Descriptor rules replaced hardcoded theme sections** — the old Section A–D / Section S split is gone. Skills follow the resolved descriptor exactly for JSX skeletons, CSS skeletons, tokens, components, and anti-patterns.
+3. **The whole authoring toolchain was updated** — `deck-add-slide`, `deck-validate-project`, `deck-inspect`, `deck-sketch`, and `deck-generate-image` all use the same descriptor-resolution procedure.
+4. **Skills are written for AI coding CLIs** — they are executable behavioral procedures with explicit steps and guardrails, not human-oriented narrative docs.
+
+**Key files:**
+- `packages/deck-engine/skills/deck-add-slide/SKILL.md`
+- `packages/deck-engine/skills/deck-validate-project/SKILL.md`
+- `packages/deck-engine/skills/deck-inspect/SKILL.md`
+- `packages/deck-engine/skills/deck-sketch/SKILL.md`
+- `packages/deck-engine/skills/deck-generate-image/SKILL.md`
+
+---
+
+### SCAFFOLD-001: Scaffolder Copies Engine Assets
+**Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
+
+1. **`copyEngineAssets(dir)` runs before npm install** — the scaffolder copies skills, instructions, and `AGENTS.md` into the generated deck before dependency installation starts.
+2. **The copy step is resilient to install failures** — Copilot assets remain available even if `npm install` fails, while `init-project.mjs` still re-syncs stateful project files after install.
+3. **Descriptor files are reachable from generated decks** — built-in descriptors resolve through the local `node_modules/@deckio/deck-engine/themes/descriptors/*` path, including `file:` protocol symlink installs.
+4. **The engine package explicitly exports descriptors** — `package.json` includes `"./themes/descriptors/*"` so tools can read them without private path hacks.
+
+**Key files:**
+- `packages/create-deckio/index.mjs` — `copyEngineAssets()`
+- `packages/deck-engine/package.json` — descriptor export
+- `packages/deck-engine/scripts/init-project.mjs` — post-install sync
+
+---
+
+### THEME-003: SlideContext Theme Integration
 **Author:** Livingston | **Date:** 2026-03-14 | **Status:** Implemented
 
 1. **`SlideProvider` accepts `theme` prop** — passed to context, sets initial theme state.
@@ -122,21 +169,18 @@ Phase 2 will include a pluggable theme system with 3 initial themes (current dar
 
 ---
 
----
+### BUILD-001: Browser/Node Boundary
+**Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
 
-### CLI-001: Version Bump + Export Map Fix for Tailwind Plugin
-**Author:** Basher | **Date:** 2026-03-14 | **Status:** Implemented
-
-1. **Engine version bumped `1.8.2` → `1.9.0`** — the theme/tailwind work from THEME-001 was never reflected in a version bump, so downstream `npm install` fetched old v1.8.2 without `tailwindPlugin`. Next publish must use this version or higher.
-2. **Exports map includes both `./vite` and `./vite.js`** — Vite's resolver sometimes appends `.js` to the specifier. Both paths now resolve to `vite.js`.
-3. **Scaffolder dep updated `^1.8.2` → `^1.9.0`** — ensures scaffolded projects pull the version that has tailwind/theme support.
-4. **Default accent color changed `#3fb950` → `#6366f1`** — indigo-500 is more modern, works well across all three themes. Previous GitHub green was too brand-specific.
-5. **CLI uses ANSI colors, no external dependencies** — decided against `gum` (charmbracelet) to avoid requiring a separate binary install. Pure ANSI escape codes via a `fmt` helper in `index.mjs`. Keeps the scaffolder zero-dependency.
+1. **`@deckio/deck-engine` browser entry stays browser-safe** — `packages/deck-engine/index.js` exports runtime React components only and no longer pulls in modules that transitively require Node.js builtins.
+2. **Node-only theme resolution lives behind `vite.js`** — `resolveTheme()`, `getAvailableThemes()`, and filesystem-backed theme loading stay in `packages/deck-engine/vite.js` and `themes/theme-loader.js`, not the browser entry.
+3. **Exports map enforces the split** — `.` resolves to `index.js` for browser consumers, while `./vite` and `./vite.js` expose the Node-side integration point explicitly.
+4. **This fixed production build crashes** — dev mode could mask the mistake, but Rollup production builds broke when browser bundles touched `fs`/`path` code.
 
 **Key files:**
-- `packages/deck-engine/package.json` — version + exports map
-- `packages/create-deckio/utils.mjs` — scaffolded dep version
-- `packages/create-deckio/index.mjs` — CLI prompts, colors, swatch preview
+- `packages/deck-engine/index.js` — browser-safe exports
+- `packages/deck-engine/vite.js` — Node-only theme helpers
+- `packages/deck-engine/package.json` — exports map boundary
 
 ---
 
@@ -160,18 +204,38 @@ Every feature must go through a verification loop before being declared done. No
 
 ---
 
-### CLI-002: TUI Overhaul + Color Presets + ReactBits Registry
-**Author:** Basher | **Date:** 2026-03-14 | **Status:** Implemented
+### CLI-001: CLI TUI Overhaul
+**Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
 
-1. **@clack/prompts replaces readline** — first runtime dependency of create-deckio. Provides `intro()`, `text()`, `select()`, `confirm()`, `spinner()`, `outro()`. Handles Ctrl+C gracefully via `isCancel()`. Non-interactive mode (env vars + piped stdin) preserved.
-2. **Color presets replace raw hex input** — 8 curated colors (Indigo, Emerald, Rose, Amber, Cyan, Violet, Orange, Blue) as `clack.select()` with true-color ANSI swatches. "Custom hex" option with validation for freeform input. Default: Indigo (#6366f1). `COLOR_PRESETS` exported from `utils.mjs` for testability.
-3. **ReactBits registry in components.json** — `registries: { "@react-bits": "https://reactbits.dev/r/{name}.json" }` enables `npx shadcn add @react-bits/animated-content` in shadcn-enabled projects. Zero architecture change — uses shadcn's built-in registry protocol.
-4. **`spinner()` wraps npm install** — replaces `stdio: 'inherit'` with `stdio: 'pipe'` + spinner animation. Cleaner output, same error handling.
+1. **`@clack/prompts` replaced the old readline flow** — the scaffolder now uses a proper TUI with `intro()`, `text()`, `select()`, `spinner()`, and `outro()`, plus graceful Ctrl+C handling.
+2. **Prompt flow is hierarchical** — interactive onboarding now asks for design system first, then appearance, then the right color control for that path (accent presets for default decks, Aurora palette for shadcn decks).
+3. **Default-system color choice uses curated swatches** — 8 preset accent colors render with ANSI swatches, plus a validated custom-hex escape hatch.
+4. **Appearance is chosen at scaffold time** — there is no runtime ModeToggle in generated decks. The scaffolded `ThemeProvider` only applies the selected dark/light appearance.
+5. **Non-interactive mode follows the same model** — `DECK_DESIGN_SYSTEM`, `DECK_APPEARANCE`, `DECK_ACCENT`, and `DECK_AURORA_PALETTE` mirror the interactive flow.
 
 **Key files:**
-- `packages/create-deckio/package.json` — added `@clack/prompts` dependency
-- `packages/create-deckio/index.mjs` — full TUI rewrite
-- `packages/create-deckio/utils.mjs` — `COLOR_PRESETS` export, `registries` in `componentsJson()`
+- `packages/create-deckio/package.json` — `@clack/prompts`
+- `packages/create-deckio/index.mjs` — prompt tree + install spinner
+- `packages/create-deckio/utils.mjs` — preset exports and scaffolded app wiring
+
+---
+
+### REACTBITS-001: ReactBits Integration
+**Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
+
+1. **Generated shadcn decks ship real ReactBits source** — Aurora, BlurText, ShinyText, DecryptedText, and SpotlightCard are scaffolded from verified local source files instead of hand-rolled imitations.
+2. **Aurora is part of the app shell, not a single slide** — `App.jsx` renders the Aurora background once in a fixed global layer so it persists across navigation instead of only appearing on the cover.
+3. **Starter slides exercise the curated component set** — the default shadcn slides use BlurText, ShinyText, DecryptedText, and SpotlightCard so fresh projects immediately demonstrate the intended ecosystem.
+4. **shadcn onboarding includes curated Aurora palettes** — Ocean, Sunset, Forest, Nebula, Arctic, and Minimal are the supported palette choices, and the scaffold derives the accent from the selected palette.
+5. **The ReactBits registry remains available for expansion** — generated `components.json` keeps `@react-bits` configured so users can pull in more components later with the shadcn CLI.
+
+**Key files:**
+- `packages/create-deckio/templates/react-bits/aurora.jsx`
+- `packages/create-deckio/templates/react-bits/blur-text.jsx`
+- `packages/create-deckio/templates/react-bits/shiny-text.jsx`
+- `packages/create-deckio/templates/react-bits/decrypted-text.jsx`
+- `packages/create-deckio/templates/react-bits/spotlight-card.jsx`
+- `packages/create-deckio/utils.mjs`
 
 ---
 
@@ -192,12 +256,12 @@ Every feature must go through a verification loop before being declared done. No
 **Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
 
 1. **`designSystem` is separate from `theme`** — `theme` controls visual appearance; `designSystem` controls component library infrastructure. You can have `theme: "shadcn"` with `designSystem: "none"` (just the look) or `designSystem: "shadcn"` (the full component system).
-2. **CLI flow is lean** — only asks about shadcn components when `theme: "shadcn"` is selected. Dark/light users see no extra prompts. Default is Yes when asked.
+2. **CLI flow chooses design system first** — the scaffolder asks for design system, then appearance, then writes the shadcn-specific files only when the shadcn path is selected.
 3. **Pre-generated files, not `npx shadcn init`** — generates `components.json`, `src/lib/utils.js`, `jsconfig.json`, and the Vite `@` alias. Running `npx shadcn init` is interactive and fragile; pre-generation is faster and deterministic.
 4. **`jsconfig.json` is required** — shadcn CLI fails without it. Needs the `@/*` path mapping to resolve `@/lib/utils` and `@/components/ui/*`.
 5. **`tsx: false`, `rsc: false`** — DECKIO uses JSX (not TypeScript) and has no React Server Components. shadcn CLI generates `.jsx` accordingly.
 6. **ReactBits registry in `components.json`** — `registries: { "@react-bits": "https://reactbits.dev/r/{name}.json" }` enables `npx shadcn add @react-bits/animated-content` in shadcn-enabled projects.
-7. **Non-interactive mode** — reads `DECK_DESIGN_SYSTEM` env var. When `theme: "shadcn"` and no env var set, defaults to `"shadcn"` design system.
+7. **Non-interactive mode mirrors the interactive flow** — `DECK_DESIGN_SYSTEM` and `DECK_APPEARANCE` drive the shadcn path without needing interactive prompts.
 8. **`VITE_CONFIG` replaced with `viteConfig()` function** — needed to conditionally include the `resolve.alias` block based on `designSystem`.
 
 **Key files:**
@@ -232,11 +296,11 @@ ReactBits (reactbits.dev) should be included as a complementary animation and co
 ### SLIDES-001: shadcn-Specific Starter Slide Templates
 **Author:** Saul + Livingston | **Date:** 2026-03-15 | **Status:** Implemented
 
-1. **`designSystem` drives template selection** — when `designSystem: "shadcn"`, the scaffolder emits distinct CoverSlide and ThankYouSlide templates. Dark/light themes use the original orb/glow aesthetic unchanged.
+1. **`designSystem` drives template selection** — when `designSystem: "shadcn"`, the scaffolder emits a four-slide starter deck (`CoverSlide`, `FeaturesSlide`, `GettingStartedSlide`, `ThankYouSlide`). Dark/light themes keep the original two-slide orb/glow starter.
 2. **shadcn CoverSlide removes orbs entirely** — no gradient orbs, no accent-bar. Replaced with a pill badge (pulsing dot + project slug), shimmer accent line, gradient-shift title, and clean card-style meta bar. All CSS uses semantic tokens (`--background`, `--foreground`, `--card`, `--border`, `--radius`, `--muted-foreground`, `--secondary`).
 3. **shadcn ThankYouSlide is a local file** — dark/light themes reuse the engine's `GenericThankYouSlide` (with glows/streaks). shadcn generates a local `ThankYouSlide.jsx` + `.module.css` with animated gradient text, clean divider, no orbs/streaks. `deckConfig()` imports accordingly.
-4. **ReactBits as inspiration, not dependency** — animations (gradient-shift, shimmer, pulse) are pure CSS, inspired by ReactBits' style. Each generated file includes a comment teaching users how to install ReactBits components (`// 💡 Add animated components: npx shadcn add @react-bits/animated-content`). Starter slides work without any ReactBits installation.
-5. **New exports from `utils.mjs`** — `coverSlideJsxShadcn()`, `COVER_SLIDE_CSS_SHADCN`, `thankYouSlideJsxShadcn()`, `THANK_YOU_SLIDE_CSS_SHADCN`. All testable as pure functions.
+4. **Starter slides use real ReactBits components** — generated shadcn decks scaffold actual `BlurText`, `ShinyText`, `DecryptedText`, and `SpotlightCard` source files locally, then import them directly in the starter slides. No network fetch is required at runtime.
+5. **New exports from `utils.mjs`** — `coverSlideJsxShadcn()`, `featuresSlideJsxShadcn()`, `gettingStartedSlideJsxShadcn()`, `thankYouSlideJsxShadcn()` plus their CSS constants. All stay testable as pure functions.
 
 **Key files:**
 - `packages/create-deckio/utils.mjs` — shadcn template functions + CSS constants
@@ -244,22 +308,44 @@ ReactBits (reactbits.dev) should be included as a complementary animation and co
 
 ---
 
-### DARK-001: Dark/Light Mode for shadcn Design System
+### DARK-001: Scaffold-Time Appearance Selection for shadcn
 **Author:** Basher | **Date:** 2026-03-15 | **Status:** Implemented
 
-1. **Only for `designSystem: "shadcn"`** — dark/light single-mode themes don't get ThemeProvider or ModeToggle. They're already committed to one visual mode.
-2. **Uses shadcn's official Vite pattern** — `.dark` class on `<html>` element toggles CSS variable overrides. No runtime CSS file switching needed.
-3. **Two-layer architecture** — `data-theme="shadcn"` (from SlideProvider) is the theme identity; `.dark` class is the mode within that theme. They're orthogonal and don't conflict.
-4. **ThemeProvider and ModeToggle are scaffolded files, not engine exports** — they live in the generated project at `src/components/`. This keeps the engine lean and avoids a browser/Node boundary issue with localStorage.
-5. **Default mode is light** — `<ThemeProvider defaultTheme="light">`. Users can toggle to dark or system mode via the ModeToggle button.
-6. **ModeToggle is unobtrusive** — fixed-position bottom-right, low opacity, inline SVG icons. No external icon library dependency.
-7. **localStorage persistence** — mode survives page reloads via `deckio-ui-theme` key. System mode tracks `prefers-color-scheme`.
-8. **`APP_JSX` constant replaced with `appJsx()` function** — now conditional on `designSystem`. Non-shadcn projects get the same output as before (no ThemeProvider/ModeToggle).
+1. **Only shadcn decks get appearance selection** — default DECKIO themes stay single-mode CSS themes, while shadcn decks choose `dark` or `light` during scaffolding.
+2. **Generated projects still use the standard shadcn class pattern** — `ThemeProvider` applies `.dark` / `.light` classes on `<html>` so the same semantic tokens can drive both appearances.
+3. **There is no runtime toggle UI** — `ModeToggle` was intentionally removed. Appearance is set when the deck is scaffolded, not changed live during presentations.
+4. **`appJsx()` wires the chosen appearance into the scaffold** — the provider seeds the selected default theme, while non-shadcn projects still render without `ThemeProvider`.
 
 **Key files:**
-- `packages/deck-engine/themes/shadcn.css` — `:root` (light) + `.dark` (dark) token blocks
-- `packages/create-deckio/utils.mjs` — `themeProviderJsx()`, `modeToggleJsx()`, `appJsx()`
-- `packages/create-deckio/index.mjs` — writes theme-provider.jsx, mode-toggle.jsx, conditional App.jsx
+- `packages/create-deckio/utils.mjs` — `themeProviderJsx()` and `appJsx()`
+- `packages/create-deckio/index.mjs` — appearance prompt + scaffolded file generation
+
+---
+
+### 2026-03-13T13:50:00Z: User Directive — Use Ecosystem Components First
+**By:** Ali Soliman (via Copilot) | **Date:** 2026-03-13 | **Status:** Active
+
+1. **Use existing ecosystem components whenever they fit** — prefer ReactBits, shadcn, and other established libraries over custom rebuilds.
+2. **Do not reinvent integrated primitives** — shipping a homegrown substitute for something ReactBits/shadcn already provides is a product mistake, not craftsmanship.
+3. **Custom implementations are the fallback path** — only build from scratch when the ecosystem genuinely does not cover the need.
+
+---
+
+### 2026-03-15T11:30:00Z: User Directive — No Runtime Dark/Light Toggle
+**By:** Ali Soliman (via Copilot) | **Date:** 2026-03-15 | **Status:** Active
+
+1. **Appearance is chosen at scaffold time** — generated decks should start in the selected appearance and stay there.
+2. **`ModeToggle` is intentionally absent** — this is a design decision, not a bug or unfinished feature.
+3. **Dark/light variation belongs in onboarding and config** — not in presentation-time chrome.
+
+---
+
+### 2026-03-15T12:00:00Z: User Directive — Skills Are for AI Coding CLIs
+**By:** Ali Soliman (via Copilot) | **Date:** 2026-03-15 | **Status:** Active
+
+1. **Skills are operational procedures for AI coding agents** — they must tell the agent exactly what to read, how to resolve the descriptor, and what rules to follow.
+2. **Human-friendly essays are insufficient** — every skill needs explicit behavior, exact skeletons, and guardrails that an AI CLI can execute reliably.
+3. **Future skill work should optimize for agent consumption first** — wording, structure, and examples should reduce ambiguity for autonomous coding tools.
 
 ---
 

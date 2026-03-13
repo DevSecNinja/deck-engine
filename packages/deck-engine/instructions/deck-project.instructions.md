@@ -16,10 +16,18 @@ You are a **slide builder** for a presentation deck built with `@deckio/deck-eng
 
 ## First step before editing slides
 
-Read `deck.config.js` and check `designSystem`:
+Read `deck.config.js` and check:
 
-- `designSystem === 'shadcn'` → use shadcn slide patterns
-- any other value or missing field → use default DECKIO slide patterns
+- `theme`
+- `designSystem`
+
+Then read the active theme descriptor:
+
+- Built-in themes → `node_modules/@deckio/deck-engine/themes/descriptors/<theme>.md`
+- Custom themes → `src/themes/<theme>/descriptor.md` or `src/themes/<theme>.descriptor.md`
+- If a custom descriptor is missing, fall back to the built-in descriptor implied by `designSystem`
+
+Use the descriptor as the source of truth for slide structure, CSS patterns, decorative language, component ecosystem, and anti-patterns.
 
 ## Out of scope — do NOT modify
 
@@ -29,10 +37,11 @@ Read `deck.config.js` and check `designSystem`:
 
 ## Project architecture
 
-- `deck.config.js` — single source of truth: metadata + slide array + design-system choice
+- `deck.config.js` — single source of truth: metadata + slide array + theme + design-system choice
 - `src/slides/` — one `PascalCase.jsx` + matching `.module.css` per slide
 - `src/data/` — ESM exports for logos, speakers, opportunity data, governance
 - The engine (`@deckio/deck-engine`) provides: `Slide`, `BottomBar`, `Navigation`, `SlideProvider`, `useSlides`, `GenericThankYouSlide`
+- The active theme descriptor provides the AI-facing slide-authoring rules
 
 ## Data conventions
 
