@@ -8,6 +8,7 @@
   },
   "files": [
     "index.mjs",
+    "utils.mjs",
     "deckio.png"
   ],
   "keywords": [
@@ -19,6 +20,9 @@
   ],
   "author": "Leandro Lopez",
   "license": "MIT",
+  "scripts": {
+    "test": "npx vitest run"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
@@ -27,5 +31,8 @@
     "type": "git",
     "url": "https://github.com/deckio-art/deck-engine.git",
     "directory": "packages/create-deckio"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0"
   }
 }

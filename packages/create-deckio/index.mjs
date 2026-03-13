@@ -9,36 +9,19 @@
 import { mkdirSync, writeFileSync, copyFileSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
-import { createInterface } from 'readline'
 import { fileURLToPath } from 'url'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef } from './utils.mjs'
+import * as clack from '@clack/prompts'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS } from './utils.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ANSI formatting helpers for terminal output
-const fmt = {
-  bold: (s) => `\x1b[1m${s}\x1b[22m`,
-  dim: (s) => `\x1b[2m${s}\x1b[22m`,
-  cyan: (s) => `\x1b[36m${s}\x1b[39m`,
-  green: (s) => `\x1b[32m${s}\x1b[39m`,
-  yellow: (s) => `\x1b[33m${s}\x1b[39m`,
-  gray: (s) => `\x1b[90m${s}\x1b[39m`,
-  swatch: (hex) => {
-    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return ''
-    const r = parseInt(hex.slice(1, 3), 16)
-    const g = parseInt(hex.slice(3, 5), 16)
-    const b = parseInt(hex.slice(5, 7), 16)
-    return `\x1b[48;2;${r};${g};${b}m      \x1b[0m`
-  },
-}
-
-function ask(rl, question, fallback) {
-  return new Promise((res) => {
-    const prompt = `  ${fmt.cyan('›')} ${fmt.bold(question)} ${fallback ? fmt.dim(`(${fallback})`) + ' ' : ''}`
-    rl.question(prompt, (answer) => {
-      res(answer.trim() || fallback || '')
-    })
-  })
+/** True-color ANSI swatch block for a hex color */
+function swatch(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return ''
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `\x1b[48;2;${r};${g};${b}m  \x1b[0m`
 }
 
 function write(dir, relPath, content) {
@@ -46,22 +29,6 @@ function write(dir, relPath, content) {
   mkdirSync(join(full, '..'), { recursive: true })
   writeFileSync(full, content)
 }
-
-const VITE_CONFIG = `\
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { deckPlugin, tailwindPlugin } from '@deckio/deck-engine/vite'
-
-export default defineConfig({
-  plugins: [
-    react({
-      include: [/\\.[jt]sx?$/, /node_modules\\/@deckio\\/deck-engine\\/.+\\.jsx$/],
-    }),
-    deckPlugin(),
-    tailwindPlugin(),
-  ],
-})
-`
 
 const INDEX_HTML = `\
 <!doctype html>
@@ -281,9 +248,30 @@ Create and maintain slide-based presentations. Each project is a self-contained 
 `
 }
 
-const README = () => `\
-# Built with [DECKIO](https://deckio.art)
+const README = (designSystem = 'none') => {
+  const shadcnSection = designSystem === 'shadcn' ? `
+## shadcn/ui Components
 
+This project is set up with [shadcn/ui](https://ui.shadcn.com). Add components with:
+
+\`\`\`bash
+npx shadcn@latest add button
+npx shadcn@latest add card
+npx shadcn@latest add dialog
+\`\`\`
+
+Components are installed to \`src/components/ui/\`. Import them in your slides:
+
+\`\`\`jsx
+import { Button } from '@/components/ui/button'
+\`\`\`
+
+The \`@/\` alias maps to \`src/\` — configured in \`vite.config.js\`.
+
+` : ''
+  return `\
+# Built with [DECKIO](https://deckio.art)
+${shadcnSection}
 ## How to edit this deck?
 
 For a smooth ride, use \`Dev Containers\` locally or use \`GitHub Codespaces\`. That saves you from installing dependencies yourself. Once the container is up and running, the presentation starts in a simple browser session shared with GitHub Copilot and you can start editing.
@@ -348,6 +336,7 @@ Do you prefer TUIs? This works with GitHub Copilot CLI too.
 gh copilot --yolo
 \`\`\`
 `
+}
 
 async function main() {
   const arg = process.argv[2]
@@ -370,90 +359,137 @@ async function main() {
   const defaultTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   const isInteractive = process.stdin.isTTY
 
-  let title, subtitle, accent, icon, theme
-
-  console.log()
-  console.log(`  ${fmt.bold('🎴 DECKIO')} ${fmt.dim('—')} Creating ${fmt.cyan(slug)}`)
-  console.log()
+  let title, subtitle, accent, icon, theme, designSystem = 'none'
 
   if (isInteractive) {
-    const rl = createInterface({ input: process.stdin, output: process.stdout })
-    title = await ask(rl, 'Title:', defaultTitle)
-    subtitle = await ask(rl, 'Subtitle:', 'A presentation built with deck-engine')
-    accent = await ask(rl, 'Accent color:', '#6366f1')
-    if (accent) {
-      console.log(`     ${fmt.swatch(accent)} ${fmt.dim(accent)}`)
-    }
-    icon = await ask(rl, 'Icon emoji:', '🎴')
-    console.log()
-    console.log(`  ${fmt.gray('  dark')} ${fmt.dim('· deep space')}  ${fmt.gray('│')}  ${fmt.gray('light')} ${fmt.dim('· projection')}  ${fmt.gray('│')}  ${fmt.gray('shadcn')} ${fmt.dim('· editorial neutral')}`)
-    theme = await ask(rl, 'Theme:', 'dark')
-    rl.close()
+    clack.intro('DECKIO — Create a new deck')
 
-    // Validate theme selection
-    const validThemes = ['dark', 'light', 'shadcn']
-    if (!validThemes.includes(theme)) {
-      console.log(`  ${fmt.yellow('⚠')}  Unknown theme "${theme}" — defaulting to "dark"`)
-      theme = 'dark'
+    title = await clack.text({
+      message: "What's the title of your deck?",
+      placeholder: defaultTitle,
+      defaultValue: defaultTitle,
+    })
+    if (clack.isCancel(title)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+    subtitle = await clack.text({
+      message: 'Subtitle',
+      placeholder: 'A presentation built with deck-engine',
+      defaultValue: 'A presentation built with deck-engine',
+    })
+    if (clack.isCancel(subtitle)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+    // Color preset picker with true-color swatches
+    const colorOptions = [
+      ...COLOR_PRESETS.map((c) => ({
+        value: c.value,
+        label: `${swatch(c.value)} ${c.label}`,
+        hint: c.value,
+      })),
+      { value: '__custom', label: '✎ Custom hex', hint: 'enter your own' },
+    ]
+
+    accent = await clack.select({
+      message: 'Choose an accent color',
+      options: colorOptions,
+      initialValue: '#6366f1',
+    })
+    if (clack.isCancel(accent)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+    if (accent === '__custom') {
+      accent = await clack.text({
+        message: 'Enter a hex color',
+        placeholder: '#6366f1',
+        defaultValue: '#6366f1',
+        validate: (v) => /^#[0-9a-fA-F]{6}$/.test(v) ? undefined : 'Must be a valid hex color (e.g. #6366f1)',
+      })
+      if (clack.isCancel(accent)) { clack.cancel('Cancelled.'); process.exit(0) }
     }
+
+    theme = await clack.select({
+      message: 'Choose a theme',
+      options: [
+        { value: 'dark', label: 'Dark', hint: 'deep space' },
+        { value: 'light', label: 'Light', hint: 'projection' },
+        { value: 'shadcn', label: 'shadcn', hint: 'editorial neutral' },
+      ],
+      initialValue: 'dark',
+    })
+    if (clack.isCancel(theme)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+    // Offer shadcn/ui design system when using shadcn theme
+    if (theme === 'shadcn') {
+      const useShadcn = await clack.confirm({
+        message: 'Include shadcn/ui components?',
+        initialValue: true,
+      })
+      if (clack.isCancel(useShadcn)) { clack.cancel('Cancelled.'); process.exit(0) }
+      if (useShadcn) designSystem = 'shadcn'
+    }
+
+    icon = await clack.text({
+      message: 'Icon emoji',
+      placeholder: '🎴',
+      defaultValue: '🎴',
+    })
+    if (clack.isCancel(icon)) { clack.cancel('Cancelled.'); process.exit(0) }
   } else {
     title = process.env.DECK_TITLE || defaultTitle
     subtitle = process.env.DECK_SUBTITLE || 'A presentation built with deck-engine'
     accent = process.env.DECK_ACCENT || '#6366f1'
     icon = process.env.DECK_ICON || '🎴'
     theme = process.env.DECK_THEME || 'dark'
-    console.log(`  ${fmt.dim('Using defaults (non-interactive mode)')}`)
+    designSystem = process.env.DECK_DESIGN_SYSTEM || (theme === 'shadcn' ? 'shadcn' : 'none')
+    clack.log.info('Using defaults (non-interactive mode)')
   }
-  console.log()
+
+  const s = clack.spinner()
 
   const engineRef = resolveEngineRef(dir)
-  write(dir, 'package.json', packageJson(slug, engineRef))
-  write(dir, 'vite.config.js', VITE_CONFIG)
+  write(dir, 'package.json', packageJson(slug, engineRef, { designSystem }))
+  write(dir, 'vite.config.js', viteConfig({ designSystem }))
   write(dir, 'index.html', INDEX_HTML)
   write(dir, 'src/main.jsx', mainJsx(theme))
   write(dir, 'src/App.jsx', APP_JSX)
   write(dir, 'src/data/.gitkeep', '')
   write(dir, 'src/slides/CoverSlide.jsx', coverSlideJsx(title, subtitle, slug))
   write(dir, 'src/slides/CoverSlide.module.css', COVER_SLIDE_CSS)
-  write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme))
+  write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme, designSystem))
   write(dir, 'AGENTS.md', agentsMd())
-  write(dir, 'README.md', README())
+  write(dir, 'README.md', README(designSystem))
   write(dir, '.gitignore', 'node_modules\ndist\n.vite\n')
+
+  // shadcn/ui design system files
+  if (designSystem === 'shadcn') {
+    write(dir, 'components.json', componentsJson())
+    write(dir, 'src/lib/utils.js', cnUtility())
+    write(dir, 'jsconfig.json', jsConfig())
+    mkdirSync(join(dir, 'src', 'components', 'ui'), { recursive: true })
+  }
 
   // Copy deckio.png to public/ for favicon and branding
   mkdirSync(join(dir, 'public'), { recursive: true })
   copyFileSync(join(__dirname, 'deckio.png'), join(dir, 'public', 'deckio.png'))
 
-  console.log(`  ${fmt.green('📁')} Project scaffolded!`)
-  console.log()
+  clack.log.success('Project scaffolded!')
 
-  console.log(`  ${fmt.cyan('📦')} Installing dependencies...`)
-  console.log()
+  s.start('Installing dependencies...')
   try {
-    execSync('npm install', { cwd: dir, stdio: 'inherit' })
+    execSync('npm install', { cwd: dir, stdio: 'pipe' })
+    s.stop('Dependencies installed')
   } catch {
-    console.log()
-    console.log('  ⚠️  npm install failed — run it manually inside the project folder.')
+    s.stop('npm install failed — run it manually inside the project folder')
   }
 
-  console.log()
-  console.log(`  ${fmt.cyan('🔧')} Initializing engine skills & instructions...`)
+  s.start('Initializing engine skills & instructions...')
   try {
     const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
-    execSync(`node "${initScript}"`, { cwd: dir, stdio: 'inherit' })
+    execSync(`node "${initScript}"`, { cwd: dir, stdio: 'pipe' })
+    s.stop('Engine initialized')
   } catch {
-    console.log('  ⚠️  Could not run init-project — run it manually: npx deck-init')
+    s.stop('Could not run init-project — run it manually: npx deck-init')
   }
 
-  console.log()
-  console.log(`  ${fmt.green(fmt.bold('✅ Done!'))} Your deck is ready.`)
-  console.log()
-  console.log(`  ${fmt.cyan('Next steps:')}`)
-  console.log(`    ${fmt.bold(`cd ${slug}`)}`)
-  console.log(`    ${fmt.bold('npm run dev')}`)
-  console.log()
-  console.log(`  ${fmt.dim('Open')} ${fmt.cyan('http://localhost:5173')} ${fmt.dim('and start adding slides!')}`)
-  console.log()
+  clack.outro(`Done! cd ${slug} && npm run dev`)
 }
 
 main()

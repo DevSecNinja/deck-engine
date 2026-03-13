@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef } from '../utils.mjs'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS } from '../utils.mjs'
 
 describe('slugify', () => {
   it('lowercases and hyphenates spaces', () => {
@@ -241,5 +241,214 @@ describe('resolveEngineRef', () => {
   it('packageJson accepts an explicit engineRef override', () => {
     const pkg = JSON.parse(packageJson('x', 'file:../my-engine'))
     expect(pkg.dependencies['@deckio/deck-engine']).toBe('file:../my-engine')
+  })
+})
+
+describe('viteConfig', () => {
+  it('generates valid JS with defineConfig', () => {
+    const config = viteConfig()
+    expect(config).toContain("import { defineConfig } from 'vite'")
+    expect(config).toContain('export default defineConfig')
+  })
+
+  it('includes react, deckPlugin, and tailwindPlugin by default', () => {
+    const config = viteConfig()
+    expect(config).toContain('react(')
+    expect(config).toContain('deckPlugin()')
+    expect(config).toContain('tailwindPlugin()')
+  })
+
+  it('does NOT include path alias when designSystem is none', () => {
+    const config = viteConfig({ designSystem: 'none' })
+    expect(config).not.toContain('resolve:')
+    expect(config).not.toContain("alias:")
+    expect(config).not.toContain("import path from 'path'")
+  })
+
+  it('includes @ alias when designSystem is shadcn', () => {
+    const config = viteConfig({ designSystem: 'shadcn' })
+    expect(config).toContain("resolve:")
+    expect(config).toContain("'@': path.resolve(__dirname, 'src')")
+  })
+
+  it('imports path and url modules when designSystem is shadcn', () => {
+    const config = viteConfig({ designSystem: 'shadcn' })
+    expect(config).toContain("import path from 'path'")
+    expect(config).toContain("import { fileURLToPath } from 'url'")
+    expect(config).toContain('const __dirname')
+  })
+
+  it('defaults to no designSystem', () => {
+    const config = viteConfig()
+    expect(config).not.toContain('resolve:')
+  })
+})
+
+describe('componentsJson', () => {
+  it('returns valid JSON', () => {
+    const result = componentsJson()
+    expect(() => JSON.parse(result)).not.toThrow()
+  })
+
+  it('includes shadcn schema URL', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.$schema).toBe('https://ui.shadcn.com/schema.json')
+  })
+
+  it('uses new-york style', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.style).toBe('new-york')
+  })
+
+  it('sets rsc to false (no server components)', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.rsc).toBe(false)
+  })
+
+  it('sets tsx to false (JSX project)', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.tsx).toBe(false)
+  })
+
+  it('configures tailwind with cssVariables enabled', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.tailwind.cssVariables).toBe(true)
+    expect(json.tailwind.baseColor).toBe('neutral')
+  })
+
+  it('configures aliases with @ prefix', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.aliases.components).toBe('@/components')
+    expect(json.aliases.utils).toBe('@/lib/utils')
+    expect(json.aliases.ui).toBe('@/components/ui')
+  })
+
+  it('ends with trailing newline', () => {
+    expect(componentsJson().endsWith('\n')).toBe(true)
+  })
+
+  it('includes ReactBits registry', () => {
+    const json = JSON.parse(componentsJson())
+    expect(json.registries).toBeDefined()
+    expect(json.registries['@react-bits']).toBe('https://reactbits.dev/r/{name}.json')
+  })
+})
+
+describe('cnUtility', () => {
+  it('imports clsx and tailwind-merge', () => {
+    const code = cnUtility()
+    expect(code).toContain('import { clsx } from "clsx"')
+    expect(code).toContain('import { twMerge } from "tailwind-merge"')
+  })
+
+  it('exports cn function', () => {
+    const code = cnUtility()
+    expect(code).toContain('export function cn(')
+  })
+
+  it('combines clsx and twMerge', () => {
+    const code = cnUtility()
+    expect(code).toContain('twMerge(clsx(inputs))')
+  })
+})
+
+describe('packageJson with designSystem', () => {
+  it('includes shadcn deps when designSystem is shadcn', () => {
+    const pkg = JSON.parse(packageJson('x', undefined, { designSystem: 'shadcn' }))
+    expect(pkg.dependencies).toHaveProperty('class-variance-authority')
+    expect(pkg.dependencies).toHaveProperty('clsx')
+    expect(pkg.dependencies).toHaveProperty('tailwind-merge')
+  })
+
+  it('does NOT include shadcn deps when designSystem is none', () => {
+    const pkg = JSON.parse(packageJson('x', undefined, { designSystem: 'none' }))
+    expect(pkg.dependencies).not.toHaveProperty('class-variance-authority')
+    expect(pkg.dependencies).not.toHaveProperty('clsx')
+    expect(pkg.dependencies).not.toHaveProperty('tailwind-merge')
+  })
+
+  it('does NOT include shadcn deps by default', () => {
+    const pkg = JSON.parse(packageJson('x'))
+    expect(pkg.dependencies).not.toHaveProperty('class-variance-authority')
+  })
+
+  it('still includes core deps when designSystem is shadcn', () => {
+    const pkg = JSON.parse(packageJson('x', undefined, { designSystem: 'shadcn' }))
+    expect(pkg.dependencies).toHaveProperty('react')
+    expect(pkg.dependencies).toHaveProperty('react-dom')
+    expect(pkg.dependencies).toHaveProperty('@deckio/deck-engine')
+  })
+})
+
+describe('deckConfig with designSystem', () => {
+  it('includes designSystem field when shadcn', () => {
+    const config = deckConfig('s', 'T', 'S', '📦', '#000', 'shadcn', 'shadcn')
+    expect(config).toContain("designSystem: 'shadcn'")
+  })
+
+  it('omits designSystem field when none', () => {
+    const config = deckConfig('s', 'T', 'S', '📦', '#000', 'dark', 'none')
+    expect(config).not.toContain('designSystem')
+  })
+
+  it('omits designSystem field by default', () => {
+    const config = deckConfig('s', 'T', 'S', '📦', '#000', 'dark')
+    expect(config).not.toContain('designSystem')
+  })
+
+  it('can have theme shadcn without designSystem', () => {
+    const config = deckConfig('s', 'T', 'S', '📦', '#000', 'shadcn', 'none')
+    expect(config).toContain("theme: 'shadcn'")
+    expect(config).not.toContain('designSystem')
+  })
+})
+
+describe('jsConfig', () => {
+  it('returns valid JSON', () => {
+    expect(() => JSON.parse(jsConfig())).not.toThrow()
+  })
+
+  it('sets baseUrl to current directory', () => {
+    const json = JSON.parse(jsConfig())
+    expect(json.compilerOptions.baseUrl).toBe('.')
+  })
+
+  it('maps @/* to ./src/*', () => {
+    const json = JSON.parse(jsConfig())
+    expect(json.compilerOptions.paths['@/*']).toEqual(['./src/*'])
+  })
+
+  it('ends with trailing newline', () => {
+    expect(jsConfig().endsWith('\n')).toBe(true)
+  })
+})
+
+describe('COLOR_PRESETS', () => {
+  it('is an array of at least 8 presets', () => {
+    expect(Array.isArray(COLOR_PRESETS)).toBe(true)
+    expect(COLOR_PRESETS.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('each preset has a value (hex) and label (string)', () => {
+    for (const preset of COLOR_PRESETS) {
+      expect(preset.value).toMatch(/^#[0-9a-fA-F]{6}$/)
+      expect(typeof preset.label).toBe('string')
+      expect(preset.label.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('includes Indigo as the first preset', () => {
+    expect(COLOR_PRESETS[0].label).toBe('Indigo')
+    expect(COLOR_PRESETS[0].value).toBe('#6366f1')
+  })
+
+  it('has no duplicate values', () => {
+    const values = COLOR_PRESETS.map((p) => p.value)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('has no duplicate labels', () => {
+    const labels = COLOR_PRESETS.map((p) => p.label)
+    expect(new Set(labels).size).toBe(labels.length)
   })
 })

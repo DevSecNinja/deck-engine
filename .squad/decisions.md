@@ -160,6 +160,21 @@ Every feature must go through a verification loop before being declared done. No
 
 ---
 
+### CLI-002: TUI Overhaul + Color Presets + ReactBits Registry
+**Author:** Basher | **Date:** 2026-03-14 | **Status:** Implemented
+
+1. **@clack/prompts replaces readline** — first runtime dependency of create-deckio. Provides `intro()`, `text()`, `select()`, `confirm()`, `spinner()`, `outro()`. Handles Ctrl+C gracefully via `isCancel()`. Non-interactive mode (env vars + piped stdin) preserved.
+2. **Color presets replace raw hex input** — 8 curated colors (Indigo, Emerald, Rose, Amber, Cyan, Violet, Orange, Blue) as `clack.select()` with true-color ANSI swatches. "Custom hex" option with validation for freeform input. Default: Indigo (#6366f1). `COLOR_PRESETS` exported from `utils.mjs` for testability.
+3. **ReactBits registry in components.json** — `registries: { "@react-bits": "https://reactbits.dev/r/{name}.json" }` enables `npx shadcn add @react-bits/animated-content` in shadcn-enabled projects. Zero architecture change — uses shadcn's built-in registry protocol.
+4. **`spinner()` wraps npm install** — replaces `stdio: 'inherit'` with `stdio: 'pipe'` + spinner animation. Cleaner output, same error handling.
+
+**Key files:**
+- `packages/create-deckio/package.json` — added `@clack/prompts` dependency
+- `packages/create-deckio/index.mjs` — full TUI rewrite
+- `packages/create-deckio/utils.mjs` — `COLOR_PRESETS` export, `registries` in `componentsJson()`
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
