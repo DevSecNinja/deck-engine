@@ -40,6 +40,88 @@
 
 ---
 
+---
+
+### 2026-03-13T01:15:00Z: User Directive — Theme System Scope
+**By:** Ali Soliman (via Copilot) | **Date:** 2026-03-13 | **Status:** Implemented
+
+Phase 2 will include a pluggable theme system with 3 initial themes (current dark, light, shadcn-inspired). Themes should use actual shadcn/Tailwind token values — not just CSS variable maps. Design tokens must be codified first. Theme picker added to CLI onboarding. Architecture must support future community/pluggable themes.
+
+---
+
+### ARCH-001: Theme System Scope
+**Author:** Rusty | **Date:** 2026-03-13 | **Status:** Implemented
+
+1. **Semantic token contract defined before theme expansion** — tokens codified first (DESIGN-002), then themes built on top. Contract is the stable interface.
+2. **Three initial theme presets** — dark (default, original aesthetic), light (projection-optimized), shadcn (oklch values, editorial-neutral). New themes = drop a CSS file.
+3. **Shadcn as visual language, not dependency** — neutral surfaces, clean typography, subtle borders, moderate radius, restrained accent. No shadcn component imports.
+4. **`accent` overrides within themes, not replaces them** — per-deck color customization lives inside a selected theme.
+5. **No runtime plugin system in Phase 2** — config-driven CSS variable approach sufficient. Plugin system deferred to later phase.
+6. **Theme choice affects tokens and component chrome only** — slide content structure unchanged by theme selection.
+
+---
+
+### THEME-001: Tailwind CSS v4 + Pluggable Theme Architecture
+**Author:** Basher | **Date:** 2026-03-13 | **Status:** Implemented
+
+1. **Tailwind CSS v4 installed** — `tailwindcss` + `@tailwindcss/vite` as dependencies in deck-engine. Downstream projects get them as devDependencies via the scaffolder.
+2. **Vite plugin expanded** — `vite.js` exports three functions:
+   - `deckPlugin(options)` — core plugin (react dedup), accepts `{ theme }` option
+   - `deckPlugins(options)` — combo array: deckPlugin + @tailwindcss/vite sub-plugins
+   - `tailwindPlugin()` — standalone @tailwindcss/vite for manual composition
+3. **Theme system is CSS-file-based** — each theme is a `.css` file in `packages/deck-engine/themes/`. Contains `:root` CSS custom properties + `@theme inline` block that bridges them to Tailwind utility classes. Adding a theme = drop a CSS file.
+4. **Three built-in themes** — `dark.css` (original DECKIO aesthetic), `light.css` (projection-optimized), `shadcn.css` (exact shadcn/ui oklch values + card/popover/chart extras).
+5. **Theme loader** (`themes/theme-loader.js`) — `resolveTheme(name)` resolves name to absolute CSS path, `getAvailableThemes()` reads directory listing. Supports custom paths (ending in `.css`). Unknown theme names silently return non-existent path (by design, allows custom themes — consumers check `existsSync()`).
+6. **`deck.config.js` schema updated** — new `theme` field, defaults to `'dark'` for backwards compatibility.
+7. **CLI onboarding** — theme prompt added after accent color: "Theme (dark / light / shadcn)". Validates input, falls back to "dark". Non-interactive mode reads `DECK_THEME` env var.
+8. **Generated projects are Tailwind-ready** — `main.jsx` imports `@deckio/deck-engine/themes/{theme}.css`, `vite.config.js` includes `tailwindPlugin()`, `package.json` includes tailwindcss devDeps.
+9. **Backwards compatible** — decks without a `theme` field still work (dark is the default everywhere).
+
+**Key files:**
+- `packages/deck-engine/vite.js` — plugin exports
+- `packages/deck-engine/themes/` — theme CSS files + loader
+- `packages/deck-engine/index.js` — re-exports theme functions
+- `packages/create-deckio/utils.mjs` — deckConfig with theme param
+- `packages/create-deckio/index.mjs` — CLI theme picker + vite config template
+
+---
+
+### DESIGN-002: Design Token System Codified
+**Author:** Saul | **Date:** 2026-03-13 | **Status:** Implemented
+
+1. **Token naming follows shadcn/ui conventions** — `--background`, `--foreground`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`, `--card` + `-foreground` variants. Engine CSS and all 3 theme files aligned.
+2. **9 token categories in global.css** — Core semantic colors, decorative palette, derived overlays & glows, presentation layout, typography scale (font sizes 2xs→display, weights, letter-spacing, line-height), spacing scale (4px base, 15 steps), border radius, z-index, transitions. Documentation comment at top of file.
+3. **Token renames (breaking):**
+   - `--bg-deep` → `--background`
+   - `--bg` → `--card`
+   - `--text` → `--foreground`
+   - `--text-muted` → `--muted-foreground`
+   - `--surface` → `--secondary`
+   - All references updated across engine CSS, export scripts, scaffolder, and theme files.
+4. **Removed tokens:** `--blue-bright` and `--orange` (genuinely unused). Kept `--purple-deep` (consumed by scaffolder inline template).
+5. **Zero hardcoded colors in component CSS** — All raw `rgba()` and hex values in rule bodies replaced with token references. Raw values only appear in `:root` token definitions.
+6. **Dead CSS deleted** — `ThankYouSlide.module.css` (132 lines, not imported anywhere).
+7. **All 49 tests pass** — no regressions at time of token work.
+
+**Warning:** Always check JS template strings when auditing token usage, not just CSS files. `--purple-deep` appeared unused in CSS audit but is consumed by `create-deckio/index.mjs` line ~166.
+
+---
+
+### THEME-002: SlideContext Theme Integration
+**Author:** Livingston | **Date:** 2026-03-14 | **Status:** Implemented
+
+1. **`SlideProvider` accepts `theme` prop** — passed to context, sets initial theme state.
+2. **`data-theme` attribute on `document.documentElement`** — CSS authors scope per-theme rules with `[data-theme="light"]` selectors without modifying theme CSS files.
+3. **Context exposes `theme` and `setTheme`** — consumer components can read active theme and switch at runtime.
+4. **No Node.js imports in browser code** — `SlideContext` uses a local `DEFAULT_THEME` constant instead of importing from `theme-loader.js` (which requires `fs`). Browser/Node.js boundary respected.
+5. **Theme CSS loading is build-time** — scaffolded `main.jsx` imports the right theme CSS. `data-theme` is a signaling mechanism only. Full runtime switching deferred (requires pre-compiled CSS per theme).
+6. **Export fallbacks valid** — `#080b10` in exportDeckPdf/Pptx is a safe server-side fallback for the dark background.
+
+**Key files:**
+- `packages/deck-engine/src/SlideContext.jsx` — theme prop, data-theme attribute, context value
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
