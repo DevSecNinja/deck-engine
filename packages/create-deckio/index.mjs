@@ -376,30 +376,37 @@ async function main() {
       options: [
         { value: 'default', label: 'Default', hint: 'classic DECKIO with CSS custom properties' },
         { value: 'shadcn', label: 'shadcn', hint: 'editorial design with Tailwind + shadcn/ui components' },
+        { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos — LOUD & REBELLIOUS' },
       ],
       initialValue: 'default',
     })
     if (clack.isCancel(chosenDesignSystem)) { clack.cancel('Cancelled.'); process.exit(0) }
 
-    // Choose appearance / theme
-    appearance = await clack.select({
-      message: 'Choose appearance',
-      options: [
-        { value: 'dark', label: 'Dark', hint: 'clean midnight palette' },
-        { value: 'light', label: 'Light', hint: 'bright and airy' },
-        { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
-      ],
-      initialValue: 'dark',
-    })
-    if (clack.isCancel(appearance)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-    // Map selections to theme + designSystem
-    if (chosenDesignSystem === 'shadcn') {
-      theme = 'shadcn'
-      designSystem = 'shadcn'
-    } else {
-      theme = appearance // 'dark', 'light', or 'funky-punk'
+    // Map funky-punk directly — skip appearance picker
+    if (chosenDesignSystem === 'funky-punk') {
+      theme = 'funky-punk'
       designSystem = 'none'
+      appearance = 'dark'
+    } else {
+      // Choose appearance / theme
+      appearance = await clack.select({
+        message: 'Choose appearance',
+        options: [
+          { value: 'dark', label: 'Dark', hint: 'clean midnight palette' },
+          { value: 'light', label: 'Light', hint: 'bright and airy' },
+        ],
+        initialValue: 'dark',
+      })
+      if (clack.isCancel(appearance)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+      // Map selections to theme + designSystem
+      if (chosenDesignSystem === 'shadcn') {
+        theme = 'shadcn'
+        designSystem = 'shadcn'
+      } else {
+        theme = appearance // 'dark' or 'light'
+        designSystem = 'none'
+      }
     }
 
     // Color selection depends on design system
