@@ -8,10 +8,13 @@
  */
 import { mkdirSync, writeFileSync, copyFileSync } from 'fs'
 import { join, resolve, dirname } from 'path'
-import { execSync } from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { fileURLToPath } from 'url'
 import * as clack from '@clack/prompts'
 import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig } from './utils.mjs'
+
+const execAsync = promisify(exec)
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -350,7 +353,7 @@ async function main() {
     clack.intro('✦ DECKIO — new deck')
 
     title = await clack.text({
-      message: 'Deck title',
+      message: 'Title',
       placeholder: defaultTitle,
       defaultValue: defaultTitle,
     })
@@ -364,9 +367,10 @@ async function main() {
     if (clack.isCancel(subtitle)) { clack.cancel('Cancelled.'); process.exit(0) }
 
     icon = await clack.text({
-      message: 'Deck icon',
+      message: 'Icon',
       placeholder: '🎴',
       defaultValue: '🎴',
+      hint: 'an emoji for your deck',
     })
     if (clack.isCancel(icon)) { clack.cancel('Cancelled.'); process.exit(0) }
 
@@ -374,8 +378,8 @@ async function main() {
     const chosenDesignSystem = await clack.select({
       message: 'Design system',
       options: [
-        { value: 'default', label: 'Default', hint: 'classic DECKIO — CSS custom properties' },
-        { value: 'shadcn', label: 'shadcn/ui', hint: 'editorial — Tailwind + shadcn/ui components' },
+        { value: 'default', label: 'Default', hint: 'CSS custom properties' },
+        { value: 'shadcn', label: 'shadcn/ui', hint: 'Tailwind + shadcn/ui' },
         { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
       ],
       initialValue: 'default',
@@ -500,7 +504,7 @@ async function main() {
 
   const s = clack.spinner()
 
-  s.start('Scaffolding project...')
+  s.start('Creating project files...')
   const engineRef = resolveEngineRef(dir)
   write(dir, 'package.json', packageJson(slug, engineRef, { designSystem }))
   write(dir, 'vite.config.js', viteConfig({ designSystem }))
@@ -551,23 +555,20 @@ async function main() {
   // Copy deckio.png to public/ for favicon and branding
   mkdirSync(join(dir, 'public'), { recursive: true })
   copyFileSync(join(__dirname, 'deckio.png'), join(dir, 'public', 'deckio.png'))
-  s.stop('Project scaffolded')
 
-  s.start('Installing dependencies...')
+  s.message('Installing dependencies...')
   try {
-    execSync('npm install', { cwd: dir, stdio: 'pipe' })
-    s.stop('Dependencies installed')
+    await execAsync('npm install', { cwd: dir })
+    s.message('Initializing engine skills & instructions...')
+    try {
+      const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
+      await execAsync(`node "${initScript}"`, { cwd: dir })
+    } catch {
+      clack.log.warn('Engine initialization skipped — run `npx deck-init` manually if needed')
+    }
+    s.stop('Project ready!')
   } catch {
     s.stop('npm install failed — run it manually inside the project folder')
-  }
-
-  s.start('Initializing engine skills & instructions...')
-  try {
-    const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
-    execSync(`node "${initScript}"`, { cwd: dir, stdio: 'pipe' })
-    s.stop('Engine initialized')
-  } catch {
-    s.stop('Could not run init-project — run it manually: npx deck-init')
   }
 
   if (designSystem === 'shadcn') {
