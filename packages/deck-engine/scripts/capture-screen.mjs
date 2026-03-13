@@ -12,7 +12,24 @@ import puppeteer from 'puppeteer-core'
 import { existsSync, mkdirSync, readFileSync } from 'fs'
 import path from 'path'
 
-const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+// Resolve browser path per-platform; prefer Edge, fall back to Chrome
+function findBrowser() {
+  const platform = process.platform
+  if (platform === 'win32') {
+    return 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+  }
+  if (platform === 'darwin') {
+    const edge = '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+    const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    return existsSync(edge) ? edge : chrome
+  }
+  // Linux — common Chromium / Chrome / Edge paths
+  for (const p of ['/usr/bin/microsoft-edge', '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']) {
+    if (existsSync(p)) return p
+  }
+  return 'google-chrome'
+}
+const BROWSER_PATH = findBrowser()
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const args = process.argv.slice(2)
 const arg = (name, fb) => {
@@ -62,7 +79,7 @@ async function main() {
   }
 
   const browser = await puppeteer.launch({
-    executablePath: EDGE,
+    executablePath: BROWSER_PATH,
     headless: 'new',
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
     defaultViewport: { width: 1920, height: 1080, deviceScaleFactor: 2 },

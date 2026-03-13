@@ -44,7 +44,7 @@ function packageJson(name) {
       preview: 'vite preview',
     },
     dependencies: {
-      '@deckio/deck-engine': '^1.7.7',
+      '@deckio/deck-engine': '^1.8.2',
       react: '^19.1.0',
       'react-dom': '^19.1.0',
     },

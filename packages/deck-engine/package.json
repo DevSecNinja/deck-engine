@@ -46,5 +46,8 @@
   "optionalDependencies": {
     "puppeteer": "^24.38.0",
     "puppeteer-core": "^24.38.0"
+  },
+  "scripts": {
+    "prepublishOnly": "npm test --if-present"
   }
 }
