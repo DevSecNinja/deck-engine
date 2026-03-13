@@ -11,19 +11,34 @@ import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
 import { createInterface } from 'readline'
 import { fileURLToPath } from 'url'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef } from './utils.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+// ANSI formatting helpers for terminal output
+const fmt = {
+  bold: (s) => `\x1b[1m${s}\x1b[22m`,
+  dim: (s) => `\x1b[2m${s}\x1b[22m`,
+  cyan: (s) => `\x1b[36m${s}\x1b[39m`,
+  green: (s) => `\x1b[32m${s}\x1b[39m`,
+  yellow: (s) => `\x1b[33m${s}\x1b[39m`,
+  gray: (s) => `\x1b[90m${s}\x1b[39m`,
+  swatch: (hex) => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return ''
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `\x1b[48;2;${r};${g};${b}m      \x1b[0m`
+  },
+}
+
 function ask(rl, question, fallback) {
   return new Promise((res) => {
-    rl.question(`${question} ${fallback ? `(${fallback}) ` : ''}`, (answer) => {
+    const prompt = `  ${fmt.cyan('›')} ${fmt.bold(question)} ${fallback ? fmt.dim(`(${fallback})`) + ' ' : ''}`
+    rl.question(prompt, (answer) => {
       res(answer.trim() || fallback || '')
     })
   })
-}
-
-function slugify(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
 function write(dir, relPath, content) {
@@ -32,33 +47,10 @@ function write(dir, relPath, content) {
   writeFileSync(full, content)
 }
 
-function packageJson(name) {
-  return JSON.stringify({
-    name: `deck-project-${name}`,
-    version: '0.1.0',
-    private: true,
-    type: 'module',
-    scripts: {
-      dev: 'vite',
-      build: 'vite build',
-      preview: 'vite preview',
-    },
-    dependencies: {
-      '@deckio/deck-engine': '^1.8.2',
-      react: '^19.1.0',
-      'react-dom': '^19.1.0',
-    },
-    devDependencies: {
-      '@vitejs/plugin-react': '^4.4.1',
-      vite: '^6.3.5',
-    },
-  }, null, 2) + '\n'
-}
-
 const VITE_CONFIG = `\
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { deckPlugin } from '@deckio/deck-engine/vite'
+import { deckPlugin, tailwindPlugin } from '@deckio/deck-engine/vite'
 
 export default defineConfig({
   plugins: [
@@ -66,6 +58,7 @@ export default defineConfig({
       include: [/\\.[jt]sx?$/, /node_modules\\/@deckio\\/deck-engine\\/.+\\.jsx$/],
     }),
     deckPlugin(),
+    tailwindPlugin(),
   ],
 })
 `
@@ -84,19 +77,6 @@ const INDEX_HTML = `\
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-`
-
-const MAIN_JSX = `\
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import '@deckio/deck-engine/styles/global.css'
-import App from './App.jsx'
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
 `
 
 const APP_JSX = `\
@@ -124,28 +104,6 @@ export default function App() {
   )
 }
 `
-
-function deckConfig(slug, title, subtitle, icon, accent) {
-  const esc = (s) => s.replace(/'/g, "\\'")
-  return `\
-import CoverSlide from './src/slides/CoverSlide.jsx'
-import { GenericThankYouSlide as ThankYouSlide } from '@deckio/deck-engine'
-
-export default {
-  id: '${esc(slug)}',
-  title: '${esc(title)}',
-  subtitle: '${esc(subtitle)}',
-  description: '${esc(subtitle)}',
-  icon: '${esc(icon)}',
-  accent: '${esc(accent)}',
-  order: 1,
-  slides: [
-    CoverSlide,
-    ThankYouSlide,
-  ],
-}
-`
-}
 
 function coverSlideJsx(title, subtitle, slug) {
   const highlight = title.split(' ').pop()
@@ -195,7 +153,7 @@ export default function CoverSlide() {
 
 const COVER_SLIDE_CSS = `\
 .cover {
-  background: var(--bg-deep);
+  background: var(--background);
   padding: 0 0 44px 0;
 }
 
@@ -248,7 +206,7 @@ const COVER_SLIDE_CSS = `\
 .subtitle {
   font-size: clamp(16px, 1.8vw, 20px);
   font-weight: 300;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
   line-height: 1.65;
   margin-bottom: 48px;
   max-width: 580px;
@@ -276,13 +234,13 @@ const COVER_SLIDE_CSS = `\
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--text-muted);
+  color: var(--muted-foreground);
 }
 
 .metaValue {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--foreground);
 }
 
 .metaDivider {
@@ -412,37 +370,52 @@ async function main() {
   const defaultTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   const isInteractive = process.stdin.isTTY
 
-  let title, subtitle, accent, icon
+  let title, subtitle, accent, icon, theme
 
   console.log()
-  console.log(`  🎴 Creating deck project: ${slug}`)
+  console.log(`  ${fmt.bold('🎴 DECKIO')} ${fmt.dim('—')} Creating ${fmt.cyan(slug)}`)
   console.log()
 
   if (isInteractive) {
     const rl = createInterface({ input: process.stdin, output: process.stdout })
-    title = await ask(rl, '  Title:', defaultTitle)
-    subtitle = await ask(rl, '  Subtitle:', 'A presentation built with deck-engine')
-    accent = await ask(rl, '  Accent color:', '#3fb950')
-    icon = await ask(rl, '  Icon emoji:', '🎴')
+    title = await ask(rl, 'Title:', defaultTitle)
+    subtitle = await ask(rl, 'Subtitle:', 'A presentation built with deck-engine')
+    accent = await ask(rl, 'Accent color:', '#6366f1')
+    if (accent) {
+      console.log(`     ${fmt.swatch(accent)} ${fmt.dim(accent)}`)
+    }
+    icon = await ask(rl, 'Icon emoji:', '🎴')
+    console.log()
+    console.log(`  ${fmt.gray('  dark')} ${fmt.dim('· deep space')}  ${fmt.gray('│')}  ${fmt.gray('light')} ${fmt.dim('· projection')}  ${fmt.gray('│')}  ${fmt.gray('shadcn')} ${fmt.dim('· editorial neutral')}`)
+    theme = await ask(rl, 'Theme:', 'dark')
     rl.close()
+
+    // Validate theme selection
+    const validThemes = ['dark', 'light', 'shadcn']
+    if (!validThemes.includes(theme)) {
+      console.log(`  ${fmt.yellow('⚠')}  Unknown theme "${theme}" — defaulting to "dark"`)
+      theme = 'dark'
+    }
   } else {
     title = process.env.DECK_TITLE || defaultTitle
     subtitle = process.env.DECK_SUBTITLE || 'A presentation built with deck-engine'
-    accent = process.env.DECK_ACCENT || '#3fb950'
+    accent = process.env.DECK_ACCENT || '#6366f1'
     icon = process.env.DECK_ICON || '🎴'
-    console.log('  Using defaults (non-interactive mode)')
+    theme = process.env.DECK_THEME || 'dark'
+    console.log(`  ${fmt.dim('Using defaults (non-interactive mode)')}`)
   }
   console.log()
 
-  write(dir, 'package.json', packageJson(slug))
+  const engineRef = resolveEngineRef(dir)
+  write(dir, 'package.json', packageJson(slug, engineRef))
   write(dir, 'vite.config.js', VITE_CONFIG)
   write(dir, 'index.html', INDEX_HTML)
-  write(dir, 'src/main.jsx', MAIN_JSX)
+  write(dir, 'src/main.jsx', mainJsx(theme))
   write(dir, 'src/App.jsx', APP_JSX)
   write(dir, 'src/data/.gitkeep', '')
   write(dir, 'src/slides/CoverSlide.jsx', coverSlideJsx(title, subtitle, slug))
   write(dir, 'src/slides/CoverSlide.module.css', COVER_SLIDE_CSS)
-  write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent))
+  write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme))
   write(dir, 'AGENTS.md', agentsMd())
   write(dir, 'README.md', README())
   write(dir, '.gitignore', 'node_modules\ndist\n.vite\n')
@@ -451,10 +424,10 @@ async function main() {
   mkdirSync(join(dir, 'public'), { recursive: true })
   copyFileSync(join(__dirname, 'deckio.png'), join(dir, 'public', 'deckio.png'))
 
-  console.log('  📁 Project scaffolded!')
+  console.log(`  ${fmt.green('📁')} Project scaffolded!`)
   console.log()
 
-  console.log('  📦 Installing dependencies...')
+  console.log(`  ${fmt.cyan('📦')} Installing dependencies...`)
   console.log()
   try {
     execSync('npm install', { cwd: dir, stdio: 'inherit' })
@@ -464,7 +437,7 @@ async function main() {
   }
 
   console.log()
-  console.log('  🔧 Initializing engine skills & instructions...')
+  console.log(`  ${fmt.cyan('🔧')} Initializing engine skills & instructions...`)
   try {
     const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
     execSync(`node "${initScript}"`, { cwd: dir, stdio: 'inherit' })
@@ -473,13 +446,13 @@ async function main() {
   }
 
   console.log()
-  console.log('  ✅ Done! Your deck is ready.')
+  console.log(`  ${fmt.green(fmt.bold('✅ Done!'))} Your deck is ready.`)
   console.log()
-  console.log('  Next steps:')
-  console.log(`    cd ${slug}`)
-  console.log('    npm run dev')
+  console.log(`  ${fmt.cyan('Next steps:')}`)
+  console.log(`    ${fmt.bold(`cd ${slug}`)}`)
+  console.log(`    ${fmt.bold('npm run dev')}`)
   console.log()
-  console.log('  Open http://localhost:5173 and start adding slides!')
+  console.log(`  ${fmt.dim('Open')} ${fmt.cyan('http://localhost:5173')} ${fmt.dim('and start adding slides!')}`)
   console.log()
 }
 
