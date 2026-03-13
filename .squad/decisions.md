@@ -122,6 +122,44 @@ Phase 2 will include a pluggable theme system with 3 initial themes (current dar
 
 ---
 
+---
+
+### CLI-001: Version Bump + Export Map Fix for Tailwind Plugin
+**Author:** Basher | **Date:** 2026-03-14 | **Status:** Implemented
+
+1. **Engine version bumped `1.8.2` → `1.9.0`** — the theme/tailwind work from THEME-001 was never reflected in a version bump, so downstream `npm install` fetched old v1.8.2 without `tailwindPlugin`. Next publish must use this version or higher.
+2. **Exports map includes both `./vite` and `./vite.js`** — Vite's resolver sometimes appends `.js` to the specifier. Both paths now resolve to `vite.js`.
+3. **Scaffolder dep updated `^1.8.2` → `^1.9.0`** — ensures scaffolded projects pull the version that has tailwind/theme support.
+4. **Default accent color changed `#3fb950` → `#6366f1`** — indigo-500 is more modern, works well across all three themes. Previous GitHub green was too brand-specific.
+5. **CLI uses ANSI colors, no external dependencies** — decided against `gum` (charmbracelet) to avoid requiring a separate binary install. Pure ANSI escape codes via a `fmt` helper in `index.mjs`. Keeps the scaffolder zero-dependency.
+
+**Key files:**
+- `packages/deck-engine/package.json` — version + exports map
+- `packages/create-deckio/utils.mjs` — scaffolded dep version
+- `packages/create-deckio/index.mjs` — CLI prompts, colors, swatch preview
+
+---
+
+### 2026-03-14T01:52:00Z: User Directive — Verification Loop Required
+**By:** Ali Soliman (via Copilot) | **Date:** 2026-03-14 | **Status:** Active
+
+Every feature must go through a verification loop before being declared done. No half-baked features. Agents must test their work end-to-end — not just unit tests, but actual integration verification (scaffold a project, run it, confirm it works). Sloppy behavior is unacceptable.
+
+**Why captured:** The `tailwindPlugin` export bug shipped because nobody verified the scaffolded project actually ran. Unit tests passed; the real project was broken.
+
+---
+
+### PROCESS-001: E2E Verification Standard for Scaffolder Features
+**Author:** Linus | **Date:** 2026-03-14 | **Status:** Active
+
+1. **Full E2E matrix is the minimum bar** — scaffold → npm install → dev server → production build. All four steps must pass for any scaffolder feature to be considered complete.
+2. **Production build is not covered by unit tests** — unit tests validate pure function outputs (string generation). They never run a Vite build of the generated project. A passing unit suite does not imply a working production build.
+3. **Dev server ≠ production build** — Vite serves modules individually in dev mode. Node.js builtins are available in the dev server's module graph but never sent to the browser. Rollup (production) is stricter.
+4. **Browser/Node.js boundary must be respected in `index.js`** — `packages/deck-engine/index.js` is the browser entry point. Any module it imports (directly or transitively) must be browser-safe. Node.js-only utilities (fs, path, url) belong in server-only entry points (e.g., `vite.js`, `themes/theme-loader.js`).
+5. **CI should automate the E2E check** — an automated step that scaffolds a project, installs deps, and runs `vite build` would catch the entire class of production bundle regressions that unit tests miss.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
