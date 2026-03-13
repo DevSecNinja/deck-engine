@@ -190,6 +190,18 @@ export function componentsJson() {
   }, null, 2) + '\n'
 }
 
+export function vscodeMcpConfig() {
+  return JSON.stringify({
+    servers: {
+      shadcn: {
+        command: 'npx',
+        args: ['-y', 'shadcn@latest', 'mcp'],
+        env: {},
+      },
+    },
+  }, null, 2) + '\n'
+}
+
 export function cnUtility() {
   return `\
 import { clsx } from "clsx"

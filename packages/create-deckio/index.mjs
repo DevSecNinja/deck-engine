@@ -11,7 +11,7 @@ import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import * as clack from '@clack/prompts'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, modeToggleJsx, appJsx } from './utils.mjs'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, modeToggleJsx, appJsx, vscodeMcpConfig } from './utils.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -241,6 +241,17 @@ import { Button } from '@/components/ui/button'
 \`\`\`
 
 The \`@/\` alias maps to \`src/\` — configured in \`vite.config.js\`.
+
+## 🤖 AI-Powered Component Discovery
+
+This project comes with the shadcn MCP server pre-configured for VS Code.
+Open the project in VS Code and try prompts like:
+
+- "Show me all available backgrounds from React Bits"
+- "Add the Aurora background from React Bits"
+- "Add a fade-in animation using React Bits"
+
+For other editors, run: \`npx shadcn@latest mcp init --client <your-client>\`
 
 ` : ''
   return `\
@@ -512,6 +523,7 @@ async function main() {
     write(dir, 'jsconfig.json', jsConfig())
     write(dir, 'src/components/theme-provider.jsx', themeProviderJsx())
     write(dir, 'src/components/mode-toggle.jsx', modeToggleJsx())
+    write(dir, '.vscode/mcp.json', vscodeMcpConfig())
     mkdirSync(join(dir, 'src', 'components', 'ui'), { recursive: true })
 
     // Pre-install ReactBits components for out-of-the-box animations
@@ -543,6 +555,10 @@ async function main() {
     s.stop('Engine initialized')
   } catch {
     s.stop('Could not run init-project — run it manually: npx deck-init')
+  }
+
+  if (designSystem === 'shadcn') {
+    clack.log.info('🤖 shadcn MCP server pre-configured — use AI to browse & add components')
   }
 
   clack.outro(`Done! cd ${slug} && npm run dev`)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, themeProviderJsx, modeToggleJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN } from '../utils.mjs'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, themeProviderJsx, modeToggleJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, vscodeMcpConfig } from '../utils.mjs'
 
 describe('slugify', () => {
   it('lowercases and hyphenates spaces', () => {
@@ -882,5 +882,35 @@ describe('packageJson with ogl dependency', () => {
   it('does NOT include ogl by default', () => {
     const pkg = JSON.parse(packageJson('x'))
     expect(pkg.dependencies).not.toHaveProperty('ogl')
+  })
+})
+
+describe('vscodeMcpConfig', () => {
+  it('returns valid JSON', () => {
+    expect(() => JSON.parse(vscodeMcpConfig())).not.toThrow()
+  })
+
+  it('has servers.shadcn entry', () => {
+    const json = JSON.parse(vscodeMcpConfig())
+    expect(json.servers).toHaveProperty('shadcn')
+  })
+
+  it('uses npx command', () => {
+    const json = JSON.parse(vscodeMcpConfig())
+    expect(json.servers.shadcn.command).toBe('npx')
+  })
+
+  it('passes correct args for shadcn mcp', () => {
+    const json = JSON.parse(vscodeMcpConfig())
+    expect(json.servers.shadcn.args).toEqual(['-y', 'shadcn@latest', 'mcp'])
+  })
+
+  it('includes empty env object', () => {
+    const json = JSON.parse(vscodeMcpConfig())
+    expect(json.servers.shadcn.env).toEqual({})
+  })
+
+  it('ends with newline', () => {
+    expect(vscodeMcpConfig().endsWith('\n')).toBe(true)
   })
 })
