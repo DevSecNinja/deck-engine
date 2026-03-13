@@ -11,7 +11,7 @@ import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import * as clack from '@clack/prompts'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, modeToggleJsx, appJsx, vscodeMcpConfig } from './utils.mjs'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig } from './utils.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -528,7 +528,6 @@ async function main() {
     write(dir, 'src/lib/utils.js', cnUtility())
     write(dir, 'jsconfig.json', jsConfig())
     write(dir, 'src/components/theme-provider.jsx', themeProviderJsx())
-    write(dir, 'src/components/mode-toggle.jsx', modeToggleJsx())
     write(dir, '.vscode/mcp.json', vscodeMcpConfig())
     mkdirSync(join(dir, 'src', 'components', 'ui'), { recursive: true })
 

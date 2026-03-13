@@ -492,8 +492,8 @@ const features = [
   {
     icon: '🎨',
     title: 'Theme System',
-    desc: 'Light, dark, and system modes. One toggle switches the entire design token palette.',
-    code: 'Built-in mode toggle',
+    desc: 'Choose light or dark appearance during scaffolding. Set once, consistent everywhere.',
+    code: 'Appearance via ThemeProvider',
     delay: '0.24s',
   },
   {
@@ -1007,77 +1007,6 @@ export function useTheme() {
 `
 }
 
-export function modeToggleJsx() {
-  return `\
-import { useTheme } from './theme-provider'
-
-const MODES = ['light', 'dark', 'system']
-
-export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
-
-  function cycle() {
-    const idx = MODES.indexOf(theme)
-    setTheme(MODES[(idx + 1) % MODES.length])
-  }
-
-  const label =
-    theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'
-
-  return (
-    <button
-      onClick={cycle}
-      title={\`Theme: \${label}. Click to switch.\`}
-      aria-label={\`Current theme: \${label}\`}
-      style={{
-        position: 'fixed',
-        bottom: '16px',
-        right: '16px',
-        zIndex: 9999,
-        background: 'var(--secondary)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        padding: '8px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--foreground)',
-        opacity: 0.7,
-        transition: 'opacity 0.2s',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-      onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.7')}
-    >
-      {theme === 'dark' ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      ) : theme === 'light' ? (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-          <line x1="8" y1="21" x2="16" y2="21" />
-          <line x1="12" y1="17" x2="12" y2="21" />
-        </svg>
-      )}
-    </button>
-  )
-}
-`
-}
-
 export function appJsx({ designSystem = 'none', appearance = 'dark' } = {}) {
   if (designSystem === 'shadcn') {
     const defaultTheme = appearance === 'light' ? 'light' : 'dark'
@@ -1085,7 +1014,6 @@ export function appJsx({ designSystem = 'none', appearance = 'dark' } = {}) {
 import { useEffect } from 'react'
 import { Navigation, SlideProvider } from '@deckio/deck-engine'
 import { ThemeProvider } from './components/theme-provider'
-import { ModeToggle } from './components/mode-toggle'
 import Aurora from '@/components/ui/aurora'
 import project from '../deck.config.js'
 
@@ -1115,7 +1043,6 @@ export default function App() {
           </SlideProvider>
         </div>
       </div>
-      <ModeToggle />
     </ThemeProvider>
   )
 }

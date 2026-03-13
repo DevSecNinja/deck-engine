@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, modeToggleJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, vscodeMcpConfig } from '../utils.mjs'
+import { slugify, packageJson, deckConfig, mainJsx, resolveEngineRef, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, vscodeMcpConfig } from '../utils.mjs'
 
 describe('slugify', () => {
   it('lowercases and hyphenates spaces', () => {
@@ -500,36 +500,6 @@ describe('themeProviderJsx', () => {
   })
 })
 
-describe('modeToggleJsx', () => {
-  it('exports ModeToggle component', () => {
-    const code = modeToggleJsx()
-    expect(code).toContain('export function ModeToggle(')
-  })
-
-  it('imports useTheme from theme-provider', () => {
-    const code = modeToggleJsx()
-    expect(code).toContain("import { useTheme } from './theme-provider'")
-  })
-
-  it('cycles through light, dark, system modes', () => {
-    const code = modeToggleJsx()
-    expect(code).toContain("'light', 'dark', 'system'")
-  })
-
-  it('uses inline SVG icons (no external deps)', () => {
-    const code = modeToggleJsx()
-    expect(code).toContain('<svg')
-    expect(code).not.toContain('lucide-react')
-  })
-
-  it('is positioned fixed in bottom-right', () => {
-    const code = modeToggleJsx()
-    expect(code).toContain("position: 'fixed'")
-    expect(code).toContain("bottom:")
-    expect(code).toContain("right:")
-  })
-})
-
 describe('appJsx', () => {
   it('returns App component without ThemeProvider by default', () => {
     const code = appJsx()
@@ -554,10 +524,10 @@ describe('appJsx', () => {
     expect(code).toContain('<ThemeProvider defaultTheme="light">')
   })
 
-  it('includes ModeToggle when designSystem is shadcn', () => {
+  it('does not include ModeToggle (appearance is set at scaffold time)', () => {
     const code = appJsx({ designSystem: 'shadcn' })
-    expect(code).toContain('<ModeToggle />')
-    expect(code).toContain("import { ModeToggle } from './components/mode-toggle'")
+    expect(code).not.toContain('ModeToggle')
+    expect(code).not.toContain('mode-toggle')
   })
 
   it('imports ThemeProvider when designSystem is shadcn', () => {
