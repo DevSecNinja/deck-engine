@@ -381,12 +381,13 @@ async function main() {
     })
     if (clack.isCancel(chosenDesignSystem)) { clack.cancel('Cancelled.'); process.exit(0) }
 
-    // Choose appearance (dark/light)
+    // Choose appearance / theme
     appearance = await clack.select({
       message: 'Choose appearance',
       options: [
-        { value: 'dark', label: 'Dark' },
-        { value: 'light', label: 'Light' },
+        { value: 'dark', label: 'Dark', hint: 'clean midnight palette' },
+        { value: 'light', label: 'Light', hint: 'bright and airy' },
+        { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
       ],
       initialValue: 'dark',
     })
@@ -397,7 +398,7 @@ async function main() {
       theme = 'shadcn'
       designSystem = 'shadcn'
     } else {
-      theme = appearance // 'dark' or 'light'
+      theme = appearance // 'dark', 'light', or 'funky-punk'
       designSystem = 'none'
     }
 
