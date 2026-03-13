@@ -265,7 +265,9 @@ export default function CoverSlide() {
 
   return (
     <Slide index={0} className={styles.cover}>
-      <Aurora colorStops={auroraColors} amplitude={1.0} blend={0.5} speed={0.6} />
+      <div className={styles.auroraWrapper}>
+        <Aurora colorStops={auroraColors} amplitude={1.0} blend={0.5} speed={0.6} />
+      </div>
 
       <div className="content-frame content-gutter">
         <div className={styles.layout}>
@@ -334,6 +336,12 @@ export const COVER_SLIDE_CSS_SHADCN = `\
   padding: 0 0 44px 0;
   overflow: hidden;
   position: relative;
+}
+
+.auroraWrapper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 /* Two-column asymmetric layout */

@@ -655,6 +655,12 @@ describe('coverSlideJsxShadcn', () => {
     expect(jsx).toContain('overline')
   })
 
+  it('wraps Aurora in a positioned wrapper div', () => {
+    const jsx = coverSlideJsxShadcn('Title', 'Sub', 'slug')
+    expect(jsx).toContain('auroraWrapper')
+    expect(jsx).toContain('<Aurora')
+  })
+
   it('imports ReactBits components', () => {
     const jsx = coverSlideJsxShadcn('Title', 'Sub', 'slug')
     expect(jsx).toContain("import BlurText from '@/components/ui/blur-text'")
@@ -665,6 +671,12 @@ describe('coverSlideJsxShadcn', () => {
 describe('COVER_SLIDE_CSS_SHADCN', () => {
   it('sets position relative on cover for Aurora absolute positioning', () => {
     expect(COVER_SLIDE_CSS_SHADCN).toContain('position: relative')
+  })
+
+  it('has auroraWrapper with absolute positioning', () => {
+    expect(COVER_SLIDE_CSS_SHADCN).toContain('.auroraWrapper')
+    expect(COVER_SLIDE_CSS_SHADCN).toContain('position: absolute')
+    expect(COVER_SLIDE_CSS_SHADCN).toContain('pointer-events: none')
   })
 
   it('uses accent color for overline and highlight', () => {

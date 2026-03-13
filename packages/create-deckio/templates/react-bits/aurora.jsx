@@ -1,5 +1,9 @@
+// Source: ReactBits — https://github.com/DavidHDev/react-bits
+// Component: Backgrounds/Aurora (MIT License)
 import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
 import { useEffect, useRef } from 'react';
+
+import './aurora.css';
 
 const VERT = `#version 300 es
 in vec2 position;
@@ -45,7 +49,7 @@ float snoise(vec2 v){
           dot(x0, x0),
           dot(x12.xy, x12.xy),
           dot(x12.zw, x12.zw)
-      ),
+      ), 
       0.0
   );
   m = m * m;
@@ -84,37 +88,33 @@ struct ColorStop {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / uResolution;
-
+  
   ColorStop colors[3];
   colors[0] = ColorStop(uColorStops[0], 0.0);
   colors[1] = ColorStop(uColorStops[1], 0.5);
   colors[2] = ColorStop(uColorStops[2], 1.0);
-
+  
   vec3 rampColor;
   COLOR_RAMP(colors, uv.x, rampColor);
-
+  
   float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
   height = exp(height);
   height = (uv.y * 2.0 - height + 0.2);
   float intensity = 0.6 * height;
-
+  
   float midPoint = 0.20;
   float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
-
+  
   vec3 auroraColor = intensity * rampColor;
-
+  
   fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
 }
 `;
 
-export default function Aurora({
-  colorStops = ['#0ea5e9', '#6366f1', '#8b5cf6'],
-  amplitude = 1.0,
-  blend = 0.5,
-  speed = 1.0,
-}) {
-  const propsRef = useRef({ colorStops, amplitude, blend, speed });
-  propsRef.current = { colorStops, amplitude, blend, speed };
+export default function Aurora(props) {
+  const { colorStops = ['#5227FF', '#7cff67', '#5227FF'], amplitude = 1.0, blend = 0.5 } = props;
+  const propsRef = useRef(props);
+  propsRef.current = props;
 
   const ctnDom = useRef(null);
 
@@ -125,7 +125,7 @@ export default function Aurora({
     const renderer = new Renderer({
       alpha: true,
       premultipliedAlpha: true,
-      antialias: true,
+      antialias: true
     });
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
@@ -151,7 +151,7 @@ export default function Aurora({
       delete geometry.attributes.uv;
     }
 
-    const colorStopsArray = propsRef.current.colorStops.map((hex) => {
+    const colorStopsArray = colorStops.map(hex => {
       const c = new Color(hex);
       return [c.r, c.g, c.b];
     });
@@ -164,22 +164,22 @@ export default function Aurora({
         uAmplitude: { value: amplitude },
         uColorStops: { value: colorStopsArray },
         uResolution: { value: [ctn.offsetWidth, ctn.offsetHeight] },
-        uBlend: { value: blend },
-      },
+        uBlend: { value: blend }
+      }
     });
 
     const mesh = new Mesh(gl, { geometry, program });
     ctn.appendChild(gl.canvas);
 
     let animateId = 0;
-    const update = (t) => {
+    const update = t => {
       animateId = requestAnimationFrame(update);
-      const { speed: s = 1.0 } = propsRef.current;
-      program.uniforms.uTime.value = t * 0.01 * s * 0.1;
+      const { time = t * 0.01, speed = 1.0 } = propsRef.current;
+      program.uniforms.uTime.value = time * speed * 0.1;
       program.uniforms.uAmplitude.value = propsRef.current.amplitude ?? 1.0;
       program.uniforms.uBlend.value = propsRef.current.blend ?? blend;
       const stops = propsRef.current.colorStops ?? colorStops;
-      program.uniforms.uColorStops.value = stops.map((hex) => {
+      program.uniforms.uColorStops.value = stops.map(hex => {
         const c = new Color(hex);
         return [c.r, c.g, c.b];
       });
@@ -197,18 +197,8 @@ export default function Aurora({
       }
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
-  }, [amplitude, blend, colorStops]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amplitude]);
 
-  return (
-    <div
-      ref={ctnDom}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-      }}
-    />
-  );
+  return <div ref={ctnDom} className="aurora-container" />;
 }

@@ -529,7 +529,7 @@ async function main() {
     // Pre-install ReactBits components for out-of-the-box animations
     const reactBitsDir = join(__dirname, 'templates', 'react-bits')
     const uiDir = join(dir, 'src', 'components', 'ui')
-    for (const file of ['aurora.jsx', 'blur-text.jsx', 'shiny-text.jsx', 'spotlight-card.jsx', 'decrypted-text.jsx']) {
+    for (const file of ['aurora.jsx', 'aurora.css', 'blur-text.jsx', 'shiny-text.jsx', 'spotlight-card.jsx', 'decrypted-text.jsx']) {
       copyFileSync(join(reactBitsDir, file), join(uiDir, file))
     }
   }
