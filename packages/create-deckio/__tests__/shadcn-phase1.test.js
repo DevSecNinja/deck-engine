@@ -55,6 +55,13 @@ describe('shadcn component templates exist in scaffolder', () => {
       expect(existsSync(join(reactBitsDir, file))).toBe(true)
     }
   })
+
+  it('presentation wrapper templates exist in templates/presentation/', () => {
+    const dir = join(pkgRoot, 'templates', 'presentation')
+    for (const file of ['MetricCard.jsx', 'SectionBadge.jsx', 'CalloutAlert.jsx']) {
+      expect(existsSync(join(dir, file))).toBe(true)
+    }
+  })
 })
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -602,6 +609,16 @@ describe('E2E scaffold structure for shadcn designSystem', () => {
         }
       }
     }
+
+    // Copy presentation wrapper components (Phase 3 addition)
+    const presentationTemplatesDir = join(pkgRoot, 'templates', 'presentation')
+    const presentationDir = join(projectDir, 'src', 'components', 'presentation')
+    mkdirSync(presentationDir, { recursive: true })
+    for (const file of ['MetricCard.jsx', 'SectionBadge.jsx', 'CalloutAlert.jsx']) {
+      if (existsSync(join(presentationTemplatesDir, file))) {
+        copyFileSync(join(presentationTemplatesDir, file), join(presentationDir, file))
+      }
+    }
   })
 
   afterAll(() => {
@@ -662,6 +679,35 @@ describe('E2E scaffold structure for shadcn designSystem', () => {
       expect(existsSync(join(projectDir, 'src', 'components', 'ui', `${name}.jsx`))).toBe(true)
     })
   }
+
+  // Phase 3: presentation wrapper components
+  for (const file of ['MetricCard.jsx', 'SectionBadge.jsx', 'CalloutAlert.jsx']) {
+    it(`has presentation wrapper ${file} in src/components/presentation/`, () => {
+      expect(existsSync(join(projectDir, 'src', 'components', 'presentation', file))).toBe(true)
+    })
+  }
+
+  it('presentation wrappers import from @/components/ui (compose primitives)', () => {
+    for (const file of ['MetricCard.jsx', 'SectionBadge.jsx', 'CalloutAlert.jsx']) {
+      const content = readFileSync(join(projectDir, 'src', 'components', 'presentation', file), 'utf-8')
+      expect(content).toContain("from '@/components/ui/")
+      expect(content).toContain("from '@/lib/utils'")
+    }
+  })
+
+  it('GettingStartedSlide uses wrapper components', () => {
+    const content = readFileSync(join(projectDir, 'src', 'slides', 'GettingStartedSlide.jsx'), 'utf-8')
+    expect(content).toContain("from '@/components/presentation/SectionBadge'")
+    expect(content).toContain("from '@/components/presentation/CalloutAlert'")
+    expect(content).toContain('<SectionBadge')
+    expect(content).toContain('<CalloutAlert')
+  })
+
+  it('FeaturesSlide uses SectionBadge wrapper', () => {
+    const content = readFileSync(join(projectDir, 'src', 'slides', 'FeaturesSlide.jsx'), 'utf-8')
+    expect(content).toContain("from '@/components/presentation/SectionBadge'")
+    expect(content).toContain('<SectionBadge')
+  })
 
   // Theme provider
   it('has theme-provider.jsx', () => {
