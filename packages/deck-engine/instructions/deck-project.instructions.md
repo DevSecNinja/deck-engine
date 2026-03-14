@@ -29,7 +29,11 @@ Then read the active theme descriptor:
 
 Use the descriptor as the source of truth for slide structure, CSS patterns, decorative language, component ecosystem, and anti-patterns.
 
-If `designSystem` is `shadcn`, also read `.github/instructions/shadcn-setup.instructions.md` before editing setup-sensitive files or claiming component availability.
+If `designSystem` is `shadcn`, also read the shadcn supplement instructions:
+- `.github/instructions/shadcn-setup.instructions.md` — infrastructure contract
+- `.github/instructions/shadcn-components.instructions.md` — component reference, preinstalled set, migration patterns
+
+Real shadcn/ui components (`Button`, `Card`, `Badge`, `Separator`, `Alert`) are preinstalled — prefer them over CSS imitation.
 
 ## Out of scope — do NOT modify
 
