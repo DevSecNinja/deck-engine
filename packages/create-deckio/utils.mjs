@@ -286,7 +286,7 @@ describing what you need in plain language.
 
 **Already done.** This project ships with \`.vscode/mcp.json\` pre-configured:
 
-\\\`\\\`\\\`json
+\`\`\`json
 {
   "servers": {
     "shadcn": {
@@ -296,7 +296,7 @@ describing what you need in plain language.
     }
   }
 }
-\\\`\\\`\\\`
+\`\`\`
 
 Open this project in VS Code or GitHub Codespaces and MCP is active immediately.
 
@@ -375,7 +375,7 @@ Modify it freely to match your presentation style.
 
 The CLI equivalent of any MCP prompt:
 
-\\\`\\\`\\\`bash
+\`\`\`bash
 # Add shadcn/ui components
 npx shadcn@latest add dialog
 npx shadcn@latest add sheet tooltip tabs
@@ -388,16 +388,16 @@ npx shadcn@latest add @react-bits/hyperspeed
 
 # List what's available
 npx shadcn@latest add
-\\\`\\\`\\\`
+\`\`\`
 
 ## After Adding a Component
 
 Import it in your slide:
 
-\\\`\\\`\\\`jsx
+\`\`\`jsx
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-\\\`\\\`\\\`
+\`\`\`
 
 The \`@/\` alias resolves to \`src/\` — configured in \`vite.config.js\` and \`jsconfig.json\`.
 
