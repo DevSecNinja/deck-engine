@@ -473,6 +473,9 @@ import { BottomBar, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import SpotlightCard from '@/components/ui/spotlight-card'
+// Wrapper components compose shadcn primitives into deck-friendly blocks.
+// See src/components/presentation/ for the full set.
+import SectionBadge from '@/components/presentation/SectionBadge'
 import styles from './FeaturesSlide.module.css'
 
 const features = [
@@ -516,7 +519,7 @@ export default function FeaturesSlide() {
       <div className="content-frame content-gutter">
         <div className={styles.content}>
           <div className={styles.header}>
-            <Badge variant="outline" className={styles.eyebrow}>Capabilities</Badge>
+            <SectionBadge className={styles.eyebrow}>Capabilities</SectionBadge>
             <h2 className={styles.title}>What You Can Build</h2>
             <p className={styles.lead}>
               Everything you need to create polished, interactive presentations.
@@ -668,9 +671,12 @@ export function gettingStartedSlideJsxShadcn(slug) {
 import { BottomBar, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Lightbulb } from 'lucide-react'
+// Wrapper components compose shadcn primitives into deck-friendly blocks.
+// See src/components/presentation/ for the full set.
+import SectionBadge from '@/components/presentation/SectionBadge'
+import CalloutAlert from '@/components/presentation/CalloutAlert'
 import styles from './GettingStartedSlide.module.css'
 
 export default function GettingStartedSlide() {
@@ -679,7 +685,7 @@ export default function GettingStartedSlide() {
       <div className="content-frame content-gutter">
         <div className={styles.content}>
           <div className={styles.header}>
-            <Badge variant="outline" className={styles.eyebrow}>Workflow</Badge>
+            <SectionBadge className={styles.eyebrow}>Workflow</SectionBadge>
             <h2 className={styles.title}>Getting Started</h2>
           </div>
 
@@ -738,13 +744,9 @@ export default function GettingStartedSlide() {
             </div>
           </div>
 
-          <Alert className={styles.tip}>
-            <Lightbulb />
-            <AlertTitle>Pro tip</AlertTitle>
-            <AlertDescription>
-              Use the shadcn MCP server in VS Code for AI-assisted component expansion.
-            </AlertDescription>
-          </Alert>
+          <CalloutAlert icon={<Lightbulb />} title="Pro tip" className={styles.tip}>
+            Use the shadcn MCP server in VS Code for AI-assisted component expansion.
+          </CalloutAlert>
         </div>
       </div>
 
