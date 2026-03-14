@@ -201,11 +201,10 @@ export function componentsJson() {
 
 export function vscodeMcpConfig() {
   return JSON.stringify({
-    servers: {
+    mcpServers: {
       shadcn: {
         command: 'npx',
-        args: ['-y', 'shadcn@latest', 'mcp'],
-        env: {},
+        args: ['shadcn@latest', 'mcp'],
       },
     },
   }, null, 2) + '\n'
@@ -288,11 +287,10 @@ describing what you need in plain language.
 
 \`\`\`json
 {
-  "servers": {
+  "mcpServers": {
     "shadcn": {
       "command": "npx",
-      "args": ["-y", "shadcn@latest", "mcp"],
-      "env": {}
+      "args": ["shadcn@latest", "mcp"]
     }
   }
 }

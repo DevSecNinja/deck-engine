@@ -957,24 +957,24 @@ describe('vscodeMcpConfig', () => {
     expect(() => JSON.parse(vscodeMcpConfig())).not.toThrow()
   })
 
-  it('has servers.shadcn entry', () => {
+  it('has mcpServers.shadcn entry', () => {
     const json = JSON.parse(vscodeMcpConfig())
-    expect(json.servers).toHaveProperty('shadcn')
+    expect(json.mcpServers).toHaveProperty('shadcn')
   })
 
   it('uses npx command', () => {
     const json = JSON.parse(vscodeMcpConfig())
-    expect(json.servers.shadcn.command).toBe('npx')
+    expect(json.mcpServers.shadcn.command).toBe('npx')
   })
 
   it('passes correct args for shadcn mcp', () => {
     const json = JSON.parse(vscodeMcpConfig())
-    expect(json.servers.shadcn.args).toEqual(['-y', 'shadcn@latest', 'mcp'])
+    expect(json.mcpServers.shadcn.args).toEqual(['shadcn@latest', 'mcp'])
   })
 
-  it('includes empty env object', () => {
+  it('does not include env object', () => {
     const json = JSON.parse(vscodeMcpConfig())
-    expect(json.servers.shadcn.env).toEqual({})
+    expect(json.mcpServers.shadcn.env).toBeUndefined()
   })
 
   it('ends with newline', () => {
