@@ -1731,3 +1731,14 @@ The design system supplement is a separate descriptor activating alongside the t
 6. **Coherence checklist included** — when authors add new components via CLI/MCP, the supplement provides a verification checklist (font sizing, spacing at 1280×720, animation conflicts)
 
 **Key files:** `packages/deck-engine/themes/descriptors/shadcn-design-system.md` (the supplement), `packages/deck-engine/themes/descriptors/shadcn.md` (updated to reference it).
+
+---
+
+### PROCESS-002: Anvil Review Gate
+**Author:** Rusty | **Date:** 2026-03-14 | **Status:** Accepted
+
+1. **Anvil is mandatory on meaningful shipped work** — run it for any multi-file code/config change or user-facing behavior change; skip typo fixes, docs-only edits, and single-file non-behavioral cleanup.
+2. **Pipeline position is fixed** — implementation first, existing validation second, domain-specialist review as needed, then Anvil before final signoff/merge.
+3. **Context7 is part of the standard prompt when external dependencies are involved** — upstream verification must come from current docs, not model memory.
+4. **Anvil remains external tooling** — `agent_type: "anvil/anvil"`, no squad charter, no cast slot.
+5. **It complements the named reviewers** — Linus owns tests, Virgil owns visuals, Rusty owns architecture; Anvil is the adversarial evidence-first cross-check.

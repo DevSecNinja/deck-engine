@@ -42,3 +42,5 @@
 - Design token compliance: Cards use `--border` color, backgrounds appear token-based
 
 **Severity:** High — this bug is visible to users after any navigation and fails the "top notch" bar for issue #2.
+
+- **2026-03-14T03:43Z (Scribe) — Anvil Formalized:** Rusty filed PROCESS-002. Anvil is now a mandatory quality gate for multi-file code/config changes and user-facing behavior. Runs post-implementation, before final signoff/merge. Context7 required for external dependencies. Complements (does not replace) Virgil's visual review ownership. Virgil continues to own visual review and rendering evidence; Anvil is the adversarial cross-check.

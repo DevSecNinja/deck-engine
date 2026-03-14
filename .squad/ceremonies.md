@@ -39,3 +39,24 @@
 2. Root cause analysis
 3. What should change?
 4. Action items for next iteration
+
+---
+
+## Anvil Review
+
+| Field | Value |
+|-------|-------|
+| **Trigger** | auto |
+| **When** | after |
+| **Condition** | code/config work that touches 2+ files or ships user-facing behavior |
+| **Facilitator** | lead |
+| **Participants** | anvil + all-relevant |
+| **Time budget** | focused |
+| **Enabled** | ✅ yes |
+
+**Agenda:**
+1. Verify the implementation against the actual diff and shipped behavior
+2. Confirm validation evidence is real and sufficient
+3. Check security, migration, and coordination gaps
+4. Use Context7 for upstream verification when external libraries or frameworks are involved
+5. Block signoff until material findings are resolved

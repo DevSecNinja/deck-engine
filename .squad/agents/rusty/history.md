@@ -29,3 +29,4 @@
 - Final theme creator architecture is maintainer-first and local-export-first: build `@deckio/create-theme` as authoring-time tooling, keep runtime output to canonical theme CSS + descriptor, require a preview build before export, and enforce WCAG AA on critical token pairs while treating broader checks as warnings.
 
 - Phase 0 shadcn contract cleanup should keep the promise narrow and truthful: the real baseline is `src/index.css` + engine theme bridge + scaffolded setup files/ReactBits, while official shadcn/ui primitives remain opt-in until they are actually generated into `src/components/ui/`.
+- Anvil is now part of the standard quality loop, not coordinator trivia: run it after implementation and validation, before signoff, on any multi-file code/config change or shipped user-facing behavior; require Context7-backed upstream verification whenever external libraries are involved.

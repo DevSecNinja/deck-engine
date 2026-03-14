@@ -11,6 +11,7 @@ How to decide who handles what.
 | Design system, themes, visual consistency | Saul 🎨 | CSS tokens, color palette, typography, spacing, visual audits |
 | Tests, validation, edge cases | Linus 🧪 | Unit tests, integration tests, deck validation, regression locks |
 | Visual audits, screenshot verification, CSS inspection | Virgil 🔒 | Playwright screenshots, visual regression, design token compliance, release gating |
+| Adversarial evidence review on qualifying changes | Anvil ⛏️ | Multi-file code changes, shipped behavior, migrations, dependency integration, upstream verification |
 | Code review, architecture, scope | Rusty 🏗️ | Review PRs, architecture decisions, scope trade-offs |
 | Scope & priorities | Rusty 🏗️ | What to build next, trade-offs, decisions |
 | Theme descriptors, skill contracts, AI authoring procedures | Rusty 🏗️ | Descriptor architecture, theme-aware skills, squad memory / decision hygiene |
@@ -56,3 +57,6 @@ When triaging, the Lead should ask:
 7. **Visual gate on features** — when a feature touches rendering, slides, or CSS, Virgil runs a visual audit BEFORE the feature is declared done. Route to Virgil after implementation, before merge.
 8. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. The Lead handles all `squad` (base label) triage.
 9. **@copilot routing** — when evaluating issues, check @copilot's capability profile in `team.md`. Route 🟢 good-fit tasks to `squad:copilot`. Flag 🟡 needs-review tasks for PR review. Keep 🔴 not-suitable tasks with squad members.
+10. **Anvil gate on meaningful changes** — run Anvil after implementation and validation, before merge/signoff, whenever work touches 2+ code/config files or ships user-facing behavior. Skip it for typo fixes, docs-only edits, and single-file non-behavioral cleanup.
+11. **Context7 in Anvil prompts** — if the change depends on external library or framework behavior, the Anvil review prompt must require Context7-backed upstream verification.
+12. **Anvil complements, not replaces, specialists** — Linus still owns tests, Virgil still owns visuals, Rusty still owns architecture. Anvil is the adversarial cross-check across those domains.
