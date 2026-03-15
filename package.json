@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "npm run dev -w @deckio/deck-engine",
     "build": "npm run build -w @deckio/deck-engine --if-present",
+    "version:deck-engine": "npm run version:sync -w @deckio/deck-engine",
     "test": "npx vitest run",
     "lint": "npm run lint --workspaces --if-present"
   },

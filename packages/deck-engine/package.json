@@ -1,6 +1,6 @@
 {
   "name": "@deckio/deck-engine",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
@@ -40,6 +40,7 @@
     "**/*.css"
   ],
   "scripts": {
+    "version:sync": "node scripts/sync-version-from-npm.mjs",
     "prepublishOnly": "npm test --if-present"
   },
   "dependencies": {
