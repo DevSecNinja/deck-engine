@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * @deckio/create-deck-project — scaffold a new presentation project.
+ * create-deckio — scaffold a new presentation project.
  *
  * Usage:
- *   npm create @deckio/deck-project my-talk
- *   npx @deckio/create-deck-project my-talk
+ *   npm create deckio my-talk
+ *   npx create-deckio my-talk
  */
 import { mkdirSync, writeFileSync, copyFileSync, existsSync, readdirSync } from 'fs'
 import { join, resolve, dirname } from 'path'
@@ -458,12 +458,12 @@ async function main() {
 
   if (!arg || arg === '--help' || arg === '-h') {
     console.log(`
-  Usage: npm create @deckio/deck-project <project-name>
+  Usage: npm create deckio <project-name>
 
   Examples:
-    npm create @deckio/deck-project my-talk
-    npm create @deckio/deck-project quarterly-review
-    npx @deckio/create-deck-project cool-deck
+    npm create deckio my-talk
+    npm create deckio quarterly-review
+    npx create-deckio cool-deck
 `)
     process.exit(0)
   }

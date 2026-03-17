@@ -26,6 +26,6 @@
 - **Owner:** Ali Soliman
 - **Project:** DECKIO / deck-engine
 - **Stack:** Node.js monorepo (npm workspaces), Vite, HTML/CSS/JS
-- **Packages:** `@deckio/deck-engine`, `@deckio/create-deck-project`
+- **Packages:** `@deckio/deck-engine`, `create-deckio`
 - **Created:** 2026-03-13
 - **Universe:** Ocean's Eleven

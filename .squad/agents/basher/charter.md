@@ -12,7 +12,7 @@
 ## What I Own
 
 - `@deckio/deck-engine` — the core engine that powers presentations
-- `@deckio/create-deck-project` — the scaffolder CLI
+- `create-deckio` — the scaffolder CLI
 - Build pipeline, Vite config, dev server, hot reload infrastructure
 - Package.json scripts, workspace coordination, dependency management
 

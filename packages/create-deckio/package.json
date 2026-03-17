@@ -1,10 +1,10 @@
 {
-  "name": "@deckio/create-deck-project",
-  "version": "0.1.11",
+  "name": "create-deckio",
+  "version": "0.1.12",
   "description": "Scaffold a new deck presentation project powered by @deckio/deck-engine",
   "type": "module",
   "bin": {
-    "create-deck-project": "index.mjs"
+    "create-deckio": "index.mjs"
   },
   "files": [
     "index.mjs",
@@ -25,8 +25,7 @@
     "test": "npx vitest run"
   },
   "publishConfig": {
-    "registry": "https://registry.npmjs.org",
-    "access": "public"
+    "registry": "https://registry.npmjs.org"
   },
   "repository": {
     "type": "git",

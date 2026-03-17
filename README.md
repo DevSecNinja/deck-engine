@@ -5,8 +5,8 @@
 Create a new DECKIO project with the scaffolder:
 
 ```bash
-npm create @deckio/deck-project cool-deck
-npx @deckio/create-deck-project cool-deck
+npm create deckio cool-deck
+npx create-deckio cool-deck
 ```
 
 This gives you a new DECKIO presentation project powered by `@deckio/deck-engine`, with the base deck structure, Copilot instructions, and skills already in place.

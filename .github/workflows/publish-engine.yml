@@ -24,7 +24,7 @@ jobs:
           - name: '@deckio/deck-engine'
             path: 'packages/deck-engine'
             releases_dir: 'deck-engine'
-          - name: '@deckio/create-deck-project'
+          - name: 'create-deckio'
             path: 'packages/create-deckio'
             releases_dir: 'create-deck-project'
     steps:

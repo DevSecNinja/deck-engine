@@ -7,7 +7,7 @@ This monorepo contains two npm packages:
 | Package | Path | Registry |
 |---|---|---|
 | `@deckio/deck-engine` | `packages/deck-engine` | npm (public) |
-| `@deckio/create-deck-project` | `packages/create-deckio` | npm (public) |
+| `create-deckio` | `packages/create-deckio` | npm (public) |
 
 Publishing is automated via `.github/workflows/publish-engine.yml`. Any push to `main` that touches a package directory triggers a publish **only if** the version in `package.json` doesn't already exist on npm.
 
