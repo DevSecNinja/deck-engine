@@ -41,6 +41,10 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
+      - name: Run create-deckio smoke test
+        if: matrix.package.name == 'create-deckio'
+        run: npx vitest run packages/create-deckio/__tests__/smoke.test.js
+
       - name: Check if version already exists on npm
         id: check
         working-directory: ${{ matrix.package.path }}
