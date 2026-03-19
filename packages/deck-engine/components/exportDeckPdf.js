@@ -9,11 +9,62 @@
  *   - animations             paused before capture
  */
 
-const PAGE_W = 1920
-const PAGE_H = 1080
 const SETTLE_MS = 600
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+
+function getCaptureSize(target, fallback) {
+  const targetRect = target?.getBoundingClientRect?.()
+  const fallbackRect = fallback?.getBoundingClientRect?.()
+
+  const width = Math.max(1, Math.round(targetRect?.width || fallbackRect?.width || window.innerWidth || 1920))
+  const height = Math.max(1, Math.round(targetRect?.height || fallbackRect?.height || window.innerHeight || 1080))
+
+  return { width, height }
+}
+
+async function waitForAssets(root) {
+  if (document.fonts?.ready) await document.fonts.ready
+
+  const images = Array.from(root?.querySelectorAll('img') || [])
+  await Promise.all(images.map(async (img) => {
+    if (img.complete && img.naturalWidth > 0) return
+
+    if (typeof img.decode === 'function') {
+      try {
+        await img.decode()
+        return
+      } catch {
+        // Fall through to load/error listeners for assets decode cannot handle.
+      }
+    }
+
+    await new Promise((resolve) => {
+      const done = () => resolve()
+      img.addEventListener('load', done, { once: true })
+      img.addEventListener('error', done, { once: true })
+    })
+  }))
+}
+
+async function withExportMode(format, run) {
+  const html = document.documentElement
+  const prevMode = html.getAttribute('data-export-mode')
+  const prevFormat = html.getAttribute('data-export-format')
+
+  html.setAttribute('data-export-mode', 'capture')
+  html.setAttribute('data-export-format', format)
+
+  try {
+    return await run()
+  } finally {
+    if (prevMode === null) html.removeAttribute('data-export-mode')
+    else html.setAttribute('data-export-mode', prevMode)
+
+    if (prevFormat === null) html.removeAttribute('data-export-format')
+    else html.setAttribute('data-export-format', prevFormat)
+  }
+}
 
 async function waitForPaint() {
   await new Promise((r) => requestAnimationFrame(() => r()))
@@ -69,63 +120,74 @@ export async function exportDeckPdf({
     .getPropertyValue('--background').trim() || '#080b10'
   const scale = Math.min(window.devicePixelRatio || 1, 2)
 
+  const initialActive = document.querySelector('.slide.active') || slides[current] || deck
+  const initialCapture = getCaptureSize(initialActive, deck)
+
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'px',
-    format: [PAGE_W, PAGE_H],
+    format: [initialCapture.width, initialCapture.height],
     compress: true,
     hotfixes: ['px_scaling'],
   })
 
-  if (document.fonts?.ready) await document.fonts.ready
-
-  // Force deck to canonical PDF dimensions so slides render at exactly
-  // PAGE_W × PAGE_H regardless of the current viewport size.
-  const origDeckCss = deck.style.cssText
-  deck.style.width = `${PAGE_W}px`
-  deck.style.height = `${PAGE_H}px`
-  await waitForPaint()
-  await wait(SETTLE_MS)
-
-  try {
-    for (let i = 0; i < totalSlides; i++) {
-      onProgress?.({ current: i + 1, total: totalSlides })
-      goTo(i)
-      await waitForPaint()
-      await wait(SETTLE_MS)
-
-      const active = document.querySelector('.slide.active') || slides[i]
-      if (!active) throw new Error(`Slide ${i + 1} not found`)
-
-      const restore = pauseAnimations(active)
-      await waitForPaint()
-
-      let dataUrl
-      try {
-        dataUrl = await domToPng(active, {
-          width: PAGE_W,
-          height: PAGE_H,
-          backgroundColor: bg,
-          scale,
-          style: {
-            // Ensure the captured element is visible and static
-            opacity: '1',
-            transform: 'none',
-            transition: 'none',
-          },
-        })
-      } finally {
-        restore()
-      }
-
-      if (i > 0) pdf.addPage([PAGE_W, PAGE_H], 'landscape')
-      pdf.addImage(dataUrl, 'PNG', 0, 0, PAGE_W, PAGE_H, undefined, 'FAST')
-    }
-  } finally {
-    deck.style.cssText = origDeckCss
-    goTo(current)
+  await withExportMode('pdf', async () => {
     await waitForPaint()
-  }
+    await wait(SETTLE_MS)
+    await waitForAssets(deck)
+
+    try {
+      for (let i = 0; i < totalSlides; i++) {
+        onProgress?.({ current: i + 1, total: totalSlides })
+        goTo(i)
+        await waitForPaint()
+        await wait(SETTLE_MS)
+
+        const active = document.querySelector('.slide.active') || slides[i]
+        if (!active) throw new Error(`Slide ${i + 1} not found`)
+
+        await waitForAssets(active)
+
+        const capture = getCaptureSize(active, deck)
+
+        const restore = pauseAnimations(active)
+        await waitForPaint()
+
+        let dataUrl
+        try {
+          dataUrl = await domToPng(active, {
+            width: capture.width,
+            height: capture.height,
+            backgroundColor: bg,
+            scale,
+            style: {
+              position: 'relative',
+              inset: 'auto',
+              left: '0',
+              top: '0',
+              width: `${capture.width}px`,
+              height: `${capture.height}px`,
+              maxWidth: 'none',
+              maxHeight: 'none',
+              boxSizing: 'border-box',
+              // Ensure the captured element is visible and static
+              opacity: '1',
+              transform: 'none',
+              transition: 'none',
+            },
+          })
+        } finally {
+          restore()
+        }
+
+        if (i > 0) pdf.addPage([initialCapture.width, initialCapture.height], 'landscape')
+        pdf.addImage(dataUrl, 'PNG', 0, 0, initialCapture.width, initialCapture.height, undefined, 'FAST')
+      }
+    } finally {
+      goTo(current)
+      await waitForPaint()
+    }
+  })
 
   // Direct download — no dialog
   const blob = pdf.output('blob')
