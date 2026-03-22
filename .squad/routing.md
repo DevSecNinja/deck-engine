@@ -1,62 +1,60 @@
-# Work Routing
-
-How to decide who handles what.
+# Deck Squad — Routing Rules
 
 ## Routing Table
 
-| Work Type | Route To | Examples |
-|-----------|----------|----------|
-| Engine internals, CLI, build tooling | Basher 🔧 | Vite config, dev server, scaffolder, package exports, hot reload |
-| Slide rendering, components, client JS | Livingston ⚛️ | HTML structure, navigation, presenter mode, keyboard shortcuts |
-| Design system, themes, visual consistency | Saul 🎨 | CSS tokens, color palette, typography, spacing, visual audits |
-| Tests, validation, edge cases | Linus 🧪 | Unit tests, integration tests, deck validation, regression locks |
-| Visual audits, screenshot verification, CSS inspection | Virgil 🔒 | Playwright screenshots, visual regression, design token compliance, release gating |
-| Adversarial evidence review on qualifying changes | Anvil ⛏️ | Multi-file code changes, shipped behavior, migrations, dependency integration, upstream verification |
-| Code review, architecture, scope | Rusty 🏗️ | Review PRs, architecture decisions, scope trade-offs |
-| Scope & priorities | Rusty 🏗️ | What to build next, trade-offs, decisions |
-| Theme descriptors, skill contracts, AI authoring procedures | Rusty 🏗️ | Descriptor architecture, theme-aware skills, squad memory / decision hygiene |
-| Scaffolder pipeline, asset sync, onboarding flow | Basher 🔧 | `copyEngineAssets()`, `@clack/prompts`, package exports, generated project bootstrap |
-| Async issue work (bugs, tests, small features) | @copilot 🤖 | Well-defined tasks matching capability profile |
-| Session logging | Scribe | Automatic — never needs routing |
+| Work Type | Primary | Backup | Scope |
+|-----------|---------|--------|-------|
+| Engine: slides, themes, components, scaffolder | @depaul | @messi | deck-engine |
+| Engine: API surface, npm releases, architecture | @messi | @depaul | deck-engine |
+| Launcher: React UI, server endpoints, preview | @depaul | @julian | deck-launcher |
+| Launcher: product direction, Copilot integration | @julian | @depaul | deck-launcher |
+| Platform: K8s manifests, Docker, Azure, deploy | @lautaro | @enzo | deck-saas-core |
+| Platform: architecture, environment strategy | @enzo | @lautaro | deck-saas-core |
+| Gateway: OAuth, sessions, proxy, provisioning | @licha | @cuti | deck-gateway |
+| Gateway: auth policy, product direction | @cuti | @licha | deck-gateway |
+| Unit tests — engine | @depaul | @messi | deck-engine |
+| Unit tests — launcher | @depaul | @julian | deck-launcher |
+| Integration tests — gateway auth | @licha | @cuti | deck-gateway |
+| Infrastructure tests — manifests, builds | @lautaro | @enzo | deck-saas-core |
+| E2E / smoke tests | @depaul | @lautaro | cross-cutting |
+| Security testing | @licha | @cuti | cross-cutting |
+| Deploy verification | @lautaro | @enzo | cross-cutting |
+| Cross-product integration | Affected POs | — | multi-product |
 
 ## Issue Routing
 
-| Label | Action | Who |
-|-------|--------|-----|
-| `squad` | Triage: analyze issue, evaluate @copilot fit, assign `squad:{member}` label | Lead |
-| `squad:{name}` | Pick up issue and complete the work | Named member |
-| `squad:copilot` | Assign to @copilot for autonomous work (if enabled) | @copilot 🤖 |
+1. **`squad` label** → Triage workflow auto-detects product, assigns PO
+2. **`squad:{name}` label** → routes directly to that agent
+3. **`product:{name}` label** → identifies which product is affected
+4. **No label** → product PO triages based on repo/path
 
-### How Issue Assignment Works
+## Label Taxonomy
 
-1. When a GitHub issue gets the `squad` label, the **Lead** triages it — analyzing content, evaluating @copilot's capability profile, assigning the right `squad:{member}` label, and commenting with triage notes.
-2. **@copilot evaluation:** The Lead checks if the issue matches @copilot's capability profile (🟢 good fit / 🟡 needs review / 🔴 not suitable). If it's a good fit, the Lead may route to `squad:copilot` instead of a squad member.
-3. When a `squad:{member}` label is applied, that member picks up the issue in their next session.
-4. When `squad:copilot` is applied and auto-assign is enabled, `@copilot` is assigned on the issue and picks it up autonomously.
-5. Members can reassign by removing their label and adding another member's label.
-6. The `squad` label is the "inbox" — untriaged issues waiting for Lead review.
+| Prefix | Purpose | Examples | Mutually exclusive? |
+|--------|---------|---------|---------------------|
+| `squad:` | Agent assignment | `squad:messi`, `squad:depaul` | No (PO + doer can coexist) |
+| `product:` | Product affected | `product:deck-engine` | No (can be cross-product) |
+| `go:` | Triage verdict | `go:yes`, `go:no`, `go:needs-research` | **Yes** |
+| `type:` | Issue type | `type:feature`, `type:bug`, `type:docs`, `type:chore` | **Yes** |
+| `priority:` | Priority | `priority:p0`, `priority:p1`, `priority:p2` | **Yes** |
+| `release:` | Release target | `release:v1.0.0`, `release:backlog` | **Yes** |
 
-### Lead Triage Guidance for @copilot
+Labels prefixed with `go:`, `type:`, `priority:`, and `release:` are mutually exclusive — the label enforce workflow auto-removes conflicts.
 
-When triaging, the Lead should ask:
+## Triage (for POs)
 
-1. **Is this well-defined?** Clear title, reproduction steps or acceptance criteria, bounded scope → likely 🟢
-2. **Does it follow existing patterns?** Adding a test, fixing a known bug, updating a dependency → likely 🟢
-3. **Does it need design judgment?** Architecture, API design, UX decisions → likely 🔴
-4. **Is it security-sensitive?** Auth, encryption, access control → always 🔴
-5. **Is it medium complexity with specs?** Feature with clear requirements, refactoring with tests → likely 🟡
+1. **Mine?** Does the change live in my product? If not, tag the right PO.
+2. **Security?** Touches auth, secrets, crypto → tag @licha.
+3. **Infrastructure?** K8s, Docker, Azure → tag @lautaro.
+4. **Cross-cutting?** Affects multiple products → coordinate with other POs.
+5. **Tests?** Every PR must include or update tests for the affected layer.
 
-## Rules
+## Hard Rules
 
-1. **Eager by default** — spawn all agents who could usefully start work, including anticipatory downstream work.
-2. **Scribe always runs** after substantial work, always as `mode: "background"`. Never blocks.
-3. **Quick facts → coordinator answers directly.** Don't spawn an agent for "what port does the server run on?"
-4. **When two agents could handle it**, pick the one whose domain is the primary concern.
-5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
-6. **Anticipate downstream work.** If a feature is being built, spawn the tester to write test cases from requirements simultaneously.
-7. **Visual gate on features** — when a feature touches rendering, slides, or CSS, Virgil runs a visual audit BEFORE the feature is declared done. Route to Virgil after implementation, before merge.
-8. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. The Lead handles all `squad` (base label) triage.
-9. **@copilot routing** — when evaluating issues, check @copilot's capability profile in `team.md`. Route 🟢 good-fit tasks to `squad:copilot`. Flag 🟡 needs-review tasks for PR review. Keep 🔴 not-suitable tasks with squad members.
-10. **Anvil gate on meaningful changes** — run Anvil after implementation and validation, before merge/signoff, whenever work touches 2+ code/config files or ships user-facing behavior. Skip it for typo fixes, docs-only edits, and single-file non-behavioral cleanup.
-11. **Context7 in Anvil prompts** — if the change depends on external library or framework behavior, the Anvil review prompt must require Context7-backed upstream verification.
-12. **Anvil complements, not replaces, specialists** — Linus still owns tests, Virgil still owns visuals, Rusty still owns architecture. Anvil is the adversarial cross-check across those domains.
+1. Security changes → @licha reviews
+2. Infrastructure changes → @lautaro reviews
+3. npm releases of `@deckio/deck-engine` → @messi signs off
+4. AKS deployments → @enzo signs off
+5. Auth policy changes → @cuti signs off
+6. Breaking API changes → all affected POs sign off
+7. PRs without tests for touched layers → blocked until tests added

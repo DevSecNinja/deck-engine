@@ -1,0 +1,145 @@
+name: Squad — Assign Copilot Agent
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  assign-copilot:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assign Copilot when issue is go:yes + has doer label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issue = context.payload.issue;
+            const labels = issue.labels.map(l => l.name);
+
+            // Must have go:yes
+            if (!labels.includes('go:yes')) {
+              core.info('No go:yes label — skipping');
+              return;
+            }
+
+            // Already assigned to copilot?
+            const assignees = (issue.assignees || []).map(a => a.login);
+            if (assignees.some(a => a.includes('copilot'))) {
+              core.info('Already assigned to Copilot — skipping');
+              return;
+            }
+
+            // Doer labels → charter file + PO for review
+            const DOERS = {
+              'squad:depaul':  { name: 'De Paul',  charter: '.squad/agents/depaul/charter.md',  po: 'Messi or Julian (check product: label)' },
+              'squad:lautaro': { name: 'Lautaro',  charter: '.squad/agents/lautaro/charter.md', po: 'Enzo' },
+              'squad:licha':   { name: 'Licha',    charter: '.squad/agents/licha/charter.md',   po: 'Cuti' },
+            };
+
+            // Find which doer label is on the issue
+            let doer = null;
+            for (const [label, info] of Object.entries(DOERS)) {
+              if (labels.includes(label)) {
+                doer = { label, ...info };
+                break;
+              }
+            }
+
+            if (!doer) {
+              core.info('No doer label found — skipping (PO has not assigned a doer yet)');
+              return;
+            }
+
+            // Read the doer's charter for custom instructions
+            let charterContent = '';
+            if (fs.existsSync(doer.charter)) {
+              charterContent = fs.readFileSync(doer.charter, 'utf8');
+            }
+
+            // Read team.md for overall context
+            let teamContext = '';
+            if (fs.existsSync('.squad/team.md')) {
+              teamContext = fs.readFileSync('.squad/team.md', 'utf8');
+            }
+
+            // Build custom instructions for Copilot
+            const customInstructions = [
+              `You are ${doer.name}, a member of the Deck Squad.`,
+              `Your role and responsibilities are defined in your charter below.`,
+              `Follow the charter strictly — it defines what you own, how you work, and your quality standards.`,
+              '',
+              '## Your Charter',
+              charterContent,
+              '',
+              '## Rules',
+              '- Write tests for every change (see Testing section in your charter)',
+              '- Match existing code conventions',
+              '- Do NOT modify files outside your product scope unless the issue explicitly requires it',
+              '- If the issue touches auth or security, add a comment tagging the security reviewer',
+              '',
+              '## Context',
+              `- Repository: ${context.repo.owner}/${context.repo.repo}`,
+              `- Read .squad/team.md for full team roster and product mapping`,
+              `- Read .squad/routing.md for routing rules`,
+              `- Read .squad/decisions.md for team-wide standards`,
+            ].join('\n');
+
+            // Get default branch
+            const { data: repoData } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            // Assign Copilot coding agent
+            try {
+              await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: ['copilot-swe-agent[bot]'],
+                agent_assignment: {
+                  target_repo: `${context.repo.owner}/${context.repo.repo}`,
+                  base_branch: repoData.default_branch,
+                  custom_instructions: customInstructions,
+                },
+              });
+
+              core.info(`Assigned copilot-swe-agent as ${doer.name} to #${issue.number}`);
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  `### ⚽ ${doer.name} is on it`,
+                  '',
+                  `Copilot coding agent has been assigned as **${doer.name}** (${doer.label}).`,
+                  `It will create a branch, implement the changes following ${doer.name}'s charter, and open a PR.`,
+                  '',
+                  `**PO review:** ${doer.po} reviews and merges the PR.`,
+                  '',
+                  '> Copilot reads the doer\'s charter as custom instructions — it knows the code standards, test requirements, and product scope.',
+                ].join('\n'),
+              });
+            } catch (err) {
+              core.warning(`Failed to assign Copilot: ${err.message}`);
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  `### ⚠️ Could not assign Copilot`,
+                  '',
+                  `Failed to assign copilot-swe-agent: ${err.message}`,
+                  '',
+                  'This may mean Copilot coding agent is not enabled for this repo.',
+                  'Enable it at: Settings → Copilot → Coding agent → Allow.',
+                ].join('\n'),
+              });
+            }

@@ -37,9 +37,25 @@
 
 ## Ownership Model
 
-**POs** have final say on their product — they prioritize, triage, make architecture calls, and approve changes. They don't write code or tests; they define what "done" looks like.
+**POs** have final say on their product — they prioritize, triage, make architecture calls, and approve changes. They don't write code; they define what "done" looks like, review PRs, and merge.
 
-**Doers** execute — implement, test, and maintain code quality. They raise technical concerns to the PO when a decision has consequences.
+**Doers** are personas executed by **GitHub Copilot Coding Agent**. When a PO marks an issue `go:yes` and assigns a doer label (`squad:depaul`, `squad:lautaro`, `squad:licha`), the `squad-copilot-assign` workflow auto-assigns `copilot-swe-agent[bot]` with the doer's charter as custom instructions. Copilot creates a branch, implements following the charter's standards, and opens a PR.
+
+**POs review and merge** — they are the human-in-the-loop. The PR is the acceptance gate.
+
+### Execution Flow
+
+```
+Issue created → squad label → triage assigns PO
+    ↓
+PO reviews → applies go:yes + squad:{doer} label
+    ↓
+Workflow assigns Copilot as the doer (reads charter)
+    ↓
+Copilot implements → opens PR
+    ↓
+PO reviews PR → requests changes or approves → merge
+```
 
 **Cross-product work** requires agreement between affected POs. The doer who spans both products (De Paul for engine+launcher) coordinates implementation.
 
