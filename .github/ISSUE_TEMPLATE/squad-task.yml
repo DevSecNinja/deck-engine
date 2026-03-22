@@ -1,0 +1,57 @@
+name: Squad Task
+description: Create a task for the Deck Squad team
+labels: ["squad"]
+body:
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      description: Which product does this affect?
+      options:
+        - deck-engine
+        - deck-launcher
+        - deck-saas-core
+        - deck-gateway
+        - cross-cutting
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - feature
+        - bug
+        - docs
+        - chore
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - "p0 — blocking release"
+        - "p1 — this sprint"
+        - "p2 — next sprint"
+    validations:
+      required: false
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the task. Leave blank if the title is sufficient.
+      placeholder: Add details here...
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What must be true for this to be done? Include test expectations.
+      placeholder: |
+        - [ ] Feature works as described
+        - [ ] Tests added/updated for affected layer
+        - [ ] Security review if auth-related
+    validations:
+      required: false
