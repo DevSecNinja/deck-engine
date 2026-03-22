@@ -48,7 +48,7 @@ function copySkills() {
   }
 
   const destSkills = join(projectRoot, '.github', 'skills')
-  const disabledSkills = new Set(['deck-generate-image'])
+  const disabledSkills = new Set()
   let count = 0
 
   // Collect engine skill names to detect stale skills

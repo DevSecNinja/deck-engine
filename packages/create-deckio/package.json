@@ -1,6 +1,6 @@
 {
   "name": "create-deckio",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Scaffold a new deck presentation project powered by @deckio/deck-engine",
   "type": "module",
   "bin": {
@@ -33,7 +33,7 @@
     "directory": "packages/create-deckio"
   },
   "deckio": {
-    "engineVersion": "^1.10.0"
+    "engineVersion": "^1.11.0"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0"

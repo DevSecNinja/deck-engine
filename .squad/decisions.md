@@ -127,7 +127,7 @@ Phase 2 will include a pluggable theme system with 3 initial themes (current dar
 
 1. **Skills now start from project config** — Step 0 reads `deck.config.js`, captures `theme` and `designSystem`, and resolves the active descriptor before any slide work begins.
 2. **Descriptor rules replaced hardcoded theme sections** — the old Section A–D / Section S split is gone. Skills follow the resolved descriptor exactly for JSX skeletons, CSS skeletons, tokens, components, and anti-patterns.
-3. **The whole authoring toolchain was updated** — `deck-add-slide`, `deck-validate-project`, `deck-inspect`, `deck-sketch`, and `deck-generate-image` all use the same descriptor-resolution procedure.
+3. **The whole authoring toolchain was updated** — `deck-add-slide`, `deck-validate-project`, `deck-inspect`, and `deck-sketch` all use the same descriptor-resolution procedure.
 4. **Skills are written for AI coding CLIs** — they are executable behavioral procedures with explicit steps and guardrails, not human-oriented narrative docs.
 
 **Key files:**
@@ -135,7 +135,6 @@ Phase 2 will include a pluggable theme system with 3 initial themes (current dar
 - `packages/deck-engine/skills/deck-validate-project/SKILL.md`
 - `packages/deck-engine/skills/deck-inspect/SKILL.md`
 - `packages/deck-engine/skills/deck-sketch/SKILL.md`
-- `packages/deck-engine/skills/deck-generate-image/SKILL.md`
 
 ---
 

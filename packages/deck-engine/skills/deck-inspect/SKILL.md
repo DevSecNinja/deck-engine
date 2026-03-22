@@ -1,11 +1,11 @@
 ---
 name: deck-inspect
-description: Capture a screenshot of the deck app to visually inspect slides. Use this when asked to look at, see, view, inspect, check visually, or preview a slide.
+description: Capture a screenshot of the deck app to visually inspect slides. Use this when asked to look at, see, view, inspect, check visually, or preview a slide. Works in VS Code, Copilot CLI, deck-launcher, and containers.
 ---
 
 # Visual Inspection — Capture a Slide Screenshot
 
-Captures a screenshot of the running deck using VS Code browser tools (Edge "Sharing with Agent").
+Captures a screenshot of the running deck to visually inspect slides. Works across all environments: VS Code, GitHub Copilot CLI (Windows, macOS, Linux), deck-launcher, and AKS containers.
 
 ## Step 0 — Read `deck.config.js` and the active theme descriptor
 
@@ -27,6 +27,7 @@ Judge the screenshot against the descriptor's:
 ## Deciding what to capture
 
 1. **Slide** — resolve in this order:
+   - If the user message contains `[Current slide: X of Y — SlideName]` → use slide X.
    - If the user said "slide 3" or "the cover slide" → map to a 1-based number.
    - If you just created or edited a specific slide → use that slide's array position + 1.
    - If not specified → capture slide 1.
@@ -35,29 +36,57 @@ Judge the screenshot against the descriptor's:
 
 The dev server must be running. Check `.github/memory/state.md` for the port. Default is `5173`.
 
-## Workflow
+## Choose capture strategy
 
-### Step 1 — Open or reuse a browser page
+Detect which tools are available and use the first matching strategy.
+
+### Strategy A — VS Code browser tools (preferred in VS Code)
+
+Use this when `screenshot_page` or `open_browser_page` tools are available.
+
+#### Step A1 — Open or reuse a browser page
 
 Check the attached browser pages for an existing deck tab. If none exists, open one:
 
 ```
-open_browser_page → http://localhost:<port>/#/<project-id>
+open_browser_page → http://localhost:<port>
 ```
 
 Read `project` and `port` from `.github/memory/state.md` if not known.
 
-### Step 2 — Navigate to the target slide
+#### Step A2 — Navigate to the target slide
 
-The deck opens on slide 1. To reach slide N, press `ArrowRight` (N − 1) times.
+Press `Home` to go to slide 1, then press `ArrowRight` (N − 1) times to reach slide N.
 
-If the page is already on a different slide, navigate to slide 1 first by pressing `Home`, then advance forward.
+#### Step A3 — Take a screenshot
 
-### Step 3 — Take a screenshot
+Use `screenshot_page` with the page ID.
 
-Use `screenshot_page` with the page ID to capture the current view.
+### Strategy B — Capture script (Copilot CLI, launcher, containers)
 
-### Step 4 — Inspect and report
+Use this when VS Code browser tools (`screenshot_page`, `open_browser_page`) are NOT available. This works on Windows, macOS, Linux, and inside AKS containers.
+
+Run the engine capture script:
+
+```bash
+node node_modules/@deckio/deck-engine/scripts/capture-slide.mjs --slide <N>
+```
+
+The script auto-detects the environment:
+- Uses Puppeteer directly if available (launcher node_modules, container `/app/node_modules`)
+- Falls back to the launcher capture API (`POST /api/capture/:id`) over HTTP
+
+Optional flags:
+- `--port <port>` — override dev server port (default: from `.github/memory/state.md` or `5173`)
+- `--project-id <id>` — override project ID (default: from `deck.config.js`)
+- `--launcher-port <port>` — override launcher API port (default: `$PORT` or `46000`)
+- `--output <path>` — override output file path
+
+The captured image is saved to `.github/eyes/capture-<timestamp>.png`.
+
+After running the script, read the saved image file to inspect it.
+
+## Inspect and report
 
 Study the screenshot and check for:
 
@@ -68,7 +97,7 @@ Study the screenshot and check for:
 - Overflow or clipping
 - Theme or design-system mismatches
 
-### Step 5 — Use the descriptor to judge fit
+## Use the descriptor to judge fit
 
 Examples of descriptor mismatches to flag:
 

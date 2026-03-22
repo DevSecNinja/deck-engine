@@ -41,7 +41,7 @@ function resolveEngineRoot() {
 function copyEngineAssets(dir) {
   const engineRoot = resolveEngineRoot()
   if (!engineRoot) return
-  const disabledSkills = new Set(['deck-generate-image'])
+  const disabledSkills = new Set()
 
   // Skills
   const srcSkills = join(engineRoot, 'skills')
