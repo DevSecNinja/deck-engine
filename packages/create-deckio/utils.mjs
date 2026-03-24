@@ -99,10 +99,10 @@ export function packageJson(name, engineRef, { designSystem = 'none' } = {}) {
     },
     dependencies: deps,
     devDependencies: {
-      '@tailwindcss/vite': '^4.1.0',
-      '@vitejs/plugin-react': '^4.4.1',
-      tailwindcss: '^4.1.0',
-      vite: '^6.3.5',
+      '@tailwindcss/vite': '^4.2.2',
+      '@vitejs/plugin-react': '^6.0.0',
+      tailwindcss: '^4.2.2',
+      vite: '^8.0.0',
     },
   }, null, 2) + '\n'
 }
