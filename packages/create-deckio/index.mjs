@@ -7,9 +7,10 @@
  *   npx create-deckio my-talk
  */
 import { mkdirSync, writeFileSync, copyFileSync, existsSync, readdirSync } from 'fs'
-import { join, resolve, dirname } from 'path'
+import { join, resolve, dirname, basename } from 'path'
 import { exec, execSync } from 'child_process'
 import { promisify } from 'util'
+import { parseArgs } from 'node:util'
 import { fileURLToPath } from 'url'
 import * as clack from '@clack/prompts'
 
@@ -518,22 +519,57 @@ gh copilot --yolo
 }
 
 async function main() {
-  const arg = process.argv[2]
+  const { values: flags, positionals } = parseArgs({
+    args: process.argv.slice(2),
+    options: {
+      title: { type: 'string' },
+      subtitle: { type: 'string' },
+      icon: { type: 'string' },
+      theme: { type: 'string' },
+      appearance: { type: 'string' },
+      palette: { type: 'string' },
+      accent: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+    allowPositionals: true,
+    strict: false,
+  })
 
-  if (!arg || arg === '--help' || arg === '-h') {
+  const arg = positionals[0]
+
+  if (!arg || flags.help) {
     console.log(`
   Usage: npm create deckio <project-name>
+         npx create-deckio .                  (scaffold in current directory)
+
+  Options:
+    --title <string>         Deck title
+    --subtitle <string>      Deck subtitle
+    --icon <string>          Emoji icon (default: 🎴)
+    --theme <name>           default | shadcn | funky-punk
+    --appearance <mode>      dark | light
+    --palette <name>         Aurora palette: ocean | sunset | forest | nebula | arctic | minimal (shadcn only)
+    --accent <#hex>          Accent color hex (default theme only, e.g. #6366f1)
+    -h, --help               Show this help
 
   Examples:
     npm create deckio my-talk
-    npm create deckio quarterly-review
-    npx create-deckio cool-deck
+    npx create-deckio quarterly-review
+    npx create-deckio . --title "My Talk" --theme shadcn --palette ocean
+    npx create-deckio cool-deck --theme funky-punk
 `)
     process.exit(0)
   }
 
-  const slug = slugify(arg)
-  const dir = resolve(slug)
+  // Validate --accent if provided
+  if (flags.accent && !/^#[0-9a-fA-F]{6}$/.test(flags.accent)) {
+    console.error('Error: --accent must be a valid hex color (e.g. #6366f1)')
+    process.exit(1)
+  }
+
+  const isDot = arg === '.'
+  const slug = isDot ? slugify(basename(resolve('.'))) : slugify(arg)
+  const dir = isDot ? resolve('.') : resolve(slug)
 
   // Guard: refuse to scaffold into a non-empty existing directory
   if (existsSync(dir)) {
@@ -565,125 +601,203 @@ async function main() {
     clack.intro('✦ DECKIO — new deck')
     clack.note(`Using @deckio/deck-engine ${engineVersionLabel}`, 'Runtime')
 
-    title = await clack.text({
-      message: 'Title',
-      placeholder: defaultTitle,
-      defaultValue: defaultTitle,
-    })
-    if (clack.isCancel(title)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-    subtitle = await clack.text({
-      message: 'Subtitle',
-      placeholder: 'A presentation built with deck-engine',
-      defaultValue: 'A presentation built with deck-engine',
-    })
-    if (clack.isCancel(subtitle)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-    icon = await clack.text({
-      message: 'Icon',
-      placeholder: '🎴',
-      defaultValue: '🎴',
-      hint: 'an emoji for your deck',
-    })
-    if (clack.isCancel(icon)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-    // Choose theme
-    const chosenDesignSystem = await clack.select({
-      message: 'Choose a theme',
-      options: [
-        { value: 'default', label: 'Default', hint: 'CSS custom properties' },
-        { value: 'shadcn', label: 'shadcn/ui', hint: 'Tailwind + shadcn/ui' },
-        { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
-      ],
-      initialValue: 'default',
-    })
-    if (clack.isCancel(chosenDesignSystem)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-    // Map funky-punk directly — skip appearance picker
-    if (chosenDesignSystem === 'funky-punk') {
-      theme = 'funky-punk'
-      designSystem = 'none'
-      appearance = 'dark'
-    } else {
-      // Choose appearance / theme
-      appearance = await clack.select({
-        message: 'Appearance',
-        options: [
-          { value: 'dark', label: 'Dark', hint: 'midnight' },
-          { value: 'light', label: 'Light', hint: 'bright and airy' },
-        ],
-        initialValue: 'dark',
+    title = flags.title ?? await (async () => {
+      const v = await clack.text({
+        message: 'Title',
+        placeholder: defaultTitle,
+        defaultValue: defaultTitle,
       })
-      if (clack.isCancel(appearance)) { clack.cancel('Cancelled.'); process.exit(0) }
+      if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+      return v
+    })()
 
-      // Map selections to theme + designSystem
-      if (chosenDesignSystem === 'shadcn') {
+    subtitle = flags.subtitle ?? await (async () => {
+      const v = await clack.text({
+        message: 'Subtitle',
+        placeholder: 'A presentation built with deck-engine',
+        defaultValue: 'A presentation built with deck-engine',
+      })
+      if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+      return v
+    })()
+
+    icon = flags.icon ?? await (async () => {
+      const v = await clack.text({
+        message: 'Icon',
+        placeholder: '🎴',
+        defaultValue: '🎴',
+        hint: 'an emoji for your deck',
+      })
+      if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+      return v
+    })()
+
+    // Theme selection — skip if --theme flag provided
+    if (flags.theme) {
+      if (flags.theme === 'funky-punk') {
+        theme = 'funky-punk'
+        designSystem = 'none'
+        appearance = flags.appearance || 'dark'
+      } else if (flags.theme === 'shadcn') {
         theme = 'shadcn'
         designSystem = 'shadcn'
+        appearance = flags.appearance ?? await (async () => {
+          const v = await clack.select({
+            message: 'Appearance',
+            options: [
+              { value: 'dark', label: 'Dark', hint: 'midnight' },
+              { value: 'light', label: 'Light', hint: 'bright and airy' },
+            ],
+            initialValue: 'dark',
+          })
+          if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+          return v
+        })()
       } else {
-        theme = appearance // 'dark' or 'light'
+        // default theme
+        appearance = flags.appearance ?? await (async () => {
+          const v = await clack.select({
+            message: 'Appearance',
+            options: [
+              { value: 'dark', label: 'Dark', hint: 'midnight' },
+              { value: 'light', label: 'Light', hint: 'bright and airy' },
+            ],
+            initialValue: 'dark',
+          })
+          if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+          return v
+        })()
+        theme = appearance
         designSystem = 'none'
+      }
+    } else {
+      // Fully interactive theme selection
+      const chosenDesignSystem = await clack.select({
+        message: 'Choose a theme',
+        options: [
+          { value: 'default', label: 'Default', hint: 'CSS custom properties' },
+          { value: 'shadcn', label: 'shadcn/ui', hint: 'Tailwind + shadcn/ui' },
+          { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
+        ],
+        initialValue: 'default',
+      })
+      if (clack.isCancel(chosenDesignSystem)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+      // Map funky-punk directly — skip appearance picker
+      if (chosenDesignSystem === 'funky-punk') {
+        theme = 'funky-punk'
+        designSystem = 'none'
+        appearance = 'dark'
+      } else {
+        // Choose appearance / theme
+        appearance = flags.appearance ?? await (async () => {
+          const v = await clack.select({
+            message: 'Appearance',
+            options: [
+              { value: 'dark', label: 'Dark', hint: 'midnight' },
+              { value: 'light', label: 'Light', hint: 'bright and airy' },
+            ],
+            initialValue: 'dark',
+          })
+          if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
+          return v
+        })()
+
+        // Map selections to theme + designSystem
+        if (chosenDesignSystem === 'shadcn') {
+          theme = 'shadcn'
+          designSystem = 'shadcn'
+        } else {
+          theme = appearance // 'dark' or 'light'
+          designSystem = 'none'
+        }
       }
     }
 
     // Color selection depends on design system
     if (designSystem === 'shadcn') {
-      // Aurora palette picker — the palette IS the color identity for shadcn
-      const paletteOptions = AURORA_PALETTES.map((p) => ({
-        value: p.value,
-        label: `${swatch(p.colors[0])}${swatch(p.colors[1])}${swatch(p.colors[2])} ${p.label}`,
-        hint: p.hint,
-      }))
+      if (flags.palette) {
+        const palette = AURORA_PALETTES.find((p) => p.value === flags.palette) || AURORA_PALETTES[0]
+        aurora = { palette: palette.value, colors: palette.colors }
+        accent = auroraAccent(palette.value)
+      } else {
+        // Aurora palette picker — the palette IS the color identity for shadcn
+        const paletteOptions = AURORA_PALETTES.map((p) => ({
+          value: p.value,
+          label: `${swatch(p.colors[0])}${swatch(p.colors[1])}${swatch(p.colors[2])} ${p.label}`,
+          hint: p.hint,
+        }))
 
-      const chosenPalette = await clack.select({
-        message: 'Aurora palette',
-        options: paletteOptions,
-        initialValue: 'ocean',
-      })
-      if (clack.isCancel(chosenPalette)) { clack.cancel('Cancelled.'); process.exit(0) }
+        const chosenPalette = await clack.select({
+          message: 'Aurora palette',
+          options: paletteOptions,
+          initialValue: 'ocean',
+        })
+        if (clack.isCancel(chosenPalette)) { clack.cancel('Cancelled.'); process.exit(0) }
 
-      const palette = AURORA_PALETTES.find((p) => p.value === chosenPalette)
-      aurora = { palette: palette.value, colors: palette.colors }
-      // Derive accent from palette — no separate accent prompt
-      accent = auroraAccent(palette.value)
+        const palette = AURORA_PALETTES.find((p) => p.value === chosenPalette)
+        aurora = { palette: palette.value, colors: palette.colors }
+        // Derive accent from palette — no separate accent prompt
+        accent = auroraAccent(palette.value)
+      }
     } else {
-      // Default design system — accent color preset picker
-      const colorOptions = [
-        ...COLOR_PRESETS.map((c) => ({
-          value: c.value,
-          label: `${swatch(c.value)} ${c.label}`,
-          hint: c.value,
-        })),
-        { value: '__custom', label: '✎ Custom hex', hint: 'enter your own' },
-      ]
+      if (flags.accent) {
+        accent = flags.accent
+      } else {
+        // Default design system — accent color preset picker
+        const colorOptions = [
+          ...COLOR_PRESETS.map((c) => ({
+            value: c.value,
+            label: `${swatch(c.value)} ${c.label}`,
+            hint: c.value,
+          })),
+          { value: '__custom', label: '✎ Custom hex', hint: 'enter your own' },
+        ]
 
-      accent = await clack.select({
-        message: 'Accent color',
-        options: colorOptions,
-        initialValue: '#6366f1',
-      })
-      if (clack.isCancel(accent)) { clack.cancel('Cancelled.'); process.exit(0) }
-
-      if (accent === '__custom') {
-        accent = await clack.text({
-          message: 'Hex color',
-          placeholder: '#6366f1',
-          defaultValue: '#6366f1',
-          validate: (v) => /^#[0-9a-fA-F]{6}$/.test(v) ? undefined : 'Must be a valid hex color (e.g. #6366f1)',
+        accent = await clack.select({
+          message: 'Accent color',
+          options: colorOptions,
+          initialValue: '#6366f1',
         })
         if (clack.isCancel(accent)) { clack.cancel('Cancelled.'); process.exit(0) }
+
+        if (accent === '__custom') {
+          accent = await clack.text({
+            message: 'Hex color',
+            placeholder: '#6366f1',
+            defaultValue: '#6366f1',
+            validate: (v) => /^#[0-9a-fA-F]{6}$/.test(v) ? undefined : 'Must be a valid hex color (e.g. #6366f1)',
+          })
+          if (clack.isCancel(accent)) { clack.cancel('Cancelled.'); process.exit(0) }
+        }
       }
     }
   } else {
-    title = process.env.DECK_TITLE || defaultTitle
-    subtitle = process.env.DECK_SUBTITLE || 'A presentation built with deck-engine'
-    icon = process.env.DECK_ICON || '🎴'
+    title = flags.title || process.env.DECK_TITLE || defaultTitle
+    subtitle = flags.subtitle || process.env.DECK_SUBTITLE || 'A presentation built with deck-engine'
+    icon = flags.icon || process.env.DECK_ICON || '🎴'
 
-    // New env vars: DECK_DESIGN_SYSTEM + DECK_APPEARANCE
+    // Determine design system from --theme flag or env vars
+    const effectiveTheme = flags.theme || null
     const envDesignSystem = process.env.DECK_DESIGN_SYSTEM
     const envAppearance = process.env.DECK_APPEARANCE || 'dark'
 
-    if (envDesignSystem) {
+    if (effectiveTheme) {
+      // --theme flag takes precedence
+      if (effectiveTheme === 'funky-punk') {
+        theme = 'funky-punk'
+        designSystem = 'none'
+        appearance = flags.appearance || 'dark'
+      } else if (effectiveTheme === 'shadcn') {
+        theme = 'shadcn'
+        designSystem = 'shadcn'
+        appearance = flags.appearance || envAppearance
+      } else {
+        appearance = flags.appearance || envAppearance
+        theme = appearance
+        designSystem = 'none'
+      }
+    } else if (envDesignSystem) {
       // New-style env vars
       if (envDesignSystem === 'shadcn') {
         theme = 'shadcn'
@@ -702,14 +816,14 @@ async function main() {
     }
 
     if (designSystem === 'shadcn') {
-      // Aurora palette from env — derive accent from it
-      const envPalette = process.env.DECK_AURORA_PALETTE || 'ocean'
-      const palette = AURORA_PALETTES.find((p) => p.value === envPalette) || AURORA_PALETTES[0]
+      // Aurora palette from flag or env — derive accent from it
+      const paletteName = flags.palette || process.env.DECK_AURORA_PALETTE || 'ocean'
+      const palette = AURORA_PALETTES.find((p) => p.value === paletteName) || AURORA_PALETTES[0]
       aurora = { palette: palette.value, colors: palette.colors }
       accent = auroraAccent(palette.value)
     } else {
-      // Default design system — accent from env
-      accent = process.env.DECK_ACCENT || '#6366f1'
+      // Default design system — accent from flag or env
+      accent = flags.accent || process.env.DECK_ACCENT || '#6366f1'
     }
 
     clack.log.info(`Using @deckio/deck-engine ${engineVersionLabel}`)
@@ -815,9 +929,9 @@ async function main() {
   }
 
   if (installOk) {
-    clack.outro(`✦ Ready! cd ${slug} && npm run dev`)
+    clack.outro(isDot ? '✦ Ready! npm run dev' : `✦ Ready! cd ${slug} && npm run dev`)
   } else {
-    clack.outro(`⚠ cd ${slug} && npm install   (then npm run dev)`)
+    clack.outro(isDot ? '⚠ npm install   (then npm run dev)' : `⚠ cd ${slug} && npm install   (then npm run dev)`)
   }
 }
 
