@@ -24,6 +24,9 @@ const execAsync = promisify(exec)
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
+// Avoid exotic emoji that garble on many terminals; ♠ is plain Unicode BMP
+const DEFAULT_ICON = '\u2660' // ♠
+
 /**
  * Resolve the engine source directory. In the monorepo it sits next to the
  * scaffolder; when published to npm it won't exist — callers must check.
@@ -545,7 +548,7 @@ async function main() {
   Options:
     --title <string>         Deck title
     --subtitle <string>      Deck subtitle
-    --icon <string>          Emoji icon (default: 🎴)
+    --icon <string>          Emoji icon (default: ${DEFAULT_ICON})
     --theme <name>           default | shadcn | funky-punk
     --appearance <mode>      dark | light
     --palette <name>         Aurora palette: ocean | sunset | forest | nebula | arctic | minimal (shadcn only)
@@ -624,8 +627,8 @@ async function main() {
     icon = flags.icon ?? await (async () => {
       const v = await clack.text({
         message: 'Icon',
-        placeholder: '🎴',
-        defaultValue: '🎴',
+        placeholder: DEFAULT_ICON,
+        defaultValue: DEFAULT_ICON,
         hint: 'an emoji for your deck',
       })
       if (clack.isCancel(v)) { clack.cancel('Cancelled.'); process.exit(0) }
@@ -775,7 +778,7 @@ async function main() {
   } else {
     title = flags.title || process.env.DECK_TITLE || defaultTitle
     subtitle = flags.subtitle || process.env.DECK_SUBTITLE || 'A presentation built with deck-engine'
-    icon = flags.icon || process.env.DECK_ICON || '🎴'
+    icon = flags.icon || process.env.DECK_ICON || DEFAULT_ICON
 
     // Determine design system from --theme flag or env vars
     const effectiveTheme = flags.theme || null
