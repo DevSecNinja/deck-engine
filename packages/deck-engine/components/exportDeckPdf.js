@@ -13,16 +13,6 @@ const SETTLE_MS = 600
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-function getCaptureSize(target, fallback) {
-  const targetRect = target?.getBoundingClientRect?.()
-  const fallbackRect = fallback?.getBoundingClientRect?.()
-
-  const width = Math.max(1, Math.round(targetRect?.width || fallbackRect?.width || window.innerWidth || 1920))
-  const height = Math.max(1, Math.round(targetRect?.height || fallbackRect?.height || window.innerHeight || 1080))
-
-  return { width, height }
-}
-
 async function waitForAssets(root) {
   if (document.fonts?.ready) await document.fonts.ready
 
@@ -120,13 +110,13 @@ export async function exportDeckPdf({
     .getPropertyValue('--background').trim() || '#080b10'
   const scale = Math.min(window.devicePixelRatio || 1, 2)
 
-  const initialActive = document.querySelector('.slide.active') || slides[current] || deck
-  const initialCapture = getCaptureSize(initialActive, deck)
+  const captureWidth = 1920
+  const captureHeight = 1080
 
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'px',
-    format: [initialCapture.width, initialCapture.height],
+    format: [captureWidth, captureHeight],
     compress: true,
     hotfixes: ['px_scaling'],
   })
@@ -148,16 +138,14 @@ export async function exportDeckPdf({
 
         await waitForAssets(active)
 
-        const capture = getCaptureSize(active, deck)
-
         const restore = pauseAnimations(active)
         await waitForPaint()
 
         let dataUrl
         try {
           dataUrl = await domToPng(active, {
-            width: capture.width,
-            height: capture.height,
+            width: captureWidth,
+            height: captureHeight,
             backgroundColor: bg,
             scale,
             style: {
@@ -165,8 +153,8 @@ export async function exportDeckPdf({
               inset: 'auto',
               left: '0',
               top: '0',
-              width: `${capture.width}px`,
-              height: `${capture.height}px`,
+              width: `${captureWidth}px`,
+              height: `${captureHeight}px`,
               maxWidth: 'none',
               maxHeight: 'none',
               boxSizing: 'border-box',
@@ -180,8 +168,8 @@ export async function exportDeckPdf({
           restore()
         }
 
-        if (i > 0) pdf.addPage([initialCapture.width, initialCapture.height], 'landscape')
-        pdf.addImage(dataUrl, 'PNG', 0, 0, initialCapture.width, initialCapture.height, undefined, 'FAST')
+        if (i > 0) pdf.addPage([captureWidth, captureHeight], 'landscape')
+        pdf.addImage(dataUrl, 'PNG', 0, 0, captureWidth, captureHeight, undefined, 'FAST')
       }
     } finally {
       goTo(current)
