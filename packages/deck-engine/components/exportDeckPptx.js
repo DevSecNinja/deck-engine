@@ -9,16 +9,6 @@ const SETTLE_MS = 600
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-function getCaptureSize(target, fallback) {
-  const targetRect = target?.getBoundingClientRect?.()
-  const fallbackRect = fallback?.getBoundingClientRect?.()
-
-  const width = Math.max(1, Math.round(targetRect?.width || fallbackRect?.width || window.innerWidth || 1920))
-  const height = Math.max(1, Math.round(targetRect?.height || fallbackRect?.height || window.innerHeight || 1080))
-
-  return { width, height }
-}
-
 async function waitForAssets(root) {
   if (document.fonts?.ready) await document.fonts.ready
 
@@ -113,10 +103,8 @@ export async function exportDeckPptx({
     .getPropertyValue('--background').trim() || '#080b10'
   const scale = Math.min(window.devicePixelRatio || 1, 2)
 
-  const initialActive = document.querySelector('.slide.active') || slides[current] || deck
-  const initialCapture = getCaptureSize(initialActive, deck)
   const pptxWidth = 10
-  const pptxHeight = Number((pptxWidth * initialCapture.height / initialCapture.width).toFixed(4))
+  const pptxHeight = 5.625
 
   const pptx = new Pptx()
   pptx.defineLayout({ name: 'WIDE', width: pptxWidth, height: pptxHeight })
@@ -139,7 +127,8 @@ export async function exportDeckPptx({
 
         await waitForAssets(active)
 
-        const capture = getCaptureSize(active, deck)
+        const captureWidth = 1920
+        const captureHeight = 1080
 
         const restore = pauseAnimations(active)
         await waitForPaint()
@@ -147,8 +136,8 @@ export async function exportDeckPptx({
         let dataUrl
         try {
           dataUrl = await domToPng(active, {
-            width: capture.width,
-            height: capture.height,
+            width: captureWidth,
+            height: captureHeight,
             backgroundColor: bg,
             scale,
             style: {
@@ -156,8 +145,8 @@ export async function exportDeckPptx({
               inset: 'auto',
               left: '0',
               top: '0',
-              width: `${capture.width}px`,
-              height: `${capture.height}px`,
+              width: `${captureWidth}px`,
+              height: `${captureHeight}px`,
               maxWidth: 'none',
               maxHeight: 'none',
               boxSizing: 'border-box',
