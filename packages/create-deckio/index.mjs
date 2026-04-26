@@ -27,14 +27,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 // Avoid exotic emoji that garble on many terminals; ♠ is plain Unicode BMP
 const DEFAULT_ICON = '\u2660' // ♠
 
+function envFlagEnabled(value) {
+  return typeof value === 'string' && !/^(0|false|no)$/i.test(value.trim())
+}
+
 /**
  * Resolve the engine source directory. In the monorepo it sits next to the
- * scaffolder; when published to npm it won't exist — callers must check.
+ * scaffolder; when published to npm it sits next to create-deckio as the
+ * scoped @deckio/deck-engine package.
  */
 function resolveEngineRoot() {
+  const configuredRoot = process.env.DECKIO_ENGINE_ROOT
+    ? resolve(process.env.DECKIO_ENGINE_ROOT)
+    : null
+  if (configuredRoot && existsSync(join(configuredRoot, 'package.json'))) return configuredRoot
+
   const monorepo = join(__dirname, '..', 'deck-engine')
   if (existsSync(join(monorepo, 'package.json'))) return monorepo
+
+  const installed = join(__dirname, '..', '@deckio', 'deck-engine')
+  if (existsSync(join(installed, 'package.json'))) return installed
+
   return null
+}
+
+function resolveEngineInitScript() {
+  const engineRoot = resolveEngineRoot()
+  if (!engineRoot) return null
+
+  const initScript = join(engineRoot, 'scripts', 'init-project.mjs')
+  return existsSync(initScript) ? initScript : null
 }
 
 /**
@@ -532,9 +554,11 @@ async function main() {
       appearance: { type: 'string' },
       palette: { type: 'string' },
       accent: { type: 'string' },
+      install: { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
     allowPositionals: true,
+    allowNegative: true,
     strict: false,
   })
 
@@ -553,6 +577,7 @@ async function main() {
     --appearance <mode>      dark | light
     --palette <name>         Aurora palette: ocean | sunset | forest | nebula | arctic | minimal (shadcn only)
     --accent <#hex>          Accent color hex (default theme only, e.g. #6366f1)
+    --no-install             Skip npm install and only write/initialize project files
     -h, --help               Show this help
 
   Examples:
@@ -573,6 +598,7 @@ async function main() {
   const isDot = arg === '.'
   const slug = isDot ? slugify(basename(resolve('.'))) : slugify(arg)
   const dir = isDot ? resolve('.') : resolve(slug)
+  const skipInstall = flags.install === false || envFlagEnabled(process.env.DECKIO_SKIP_INSTALL)
 
   // Guard: refuse to scaffold into a non-empty existing directory
   if (existsSync(dir)) {
@@ -907,21 +933,37 @@ async function main() {
   // Copy Copilot skills + instructions from engine source (available pre-install)
   copyEngineAssets(dir)
 
-  s.message('Installing dependencies...')
   let installOk = true
-  try {
-    await execAsync('npm install', { cwd: dir })
+
+  if (skipInstall) {
     s.message('Initializing engine skills & instructions...')
     try {
-      const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
-      await execAsync(`node "${initScript}"`, { cwd: dir })
+      const initScript = resolveEngineInitScript()
+      if (initScript) {
+        await execAsync(`node "${initScript}"`, { cwd: dir })
+      } else {
+        clack.log.warn('Engine initialization skipped — no shared @deckio/deck-engine install found')
+      }
     } catch {
       clack.log.warn('Engine initialization skipped — run `npx deck-init` manually if needed')
     }
-    s.stop('Project ready!')
-  } catch {
-    installOk = false
-    s.stop('npm install failed — run it manually inside the project folder')
+    s.stop('Project files ready — dependency install skipped')
+  } else {
+    s.message('Installing dependencies...')
+    try {
+      await execAsync('npm install', { cwd: dir })
+      s.message('Initializing engine skills & instructions...')
+      try {
+        const initScript = join(dir, 'node_modules', '@deckio', 'deck-engine', 'scripts', 'init-project.mjs')
+        await execAsync(`node "${initScript}"`, { cwd: dir })
+      } catch {
+        clack.log.warn('Engine initialization skipped — run `npx deck-init` manually if needed')
+      }
+      s.stop('Project ready!')
+    } catch {
+      installOk = false
+      s.stop('npm install failed — run it manually inside the project folder')
+    }
   }
 
   if (designSystem === 'shadcn') {
@@ -931,7 +973,11 @@ async function main() {
     )
   }
 
-  if (installOk) {
+  if (skipInstall) {
+    clack.outro(isDot
+      ? '✦ Files ready! Link shared node_modules or run npm install, then npm run dev'
+      : `✦ Files ready! cd ${slug} && npm install   (then npm run dev)`)
+  } else if (installOk) {
     clack.outro(isDot ? '✦ Ready! npm run dev' : `✦ Ready! cd ${slug} && npm run dev`)
   } else {
     clack.outro(isDot ? '⚠ npm install   (then npm run dev)' : `⚠ cd ${slug} && npm install   (then npm run dev)`)

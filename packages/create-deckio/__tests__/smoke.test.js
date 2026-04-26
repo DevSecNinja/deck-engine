@@ -28,6 +28,21 @@ function makeTempWithNpmShim() {
   return { tempRoot, PATH }
 }
 
+function makeTempWithFailingNpmShim() {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'create-deckio-no-install-'))
+  const binDir = join(tempRoot, 'bin')
+  mkdirSync(binDir, { recursive: true })
+  if (process.platform === 'win32') {
+    writeFileSync(join(binDir, 'npm.cmd'), '@echo off\r\necho npm should not run 1>&2\r\nexit /b 42\r\n')
+  } else {
+    const npmShim = join(binDir, 'npm')
+    writeFileSync(npmShim, '#!/bin/sh\necho npm should not run >&2\nexit 42\n')
+    chmodSync(npmShim, 0o755)
+  }
+  const PATH = `${binDir}${process.platform === 'win32' ? ';' : ':'}${process.env.PATH || ''}`
+  return { tempRoot, PATH }
+}
+
 describe('create-deckio package', () => {
   it('has a valid package.json with bin entry', async () => {
     const pkg = (await import(join(pkgRoot, 'package.json'), { with: { type: 'json' } })).default
@@ -193,7 +208,38 @@ describe('create-deckio CLI flags', () => {
       expect(output).toContain('--appearance')
       expect(output).toContain('--palette')
       expect(output).toContain('--accent')
+      expect(output).toContain('--no-install')
       expect(output).toContain('scaffold in current directory')
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('--no-install scaffolds and initializes without running npm install', () => {
+    const { tempRoot, PATH } = makeTempWithFailingNpmShim()
+    const projectName = 'skip-install-test'
+    const projectDir = join(tempRoot, projectName)
+
+    try {
+      execFileSync(
+        process.execPath,
+        [join(pkgRoot, 'index.mjs'), projectName, '--no-install'],
+        {
+          cwd: tempRoot,
+          stdio: 'pipe',
+          env: {
+            ...process.env,
+            PATH,
+            DECK_TITLE: 'Skip Install Test',
+            DECK_THEME: 'dark',
+          },
+        },
+      )
+
+      expect(existsSync(join(projectDir, 'package.json'))).toBe(true)
+      expect(existsSync(join(projectDir, 'node_modules'))).toBe(false)
+      expect(existsSync(join(projectDir, '.github', 'memory', 'state.md'))).toBe(true)
+      expect(existsSync(join(projectDir, '.github', 'eyes'))).toBe(true)
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }
