@@ -30,6 +30,11 @@ export function deckPlugin(options = {}) {
     enforce: 'pre',
     config() {
       return {
+        // Keep Vite's optimized dependency chunks inside each deck instead of
+        // shared node_modules. Shared node_modules speeds startup, but sharing
+        // node_modules/.vite lets parallel dev servers invalidate each other's
+        // chunk files and causes intermittent 404s on /node_modules/.vite/deps.
+        cacheDir: '.vite',
         resolve: {
           dedupe: ['react', 'react-dom'],
         },

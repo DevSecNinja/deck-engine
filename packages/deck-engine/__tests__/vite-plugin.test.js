@@ -18,6 +18,13 @@ describe('deckPlugin', () => {
     expect(config.resolve.dedupe).toContain('react-dom')
   })
 
+  it('keeps optimized dependency cache local to each deck', () => {
+    const plugin = deckPlugin()
+    const config = plugin.config()
+
+    expect(config.cacheDir).toBe('.vite')
+  })
+
   it('dedupe array contains exactly react and react-dom', () => {
     const plugin = deckPlugin()
     const { dedupe } = plugin.config().resolve
