@@ -59,13 +59,20 @@ export default function GenericTocSlide({
         <div className="deck-toc-right">
           <div className="deck-toc-card">
             {items.map(item => (
-              <div key={item.num} className="deck-toc-item" onClick={() => item.target != null && goTo(item.target)} style={item.target != null ? { cursor: 'pointer' } : undefined}>
+              <button
+                key={item.num}
+                type="button"
+                className="deck-toc-item"
+                onClick={() => item.target != null && goTo(item.target)}
+                disabled={item.target == null}
+                aria-label={`Go to slide ${item.num}: ${item.title}`}
+              >
                 <div className="deck-toc-num">{item.num}</div>
                 <div className="deck-toc-text">
                   <h3>{item.title}</h3>
                   <p>{item.desc}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

@@ -42,6 +42,11 @@ function getStoredSlide(project, totalSlides) {
  *  ╰──────────────────────────────────────────────────────────────╯  */
 
 const DEFAULT_THEME = 'dark'
+const INTERACTIVE_KEY_TARGET = 'button, a, input, textarea, select, [contenteditable], [role="button"], [role="link"]'
+
+function isInteractiveKeyTarget(target) {
+  return target instanceof Element && Boolean(target.closest(INTERACTIVE_KEY_TARGET))
+}
 
 export function SlideProvider({ children, totalSlides, project, slides, theme }) {
   const [current, setCurrent] = useState(() =>
@@ -123,6 +128,8 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
 
   useEffect(() => {
     const handler = (e) => {
+      if (isInteractiveKeyTarget(e.target)) return
+
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter') {
         e.preventDefault()
         go(1)

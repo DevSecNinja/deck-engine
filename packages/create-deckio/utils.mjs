@@ -1215,7 +1215,7 @@ export function appJsx({ designSystem = 'none', appearance = 'dark' } = {}) {
     const defaultTheme = appearance === 'light' ? 'light' : 'dark'
     return `\
 import { useEffect } from 'react'
-import { Navigation, SlideProvider } from '@deckio/deck-engine'
+import { Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
 import { ThemeProvider } from './components/theme-provider'
 import Aurora from '@/components/ui/aurora'
 import project from '../deck.config.js'
@@ -1240,7 +1240,9 @@ export default function App() {
             <Navigation />
             <div className="deck" data-project-id={id}>
               {slides.map((SlideComponent, index) => (
-                <SlideComponent key={\`\${id}-slide-\${index}\`} index={index} project={project} />
+                <SlideErrorBoundary key={\`\${id}-slide-\${index}\`} index={index}>
+                  <SlideComponent index={index} project={project} />
+                </SlideErrorBoundary>
               ))}
             </div>
           </SlideProvider>
@@ -1254,7 +1256,7 @@ export default function App() {
 
   return `\
 import { useEffect } from 'react'
-import { Navigation, SlideProvider } from '@deckio/deck-engine'
+import { Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
 import project from '../deck.config.js'
 
 export default function App() {
@@ -1270,7 +1272,9 @@ export default function App() {
       <Navigation />
       <div className="deck" data-project-id={id}>
         {slides.map((SlideComponent, index) => (
-          <SlideComponent key={\`\${id}-slide-\${index}\`} index={index} project={project} />
+          <SlideErrorBoundary key={\`\${id}-slide-\${index}\`} index={index}>
+            <SlideComponent index={index} project={project} />
+          </SlideErrorBoundary>
         ))}
       </div>
     </SlideProvider>

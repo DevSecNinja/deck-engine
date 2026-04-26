@@ -1,6 +1,7 @@
 export { SlideProvider, useSlides } from './context/SlideContext.jsx'
 export { default as Slide } from './components/Slide.jsx'
 export { default as Navigation } from './components/Navigation.jsx'
+export { default as SlideErrorBoundary } from './components/SlideErrorBoundary.jsx'
 export { default as BottomBar } from './components/BottomBar.jsx'
 export { default as GenericThankYouSlide } from './slides/GenericThankYouSlide.jsx'
 export { default as GenericTwoOptionsSlide } from './slides/GenericTwoOptionsSlide.jsx'

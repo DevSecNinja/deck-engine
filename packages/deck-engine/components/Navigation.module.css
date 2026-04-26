@@ -8,6 +8,12 @@
   pointer-events: none;
 }
 
+.navWrapper:focus-within,
+.navHidden:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .progressTrack {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -154,6 +160,37 @@
   flex-shrink: 0;
 }
 
+.exportError {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 190px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--destructive, #f85149) 35%, var(--border));
+  background: var(--surface-overlay-heavy);
+  color: var(--foreground);
+  box-shadow: var(--shadow-elevated);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+.exportError button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+.exportError button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.exportErrorDismiss {
+  margin-left: var(--space-2);
+  color: var(--muted-foreground) !important;
+}
+
 .navBtn {
   position: fixed;
   top: 50%;
@@ -207,4 +244,13 @@
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-semibold);
   font-family: inherit;
+}
+
+.homeBtn:focus-visible,
+.exportBtn:focus-visible,
+.exportMenuItem:focus-visible,
+.navBtn:focus-visible,
+.exportError button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -15,7 +15,10 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   const [isExporting, setIsExporting] = useState(false)
   const [exportStatus, setExportStatus] = useState('PDF')
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [exportError, setExportError] = useState(null)
+  const [navHasFocus, setNavHasFocus] = useState(false)
   const exportMenuRef = useRef(null)
+  const navRef = useRef(null)
   const timerRef = useRef(null)
 
   useEffect(() => {
@@ -29,12 +32,28 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
       clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => setIdle(true), 2000)
     }
+    const handleFocusIn = (e) => {
+      if (navRef.current?.contains(e.target)) setNavHasFocus(true)
+      resetIdle()
+    }
+    const handleFocusOut = () => {
+      window.setTimeout(() => {
+        setNavHasFocus(Boolean(navRef.current?.contains(document.activeElement)))
+      }, 0)
+    }
+
     resetIdle()
     window.addEventListener('mousemove', resetIdle)
     window.addEventListener('mousedown', resetIdle)
+    window.addEventListener('keydown', resetIdle)
+    window.addEventListener('focusin', handleFocusIn)
+    window.addEventListener('focusout', handleFocusOut)
     return () => {
       window.removeEventListener('mousemove', resetIdle)
       window.removeEventListener('mousedown', resetIdle)
+      window.removeEventListener('keydown', resetIdle)
+      window.removeEventListener('focusin', handleFocusIn)
+      window.removeEventListener('focusout', handleFocusOut)
       clearTimeout(timerRef.current)
     }
   }, [])
@@ -77,9 +96,11 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
         },
       })
       setExportStatus('Done')
+      setExportError(null)
     } catch (error) {
       console.error(`${label} export failed`, error)
-      setExportStatus('Error')
+      setExportError({ format, message: error?.message || `${label} export failed` })
+      setExportStatus('PDF')
     } finally {
       window.setTimeout(() => {
         setIsExporting(false)
@@ -89,7 +110,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   }
 
   return (
-    <div className={`${styles.navWrapper} ${idle ? styles.navHidden : ''}`}>
+    <div ref={navRef} className={`${styles.navWrapper} ${idle && !navHasFocus ? styles.navHidden : ''}`}>
       <div className={styles.progressTrack}>
         <div className={styles.progressFill} style={{ width: `${progress}%` }} />
       </div>
@@ -142,6 +163,14 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
             </svg>
             <span className={styles.exportLabel}>{isExporting ? exportStatus : '⬇'}</span>
           </button>
+        )}
+
+        {exportError && !resolvedPdfPath && (
+          <div className={styles.exportError} role="alert">
+            <span>Export failed — </span>
+            <button type="button" onClick={() => handleExport(exportError.format)} disabled={isExporting}>Retry</button>
+            <button type="button" className={styles.exportErrorDismiss} onClick={() => setExportError(null)} aria-label="Dismiss export error">×</button>
+          </div>
         )}
 
         {exportMenuOpen && !isExporting && (
