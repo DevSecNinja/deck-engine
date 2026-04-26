@@ -10,17 +10,13 @@
  */
 
 const SETTLE_MS = 600
+const CAPTURE_WIDTH = 1920
+const CAPTURE_HEIGHT = 1080
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-function getCaptureSize(target, fallback) {
-  const targetRect = target?.getBoundingClientRect?.()
-  const fallbackRect = fallback?.getBoundingClientRect?.()
-
-  const width = Math.max(1, Math.round(targetRect?.width || fallbackRect?.width || window.innerWidth || 1920))
-  const height = Math.max(1, Math.round(targetRect?.height || fallbackRect?.height || window.innerHeight || 1080))
-
-  return { width, height }
+function getCaptureSize() {
+  return { width: CAPTURE_WIDTH, height: CAPTURE_HEIGHT }
 }
 
 async function waitForAssets(root) {
@@ -118,7 +114,7 @@ export async function exportDeckPdf({
 
   const bg = getComputedStyle(document.documentElement)
     .getPropertyValue('--background').trim() || '#080b10'
-  const scale = Math.min(window.devicePixelRatio || 1, 2)
+  const scale = 1
 
   const initialActive = document.querySelector('.slide.active') || slides[current] || deck
   const initialCapture = getCaptureSize(initialActive, deck)
