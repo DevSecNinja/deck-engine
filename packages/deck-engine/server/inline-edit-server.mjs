@@ -349,7 +349,14 @@ export function createInlineEditMiddleware({
   networkExposed = false,
 } = {}) {
   return async function inlineEditMiddleware(req, res, next) {
-    if (!req || req.url !== ENDPOINT_PATH) return next()
+    if (!req || !req.url) return next()
+    // Accept both the canonical path AND any proxy-prefixed variant whose
+    // pathname ends in ENDPOINT_PATH (e.g. the launcher's
+    // `/preview/<deckId>/__deckio/inline-edit`). Query strings are ignored.
+    const url = req.url
+    const queryIdx = url.indexOf('?')
+    const pathname = queryIdx === -1 ? url : url.slice(0, queryIdx)
+    if (pathname !== ENDPOINT_PATH && !pathname.endsWith(ENDPOINT_PATH)) return next()
 
     if (req.method !== 'POST') {
       sendError(res, 405, ERROR_CODES.METHOD)

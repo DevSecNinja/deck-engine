@@ -60,13 +60,28 @@ function normalizeOverrides(raw) {
   return out
 }
 
+function defaultInlineEditEndpoint() {
+  // Resolve relative to Vite's BASE_URL so decks served behind a sub-path
+  // proxy (e.g. the launcher's `/preview/<deckId>/` route) still hit their
+  // own Vite middleware. Falls back to the root path in non-Vite envs.
+  let base = '/'
+  try {
+    if (import.meta && import.meta.env && typeof import.meta.env.BASE_URL === 'string') {
+      base = import.meta.env.BASE_URL || '/'
+    }
+  } catch { /* ignore */ }
+  if (!base.endsWith('/')) base = `${base}/`
+  return `${base}__deckio/inline-edit`
+}
+
 export function InlineEditProvider({
   overrides: initialOverrides = {},
   project,
-  endpoint = '/__deckio/inline-edit',
+  endpoint,
   enabled,
   children,
 }) {
+  const resolvedEndpoint = endpoint || defaultInlineEditEndpoint()
   const [overrides, setOverrides] = useState(() => normalizeOverrides(initialOverrides))
   const hashRef = useRef(null)
   const isDev = useMemo(() => (typeof enabled === 'boolean' ? enabled : isDevEnv()), [enabled])
@@ -75,7 +90,7 @@ export function InlineEditProvider({
     if (!isDev) return { ok: false, reason: 'not-dev' }
     let res
     try {
-      res = await fetch(endpoint, {
+      res = await fetch(resolvedEndpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +119,7 @@ export function InlineEditProvider({
     if (body && body.hash) hashRef.current = body.hash
     setOverrides((prev) => ({ ...prev, [field]: value }))
     return { ok: true }
-  }, [endpoint, isDev, project])
+  }, [resolvedEndpoint, isDev, project])
 
   const value = useMemo(() => ({ overrides, save, isDev }), [overrides, save, isDev])
 
