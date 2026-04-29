@@ -1,15 +1,26 @@
-/* Editable primitive — minimal affordance, dev-only by virtue of the runtime. */
+/* Editable primitive — dev-only affordance, restrained by design.
+   Anu's UX guardrails: no layout shift, no persistent badges, calm hover/focus
+   treatment using --accent and a 2px focus ring. */
+
 .deckio-editable {
   position: relative;
-  cursor: text;
   border-radius: 4px;
-  transition: outline-color 120ms ease, background-color 120ms ease;
   outline: 1px dashed transparent;
   outline-offset: 3px;
+  transition: outline-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 
-.deckio-editable:hover {
-  outline-color: color-mix(in oklab, currentColor 35%, transparent);
+/* Hover/focus reveal — same visual language for both, visible on dark + light. */
+.deckio-editable:hover,
+.deckio-editable:focus-visible {
+  outline-color: color-mix(in oklab, var(--accent, #6366f1) 60%, transparent);
+  cursor: text;
+}
+
+.deckio-editable:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 3px;
 }
 
 .deckio-editable--active {
@@ -19,6 +30,39 @@
   cursor: text;
 }
 
-.deckio-editable--error {
-  outline-color: #ef4444;
+.deckio-editable--saving {
+  outline-color: color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
+  animation: deckio-editable-pulse 1s ease-in-out infinite;
 }
+
+@keyframes deckio-editable-pulse {
+  0%, 100% { outline-color: color-mix(in oklab, var(--accent, #6366f1) 50%, transparent); }
+  50%      { outline-color: color-mix(in oklab, var(--accent, #6366f1) 90%, transparent); }
+}
+
+.deckio-editable--error {
+  outline: 2px solid #ef4444;
+  outline-offset: 3px;
+}
+
+/* Status region — visually compact, screen-reader friendly, no layout shift. */
+.deckio-editable-status {
+  position: absolute;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  margin-left: 6px;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--background, #111) 85%, transparent);
+  color: color-mix(in oklab, var(--accent, #6366f1) 70%, currentColor);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.95;
+  transform: translateY(-1.2em);
+}
+
+.deckio-editable-status:empty {
+  /* When status text is null, take no space at all. */
+  display: none;
+}
+

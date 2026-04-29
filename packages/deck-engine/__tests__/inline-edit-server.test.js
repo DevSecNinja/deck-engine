@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import {
   createInlineEditMiddleware,
+  hashOverrides,
   isLoopbackRequest,
   isValidField,
   isValidValue,
@@ -153,18 +154,23 @@ async function runMiddleware(mw, req, res) {
 }
 
 describe('createInlineEditMiddleware', () => {
-  it('writes a valid override and returns ok', async () => {
+  it('writes a valid override and returns ok with hash', async () => {
     const mw = createInlineEditMiddleware({ root: tempRoot })
     const req = new FakeReq()
     const res = new FakeRes()
     const done = mw(req, res, () => {})
     send(req, JSON.stringify({ field: 'cover.title', value: 'New Title' }))
     await done
-    // Wait for write to finish
     await new Promise((r) => setTimeout(r, 30))
     expect(res.statusCode).toBe(200)
+    const reply = JSON.parse(res.body)
+    expect(reply.ok).toBe(true)
+    expect(reply.field).toBe('cover.title')
+    expect(typeof reply.hash).toBe('string')
+    expect(reply.hash.length).toBeGreaterThan(0)
     const written = JSON.parse(readFileSync(safeOverridePath(tempRoot), 'utf8'))
     expect(written['cover.title']).toBe('New Title')
+    expect(reply.hash).toBe(hashOverrides(written))
   })
 
   it('rejects non-loopback requests with 403', async () => {
@@ -232,5 +238,54 @@ describe('createInlineEditMiddleware', () => {
     const written = JSON.parse(readFileSync(target, 'utf8'))
     expect(written['a.b']).toBe('kept')
     expect(written['cover.title']).toBe('added')
+  })
+
+  it('returns 409 source-changed when baseHash does not match', async () => {
+    const target = safeOverridePath(tempRoot)
+    await writeOverridesAtomic(target, { 'a.b': 'truth' })
+
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq()
+    const res = new FakeRes()
+    const done = mw(req, res, () => {})
+    send(req, JSON.stringify({ field: 'cover.title', value: 'oops', baseHash: 'stale-hash' }))
+    await done
+    await new Promise((r) => setTimeout(r, 30))
+
+    expect(res.statusCode).toBe(409)
+    const reply = JSON.parse(res.body)
+    expect(reply.error).toBe('source-changed')
+    expect(reply.hash).toBe(hashOverrides({ 'a.b': 'truth' }))
+    // File was not touched.
+    const after = JSON.parse(readFileSync(target, 'utf8'))
+    expect(after).toEqual({ 'a.b': 'truth' })
+  })
+
+  it('accepts a baseHash that matches and returns the new hash', async () => {
+    const target = safeOverridePath(tempRoot)
+    await writeOverridesAtomic(target, { 'a.b': 'truth' })
+    const baseHash = hashOverrides({ 'a.b': 'truth' })
+
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq()
+    const res = new FakeRes()
+    const done = mw(req, res, () => {})
+    send(req, JSON.stringify({ field: 'cover.title', value: 'added', baseHash }))
+    await done
+    await new Promise((r) => setTimeout(r, 30))
+
+    expect(res.statusCode).toBe(200)
+    const reply = JSON.parse(res.body)
+    expect(reply.ok).toBe(true)
+    expect(reply.hash).not.toBe(baseHash)
+  })
+})
+
+describe('hashOverrides', () => {
+  it('is stable across calls for equivalent input', () => {
+    expect(hashOverrides({ a: '1' })).toBe(hashOverrides({ a: '1' }))
+  })
+  it('changes when content changes', () => {
+    expect(hashOverrides({ a: '1' })).not.toBe(hashOverrides({ a: '2' }))
   })
 })

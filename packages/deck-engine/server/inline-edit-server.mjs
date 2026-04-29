@@ -15,6 +15,7 @@
  */
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 
 export const OVERRIDE_REL_PATH = path.posix.join('src', 'data', 'inline-edits.json')
 export const FIELD_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,127}$/
@@ -33,6 +34,11 @@ export function isValidField(field) {
 
 export function isValidValue(value) {
   return typeof value === 'string' && value.length <= MAX_VALUE_LENGTH
+}
+
+export function hashOverrides(overrides) {
+  const text = JSON.stringify(overrides || {})
+  return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }
 
 /**
@@ -170,13 +176,19 @@ export function createInlineEditMiddleware({ root, relPath = OVERRIDE_REL_PATH }
 
     try {
       const current = await readOverrides(target)
+      const currentHash = hashOverrides(current)
+      const { baseHash } = body || {}
+      if (typeof baseHash === 'string' && baseHash && baseHash !== currentHash) {
+        sendJson(res, 409, { ok: false, error: 'source-changed', hash: currentHash })
+        return
+      }
       current[field] = value
       await writeOverridesAtomic(target, current)
+      const nextHash = hashOverrides(current)
+      sendJson(res, 200, { ok: true, field, hash: nextHash })
     } catch (err) {
       sendJson(res, 500, { ok: false, error: 'write-failed' })
       return
     }
-
-    sendJson(res, 200, { ok: true, field })
   }
 }
