@@ -541,6 +541,16 @@ describe('appJsx', () => {
     expect(code).toContain('import.meta.env.DEV ? inlineEdits : {}')
   })
 
+  it('wraps shadcn deck with InlineEditProvider', () => {
+    const code = appJsx({ designSystem: 'shadcn' })
+    expect(code).toContain('InlineEditProvider')
+    expect(code).toContain('<InlineEditProvider')
+    expect(code).toContain('overrides={overrides}')
+    expect(code).toContain('import.meta.env.DEV ? inlineEdits : {}')
+    expect(code).toContain("import inlineEdits from './data/inline-edits.json'")
+    expect(code).toContain("import '@deckio/deck-engine/styles/editable.css'")
+  })
+
   it('wraps with ThemeProvider when designSystem is shadcn (defaults to dark)', () => {
     const code = appJsx({ designSystem: 'shadcn' })
     expect(code).toContain('<ThemeProvider defaultTheme="dark">')
@@ -668,10 +678,10 @@ describe('coverSlideJsxShadcn', () => {
     expect(jsx).toContain('overline')
   })
 
-  it('imports ReactBits components', () => {
+  it('no longer uses BlurText for title/subtitle (uses Editable for inline editing)', () => {
     const jsx = coverSlideJsxShadcn('Title', 'Sub', 'slug')
-    expect(jsx).toContain("import BlurText from '@/components/ui/blur-text'")
-    expect(jsx).toContain("import ShinyText from '@/components/ui/shiny-text'")
+    expect(jsx).not.toContain('BlurText')
+    expect(jsx).toContain('Editable')
   })
 })
 
@@ -723,9 +733,9 @@ describe('featuresSlideJsxShadcn', () => {
     expect(jsx).toContain("import SpotlightCard from '@/components/ui/spotlight-card'")
   })
 
-  it('imports Slide and BottomBar from deck-engine', () => {
+  it('imports Slide, BottomBar, and Editable from deck-engine', () => {
     const jsx = featuresSlideJsxShadcn('test-slug')
-    expect(jsx).toContain("import { BottomBar, Slide } from '@deckio/deck-engine'")
+    expect(jsx).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
   })
 
   it('uses slide index 1', () => {
@@ -821,6 +831,129 @@ describe('thankYouSlideJsxShadcn', () => {
   it('accepts custom slide index', () => {
     const jsx = thankYouSlideJsxShadcn('test-slug', 5)
     expect(jsx).toContain('<Slide index={5}')
+  })
+})
+
+describe('shadcn slide templates inline editing', () => {
+  describe('coverSlideJsxShadcn', () => {
+    it('imports Editable', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+    })
+
+    it('wraps title in Editable', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).toContain('<Editable as="h1" id="cover.title"')
+      expect(code).toContain('My Talk')
+      expect(code).toContain('</Editable>')
+    })
+
+    it('wraps subtitle in Editable', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).toContain('<Editable as="p" id="cover.subtitle"')
+      expect(code).toContain('A subtitle')
+    })
+
+    it('wraps metadata fields in Editable', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).toContain('<Editable as="span" id="cover.meta.project"')
+      expect(code).toContain('<Editable as="span" id="cover.meta.date"')
+      expect(code).toContain('<Editable as="span" id="cover.meta.stack"')
+    })
+
+    it('wraps footer in Editable within BottomBar', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).toContain('<BottomBar text={<Editable as="span" id="cover.footer">my-talk</Editable>}')
+    })
+
+    it('no longer uses BlurText for title/subtitle (direct Editable instead)', () => {
+      const code = coverSlideJsxShadcn('My Talk', 'A subtitle', 'my-talk')
+      expect(code).not.toContain('BlurText')
+    })
+  })
+
+  describe('featuresSlideJsxShadcn', () => {
+    it('imports Editable', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+    })
+
+    it('wraps heading in Editable', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="h2" id="features.heading"')
+    })
+
+    it('wraps lead text in Editable', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="p" id="features.lead"')
+    })
+
+    it('wraps card titles in Editable with dynamic IDs', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="h3" id={`features.items.${f.id}.title`}')
+    })
+
+    it('wraps card descriptions in Editable', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="p" id={`features.items.${f.id}.desc`}')
+    })
+
+    it('features array items have id field for stable dynamic IDs', () => {
+      const code = featuresSlideJsxShadcn('my-talk')
+      expect(code).toContain("id: 'shadcn'")
+      expect(code).toContain("id: 'animations'")
+      expect(code).toContain("id: 'theme'")
+      expect(code).toContain("id: 'export'")
+    })
+  })
+
+  describe('gettingStartedSlideJsxShadcn', () => {
+    it('imports Editable', () => {
+      const code = gettingStartedSlideJsxShadcn('my-talk')
+      expect(code).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+    })
+
+    it('wraps heading in Editable', () => {
+      const code = gettingStartedSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="h2" id="gettingStarted.heading"')
+    })
+
+    it('wraps step titles in Editable', () => {
+      const code = gettingStartedSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="h3" id="gettingStarted.step1.title"')
+      expect(code).toContain('<Editable as="h3" id="gettingStarted.step2.title"')
+      expect(code).toContain('<Editable as="h3" id="gettingStarted.step3.title"')
+    })
+
+    it('wraps tip content in Editable', () => {
+      const code = gettingStartedSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="span" id="gettingStarted.tip">')
+    })
+  })
+
+  describe('thankYouSlideJsxShadcn', () => {
+    it('imports Editable', () => {
+      const code = thankYouSlideJsxShadcn('my-talk')
+      expect(code).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+    })
+
+    it('wraps title in Editable (plain text instead of DecryptedText)', () => {
+      const code = thankYouSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="h2" id="thankYou.title"')
+      expect(code).toContain('Thank You')
+      expect(code).not.toContain('DecryptedText')
+    })
+
+    it('wraps link labels in Editable', () => {
+      const code = thankYouSlideJsxShadcn('my-talk')
+      expect(code).toContain('<Editable as="span" id="thankYou.link.github">github.com</Editable>')
+      expect(code).toContain('<Editable as="span" id="thankYou.link.handle">yourhandle</Editable>')
+    })
+
+    it('wraps footer in Editable', () => {
+      const code = thankYouSlideJsxShadcn('my-talk')
+      expect(code).toContain('<BottomBar text={<Editable as="span" id="thankYou.footer">my-talk</Editable>}')
+    })
   })
 })
 

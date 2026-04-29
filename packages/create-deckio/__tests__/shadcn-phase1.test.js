@@ -401,11 +401,12 @@ describe('starter slides use real shadcn components', () => {
     expect(anyImportsBadge).toBe(true)
   })
 
-  it('starter slides still import ReactBits components', () => {
+  it('starter slides use Editable for inline editing', () => {
     const allSlides = [coverSlide, featuresSlide, gettingStartedSlide, thankYouSlide]
     const allText = allSlides.join('\n')
-    // ReactBits components should still be present
-    expect(allText).toContain('@/components/ui/blur-text')
+    // After inline-edit MVP, shadcn slides use Editable
+    expect(allText).toContain('Editable')
+    expect(allText).toContain('@deckio/deck-engine')
   })
 
   it('starter slides still import from @deckio/deck-engine', () => {

@@ -594,11 +594,10 @@ export const HIGHLIGHTS_SLIDE_CSS = `\
 
 export function coverSlideJsxShadcn(title, subtitle, slug) {
   return `\
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import BlurText from '@/components/ui/blur-text'
 import ShinyText from '@/components/ui/shiny-text'
 import styles from './CoverSlide.module.css'
 
@@ -620,23 +619,13 @@ export default function CoverSlide() {
               </Badge>
             </div>
 
-            <BlurText
-              text="${title}"
-              className={styles.title}
-              delay={120}
-              animateBy="words"
-              direction="top"
-              stepDuration={0.5}
-            />
+            <Editable as="h1" id="cover.title" className={styles.title}>
+              ${title}
+            </Editable>
 
-            <BlurText
-              text="${subtitle}"
-              className={styles.subtitle}
-              delay={40}
-              animateBy="words"
-              direction="bottom"
-              stepDuration={0.4}
-            />
+            <Editable as="p" id="cover.subtitle" className={styles.subtitle}>
+              ${subtitle}
+            </Editable>
           </div>
 
           <div className={styles.aside}>
@@ -644,17 +633,17 @@ export default function CoverSlide() {
               <CardContent className={styles.metaContent}>
                 <div className={styles.metaRow}>
                   <span className={styles.metaLabel}>Project</span>
-                  <span className={styles.metaValue}>${title}</span>
+                  <Editable as="span" id="cover.meta.project" className={styles.metaValue}>${title}</Editable>
                 </div>
                 <Separator />
                 <div className={styles.metaRow}>
                   <span className={styles.metaLabel}>Date</span>
-                  <span className={styles.metaValue}>${new Date().getFullYear()}</span>
+                  <Editable as="span" id="cover.meta.date" className={styles.metaValue}>${new Date().getFullYear()}</Editable>
                 </div>
                 <Separator />
                 <div className={styles.metaRow}>
                   <span className={styles.metaLabel}>Stack</span>
-                  <span className={styles.metaValue}>React + DECKIO</span>
+                  <Editable as="span" id="cover.meta.stack" className={styles.metaValue}>React + DECKIO</Editable>
                 </div>
               </CardContent>
             </Card>
@@ -662,7 +651,7 @@ export default function CoverSlide() {
         </div>
       </div>
 
-      <BottomBar text="${slug}" />
+      <BottomBar text={<Editable as="span" id="cover.footer">${slug}</Editable>} />
     </Slide>
   )
 }
@@ -784,7 +773,7 @@ export const COVER_SLIDE_CSS_SHADCN = `\
 
 export function featuresSlideJsxShadcn(slug) {
   return `\
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import SpotlightCard from '@/components/ui/spotlight-card'
@@ -795,6 +784,7 @@ import styles from './FeaturesSlide.module.css'
 
 const features = [
   {
+    id: 'shadcn',
     icon: '🧩',
     title: 'shadcn Ready',
     badge: 'UI',
@@ -803,6 +793,7 @@ const features = [
     delay: '0s',
   },
   {
+    id: 'animations',
     icon: '✨',
     title: 'ReactBits Animations',
     badge: 'Motion',
@@ -811,6 +802,7 @@ const features = [
     delay: '0.12s',
   },
   {
+    id: 'theme',
     icon: '🎨',
     title: 'Theme System',
     badge: 'Design',
@@ -819,6 +811,7 @@ const features = [
     delay: '0.24s',
   },
   {
+    id: 'export',
     icon: '📦',
     title: 'Export Anywhere',
     badge: 'Build',
@@ -835,10 +828,10 @@ export default function FeaturesSlide() {
         <div className={styles.content}>
           <div className={styles.header}>
             <SectionBadge className={styles.eyebrow}>Capabilities</SectionBadge>
-            <h2 className={styles.title}>What You Can Build</h2>
-            <p className={styles.lead}>
+            <Editable as="h2" id="features.heading" className={styles.title}>What You Can Build</Editable>
+            <Editable as="p" id="features.lead" className={styles.lead}>
               Everything you need to create polished, interactive presentations.
-            </p>
+            </Editable>
           </div>
 
           <div className={styles.grid}>
@@ -851,10 +844,10 @@ export default function FeaturesSlide() {
               >
                 <div className={styles.cardHeader}>
                   <span className={styles.cardIcon}>{f.icon}</span>
-                  <h3 className={styles.cardTitle}>{f.title}</h3>
+                  <Editable as="h3" id={\`features.items.\${f.id}.title\`} className={styles.cardTitle}>{f.title}</Editable>
                   <Badge variant="secondary" className={styles.cardBadge}>{f.badge}</Badge>
                 </div>
-                <p className={styles.cardDesc}>{f.desc}</p>
+                <Editable as="p" id={\`features.items.\${f.id}.desc\`} className={styles.cardDesc}>{f.desc}</Editable>
                 <code className={styles.cardCode}>{f.code}</code>
               </SpotlightCard>
             ))}
@@ -862,7 +855,7 @@ export default function FeaturesSlide() {
         </div>
       </div>
 
-      <BottomBar text="${slug}" />
+      <BottomBar text={<Editable as="span" id="features.footer">${slug}</Editable>} />
     </Slide>
   )
 }
@@ -983,7 +976,7 @@ export const FEATURES_SLIDE_CSS_SHADCN = `\
 
 export function gettingStartedSlideJsxShadcn(slug) {
   return `\
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -1001,7 +994,7 @@ export default function GettingStartedSlide() {
         <div className={styles.content}>
           <div className={styles.header}>
             <SectionBadge className={styles.eyebrow}>Workflow</SectionBadge>
-            <h2 className={styles.title}>Getting Started</h2>
+            <Editable as="h2" id="gettingStarted.heading" className={styles.title}>Getting Started</Editable>
           </div>
 
           <div className={styles.timeline}>
@@ -1011,7 +1004,7 @@ export default function GettingStartedSlide() {
                 <Separator className={styles.stepLine} />
               </div>
               <div className={styles.stepContent}>
-                <h3 className={styles.stepTitle}>Inspect</h3>
+                <Editable as="h3" id="gettingStarted.step1.title" className={styles.stepTitle}>Inspect</Editable>
                 <div className={styles.codeBlock}>
                   <div className={styles.codeDots}>
                     <span /><span /><span />
@@ -1029,7 +1022,7 @@ export default function GettingStartedSlide() {
                 <Separator className={styles.stepLine} />
               </div>
               <div className={styles.stepContent}>
-                <h3 className={styles.stepTitle}>Expand</h3>
+                <Editable as="h3" id="gettingStarted.step2.title" className={styles.stepTitle}>Expand</Editable>
                 <div className={styles.codeBlock}>
                   <div className={styles.codeDots}>
                     <span /><span /><span />
@@ -1046,7 +1039,7 @@ export default function GettingStartedSlide() {
                 <Badge className={styles.stepBadge}>3</Badge>
               </div>
               <div className={styles.stepContent}>
-                <h3 className={styles.stepTitle}>Compose</h3>
+                <Editable as="h3" id="gettingStarted.step3.title" className={styles.stepTitle}>Compose</Editable>
                 <div className={styles.codeBlock}>
                   <div className={styles.codeDots}>
                     <span /><span /><span />
@@ -1060,12 +1053,12 @@ export default function GettingStartedSlide() {
           </div>
 
           <CalloutAlert icon={<Lightbulb />} title="Pro tip" className={styles.tip}>
-            Use the shadcn MCP server in VS Code for AI-assisted component expansion.
+            <Editable as="span" id="gettingStarted.tip">Use the shadcn MCP server in VS Code for AI-assisted component expansion.</Editable>
           </CalloutAlert>
         </div>
       </div>
 
-      <BottomBar text="${slug}" />
+      <BottomBar text={<Editable as="span" id="gettingStarted.footer">${slug}</Editable>} />
     </Slide>
   )
 }
@@ -1216,10 +1209,9 @@ export const GETTING_STARTED_SLIDE_CSS_SHADCN = `\
 
 export function thankYouSlideJsxShadcn(slug, slideIndex = 3) {
   return `\
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import DecryptedText from '@/components/ui/decrypted-text'
 import ShinyText from '@/components/ui/shiny-text'
 import { Github, AtSign } from 'lucide-react'
 import styles from './ThankYouSlide.module.css'
@@ -1230,19 +1222,9 @@ export default function ThankYouSlide() {
       <div className="content-frame content-gutter">
         <div className={styles.content}>
           <Separator className={styles.accentDash} />
-          <h2 className={styles.title}>
-            <DecryptedText
-              text="Thank You"
-              animateOn="view"
-              speed={60}
-              maxIterations={20}
-              sequential
-              revealDirection="center"
-              characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-              className={styles.decryptedChar}
-              encryptedClassName={styles.encryptedChar}
-            />
-          </h2>
+          <Editable as="h2" id="thankYou.title" className={styles.title}>
+            Thank You
+          </Editable>
           <p className={styles.subtitle}>
             <ShinyText
               text="Let's build something great — together."
@@ -1255,17 +1237,17 @@ export default function ThankYouSlide() {
           <div className={styles.links}>
             <Button variant="ghost" size="sm">
               <Github />
-              github.com
+              <Editable as="span" id="thankYou.link.github">github.com</Editable>
             </Button>
             <Button variant="ghost" size="sm">
               <AtSign />
-              yourhandle
+              <Editable as="span" id="thankYou.link.handle">yourhandle</Editable>
             </Button>
           </div>
         </div>
       </div>
 
-      <BottomBar text="${slug}" />
+      <BottomBar text={<Editable as="span" id="thankYou.footer">${slug}</Editable>} />
     </Slide>
   )
 }
@@ -1339,10 +1321,16 @@ export function appJsx({ designSystem = 'none', appearance = 'dark' } = {}) {
     const defaultTheme = appearance === 'light' ? 'light' : 'dark'
     return `\
 import { useEffect } from 'react'
-import { Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
+import { InlineEditProvider, Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
+import '@deckio/deck-engine/styles/editable.css'
 import { ThemeProvider } from './components/theme-provider'
 import Aurora from '@/components/ui/aurora'
 import project from '../deck.config.js'
+import inlineEdits from './data/inline-edits.json'
+
+// Inline-edit overrides are dev-only. Production builds render the original
+// source text and ignore the override map, matching Decision 63's posture.
+const overrides = import.meta.env.DEV ? inlineEdits : {}
 
 export default function App() {
   const { accent, id, slides, theme, title } = project
@@ -1360,16 +1348,18 @@ export default function App() {
           <Aurora colorStops={auroraColors} amplitude={1.0} blend={0.5} speed={0.6} />
         </div>
         <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-          <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
-            <Navigation />
-            <div className="deck" data-project-id={id}>
-              {slides.map((SlideComponent, index) => (
-                <SlideErrorBoundary key={\`\${id}-slide-\${index}\`} index={index}>
-                  <SlideComponent index={index} project={project} />
-                </SlideErrorBoundary>
-              ))}
-            </div>
-          </SlideProvider>
+          <InlineEditProvider overrides={overrides} project={id}>
+            <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
+              <Navigation />
+              <div className="deck" data-project-id={id}>
+                {slides.map((SlideComponent, index) => (
+                  <SlideErrorBoundary key={\`\${id}-slide-\${index}\`} index={index}>
+                    <SlideComponent index={index} project={project} />
+                  </SlideErrorBoundary>
+                ))}
+              </div>
+            </SlideProvider>
+          </InlineEditProvider>
         </div>
       </div>
     </ThemeProvider>
