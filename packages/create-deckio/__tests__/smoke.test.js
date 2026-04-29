@@ -113,14 +113,21 @@ describe('create-deckio package', () => {
       // BottomBar text is editable through the same public contract.
       expect(coverSlide).toContain('id="cover.footer"')
 
-      // Decision 63 / Messi gate: scaffold ships a content slide with
-      // editable heading + body + repeated array items.
-      expect(existsSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.jsx'))).toBe(true)
-      const highlights = readFileSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.jsx'), 'utf-8')
-      expect(highlights).toContain('id="highlights.heading"')
-      expect(highlights).toContain('id="highlights.body"')
-      expect(highlights).toContain('highlights.items.${item.id}.label')
-      expect(highlights).toContain('highlights.items.${item.id}.body')
+      // Regression guard (post-1.14.0): default scaffold must NOT ship the
+      // shadcn-looking HighlightsSlide as a second slide. Inline-edit coverage
+      // lives on CoverSlide instead. See Decision 63 + depaul-inline-theme-regression.
+      expect(existsSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.jsx'))).toBe(false)
+      expect(existsSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.module.css'))).toBe(false)
+
+      const deckConfigContents = readFileSync(join(projectDir, 'deck.config.js'), 'utf-8')
+      expect(deckConfigContents).not.toContain('HighlightsSlide')
+      // Default scaffold must not pull in shadcn-only artifacts.
+      expect(deckConfigContents).not.toContain("designSystem: 'shadcn'")
+      expect(existsSync(join(projectDir, 'components.json'))).toBe(false)
+      expect(existsSync(join(projectDir, 'src', 'components', 'ui'))).toBe(false)
+      // No shadcn primitive imports leaked into default cover slide.
+      expect(coverSlide).not.toMatch(/@\/components\/ui\//)
+      expect(coverSlide).not.toMatch(/from ['"]@\/components\//)
 
       execFileSync(process.execPath, [engineInitScript], {
         cwd: projectDir,

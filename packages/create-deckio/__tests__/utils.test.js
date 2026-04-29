@@ -116,18 +116,20 @@ describe('deckConfig', () => {
     expect(config).toContain("don\\'t stop")
   })
 
-  it('imports CoverSlide, HighlightsSlide, and ThankYouSlide', () => {
+  it('imports CoverSlide and GenericThankYouSlide for default scaffold', () => {
     const config = deckConfig('s', 'T', 'S', '📦', '#000')
     expect(config).toContain("import CoverSlide from './src/slides/CoverSlide.jsx'")
-    expect(config).toContain("import HighlightsSlide from './src/slides/HighlightsSlide.jsx'")
     expect(config).toContain("import { GenericThankYouSlide as ThankYouSlide } from '@deckio/deck-engine'")
+    // Regression guard: default deck must not pull in HighlightsSlide
+    // (shadcn-looking second slide removed in create-deckio 0.5.2).
+    expect(config).not.toContain('HighlightsSlide')
   })
 
-  it('registers cover, highlights, and thank-you slides in order', () => {
+  it('registers cover and thank-you slides in order for default scaffold', () => {
     const config = deckConfig('s', 'T', 'S', '📦', '#000')
     expect(config).toContain('CoverSlide,')
-    expect(config).toContain('HighlightsSlide,')
     expect(config).toContain('ThankYouSlide,')
+    expect(config).not.toContain('HighlightsSlide,')
   })
 
   it('sets order to 1', () => {

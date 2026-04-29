@@ -18,7 +18,7 @@ import * as clack from '@clack/prompts'
 if (process.platform === 'win32') {
   try { execSync('chcp 65001', { stdio: 'ignore' }) } catch {}
 }
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide, highlightsSlideJsx, HIGHLIGHTS_SLIDE_CSS } from './utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
 
 const execAsync = promisify(exec)
 
@@ -879,12 +879,10 @@ async function main() {
     designSystem === 'shadcn'
       ? COVER_SLIDE_CSS_SHADCN
       : COVER_SLIDE_CSS)
-  // Default-theme content slide demonstrating editable heading + body +
-  // repeated array items. shadcn templates already ship Features/GettingStarted.
-  if (designSystem !== 'shadcn') {
-    write(dir, 'src/slides/HighlightsSlide.jsx', highlightsSlideJsx(slug))
-    write(dir, 'src/slides/HighlightsSlide.module.css', HIGHLIGHTS_SLIDE_CSS)
-  }
+  // Default scaffold ships only CoverSlide + GenericThankYouSlide. Inline-edit
+  // coverage for the default theme is provided by <Editable> wrappers on
+  // CoverSlide (eyebrow, title parts, subtitle, footer). The shadcn scaffold
+  // adds its own Features/GettingStarted slides below.
   write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme, designSystem, aurora, appearance))
   write(dir, '.github/instructions/sample-content.instructions.md', SAMPLE_CONTENT_INSTRUCTIONS)
 
