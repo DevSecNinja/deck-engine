@@ -62,6 +62,64 @@ describe('deckPlugin', () => {
   })
 })
 
+describe('deckPlugin inlineEditing option shape', () => {
+  it('accepts boolean `inlineEditing: true`', () => {
+    const srv = {
+      registered: [],
+      config: { root: process.cwd(), server: { host: 'localhost' }, logger: { warn() {} } },
+      middlewares: { use(mw) { srv.registered.push(mw) } },
+    }
+    const plugin = deckPlugin({ inlineEditing: true })
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(1)
+  })
+
+  it('accepts namespaced `inlineEditing: { enabled: true }` per Messi spec', () => {
+    const srv = {
+      registered: [],
+      config: { root: process.cwd(), server: { host: 'localhost' }, logger: { warn() {} } },
+      middlewares: { use(mw) { srv.registered.push(mw) } },
+    }
+    const plugin = deckPlugin({ inlineEditing: { enabled: true } })
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(1)
+  })
+
+  it('treats `inlineEditing: { enabled: false }` as disabled', () => {
+    const srv = {
+      registered: [],
+      config: { root: process.cwd(), server: { host: 'localhost' }, logger: { warn() {} } },
+      middlewares: { use(mw) { srv.registered.push(mw) } },
+    }
+    const plugin = deckPlugin({ inlineEditing: { enabled: false } })
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(0)
+  })
+
+  it('treats `inlineEditing: {}` (object without enabled) as disabled', () => {
+    const srv = {
+      registered: [],
+      config: { root: process.cwd(), server: { host: 'localhost' }, logger: { warn() {} } },
+      middlewares: { use(mw) { srv.registered.push(mw) } },
+    }
+    const plugin = deckPlugin({ inlineEditing: {} })
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(0)
+  })
+
+  it('exports a normalizer that resolves both shapes', async () => {
+    const { normalizeInlineEditingOption } = await import('../vite.js')
+    expect(normalizeInlineEditingOption(true)).toBe(true)
+    expect(normalizeInlineEditingOption(false)).toBe(false)
+    expect(normalizeInlineEditingOption(undefined)).toBe(false)
+    expect(normalizeInlineEditingOption({ enabled: true })).toBe(true)
+    expect(normalizeInlineEditingOption({ enabled: false })).toBe(false)
+    expect(normalizeInlineEditingOption({})).toBe(false)
+    expect(normalizeInlineEditingOption(null)).toBe(false)
+    expect(normalizeInlineEditingOption('yes')).toBe(false)
+  })
+})
+
 describe('deckPlugin inline-edit registration', () => {
   // Build a fake Vite dev server and capture middleware registrations.
   function fakeServer({ host } = {}) {

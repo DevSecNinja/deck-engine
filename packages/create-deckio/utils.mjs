@@ -169,6 +169,7 @@ export default {
   const tyImport = "import { GenericThankYouSlide as ThankYouSlide } from '@deckio/deck-engine'"
   return `\
 import CoverSlide from './src/slides/CoverSlide.jsx'
+import HighlightsSlide from './src/slides/HighlightsSlide.jsx'
 ${tyImport}
 
 export default {
@@ -187,6 +188,7 @@ export default {
   order: 1,
   slides: [
     CoverSlide,
+    HighlightsSlide,
     ThankYouSlide,
   ],
 }
@@ -458,6 +460,128 @@ These are already in your project — no need to add them:
 **Wrappers:** MetricCard, SectionBadge, CalloutAlert (in \`src/components/presentation/\`)
 `
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Default-theme content slide
+
+   Showcases the inline-editing MVP contract on a content slide:
+   editable heading, editable body, and two repeated items rendered from a
+   local array — each with its own stable semantic id.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export function highlightsSlideJsx(slug) {
+  return `\
+/**
+ * SAMPLE CONTENT ONLY
+ * This slide contains scaffolded placeholder copy.
+ * Agents must not use it as factual project context until the user replaces it.
+ */
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import styles from './HighlightsSlide.module.css'
+
+const highlights = [
+  { id: 0, label: 'Ship faster', body: 'Scaffold a polished deck in seconds and focus on the story, not the setup.' },
+  { id: 1, label: 'Stay consistent', body: 'Themes, navigation, and slide chrome stay aligned across every project.' },
+]
+
+export default function HighlightsSlide() {
+  return (
+    <Slide index={1} className={styles.slide}>
+      <div className="content-frame content-gutter">
+        <div className={styles.content}>
+          <Editable as="p" id="highlights.eyebrow" className={styles.eyebrow}>What you get</Editable>
+          <Editable as="h2" id="highlights.heading" className={styles.heading}>Built for momentum</Editable>
+          <Editable as="p" id="highlights.body" multiline className={styles.body}>
+            Two ready-to-edit examples below. Double-click any line in dev to change the copy and watch HMR pick it up.
+          </Editable>
+
+          <ul className={styles.grid}>
+            {highlights.map((item) => (
+              <li key={item.id} className={styles.card}>
+                <Editable as="h3" id={\`highlights.items.\${item.id}.label\`} className={styles.cardLabel}>
+                  {item.label}
+                </Editable>
+                <Editable as="p" id={\`highlights.items.\${item.id}.body\`} multiline className={styles.cardBody}>
+                  {item.body}
+                </Editable>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <BottomBar text={<Editable as="span" id="highlights.footer">${slug}</Editable>} />
+    </Slide>
+  )
+}
+`
+}
+
+export const HIGHLIGHTS_SLIDE_CSS = `\
+.slide {
+  background: var(--background);
+  padding: 0 0 44px 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 880px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: var(--muted-foreground, #888);
+  margin: 0;
+}
+
+.heading {
+  font-size: 44px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.body {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--muted-foreground, #aaa);
+  margin: 0;
+  max-width: 640px;
+}
+
+.grid {
+  list-style: none;
+  margin: 16px 0 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+}
+
+.cardLabel {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+
+.cardBody {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted-foreground, #aaa);
+  margin: 0;
+}
+`
 
 /* ═══════════════════════════════════════════════════════════════════════════
    shadcn-ready Starter Slide Templates
@@ -1256,7 +1380,7 @@ export default function App() {
 
   return `\
 import { useEffect } from 'react'
-import { EditableProvider, Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
+import { InlineEditProvider, Navigation, SlideErrorBoundary, SlideProvider } from '@deckio/deck-engine'
 import '@deckio/deck-engine/styles/editable.css'
 import project from '../deck.config.js'
 import inlineEdits from './data/inline-edits.json'
@@ -1274,7 +1398,7 @@ export default function App() {
   }, [accent, title])
 
   return (
-    <EditableProvider overrides={overrides} project={id}>
+    <InlineEditProvider overrides={overrides} project={id}>
       <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
         <Navigation />
         <div className="deck" data-project-id={id}>
@@ -1285,7 +1409,7 @@ export default function App() {
           ))}
         </div>
       </SlideProvider>
-    </EditableProvider>
+    </InlineEditProvider>
   )
 }
 `

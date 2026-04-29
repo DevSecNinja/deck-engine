@@ -297,6 +297,26 @@ describe('createInlineEditMiddleware', () => {
     expect(reply.hash).toBe(hashOverrides(written))
   })
 
+  it('accepts explicit kind=override (v2-readiness discriminator)', async () => {
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq()
+    const res = new FakeRes()
+    await drive(mw, req, res, { kind: 'override', field: 'cover.title', value: 'Hi' })
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).ok).toBe(true)
+  })
+
+  it('rejects unknown kind with 400 INLINE_EDIT_UNKNOWN_KIND', async () => {
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq()
+    const res = new FakeRes()
+    await drive(mw, req, res, { kind: 'source-span', field: 'cover.title', value: 'x' })
+    expect(res.statusCode).toBe(400)
+    expect(JSON.parse(res.body).code).toBe(ERROR_CODES.UNKNOWN_KIND)
+    // Ensure no write happened.
+    expect(existsSync(join(tempRoot, OVERRIDE_REL_PATH))).toBe(false)
+  })
+
   it('rejects non-loopback requests with 403', async () => {
     const mw = createInlineEditMiddleware({ root: tempRoot })
     const req = new FakeReq({ remoteAddress: '8.8.8.8' })

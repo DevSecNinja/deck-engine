@@ -109,7 +109,18 @@ describe('create-deckio package', () => {
       expect(JSON.parse(inlineEdits)).toEqual({})
       const coverSlide = readFileSync(join(projectDir, 'src', 'slides', 'CoverSlide.jsx'), 'utf-8')
       expect(coverSlide).toContain('Editable')
-      expect(coverSlide).toContain('field="cover.subtitle"')
+      expect(coverSlide).toContain('id="cover.subtitle"')
+      // BottomBar text is editable through the same public contract.
+      expect(coverSlide).toContain('id="cover.footer"')
+
+      // Decision 63 / Messi gate: scaffold ships a content slide with
+      // editable heading + body + repeated array items.
+      expect(existsSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.jsx'))).toBe(true)
+      const highlights = readFileSync(join(projectDir, 'src', 'slides', 'HighlightsSlide.jsx'), 'utf-8')
+      expect(highlights).toContain('id="highlights.heading"')
+      expect(highlights).toContain('id="highlights.body"')
+      expect(highlights).toContain('highlights.items.${item.id}.label')
+      expect(highlights).toContain('highlights.items.${item.id}.body')
 
       execFileSync(process.execPath, [engineInitScript], {
         cwd: projectDir,

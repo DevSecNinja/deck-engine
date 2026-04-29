@@ -116,15 +116,17 @@ describe('deckConfig', () => {
     expect(config).toContain("don\\'t stop")
   })
 
-  it('imports CoverSlide and ThankYouSlide', () => {
+  it('imports CoverSlide, HighlightsSlide, and ThankYouSlide', () => {
     const config = deckConfig('s', 'T', 'S', '📦', '#000')
     expect(config).toContain("import CoverSlide from './src/slides/CoverSlide.jsx'")
+    expect(config).toContain("import HighlightsSlide from './src/slides/HighlightsSlide.jsx'")
     expect(config).toContain("import { GenericThankYouSlide as ThankYouSlide } from '@deckio/deck-engine'")
   })
 
-  it('registers both slides in the slides array', () => {
+  it('registers cover, highlights, and thank-you slides in order', () => {
     const config = deckConfig('s', 'T', 'S', '📦', '#000')
     expect(config).toContain('CoverSlide,')
+    expect(config).toContain('HighlightsSlide,')
     expect(config).toContain('ThankYouSlide,')
   })
 
@@ -528,6 +530,15 @@ describe('appJsx', () => {
     expect(code).toContain('export default function App(')
     expect(code).not.toContain('ThemeProvider')
     expect(code).not.toContain('ModeToggle')
+  })
+
+  it('wraps default (non-shadcn) deck with InlineEditProvider', () => {
+    const code = appJsx()
+    expect(code).toContain('InlineEditProvider')
+    expect(code).toContain('<InlineEditProvider')
+    expect(code).toContain('overrides={overrides}')
+    // Production exclusion: built decks must not load the override JSON.
+    expect(code).toContain('import.meta.env.DEV ? inlineEdits : {}')
   })
 
   it('wraps with ThemeProvider when designSystem is shadcn (defaults to dark)', () => {

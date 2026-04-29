@@ -18,7 +18,7 @@ import * as clack from '@clack/prompts'
 if (process.platform === 'win32') {
   try { execSync('chcp 65001', { stdio: 'ignore' }) } catch {}
 }
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide, highlightsSlideJsx, HIGHLIGHTS_SLIDE_CSS } from './utils.mjs'
 
 const execAsync = promisify(exec)
 
@@ -163,11 +163,11 @@ export default function CoverSlide() {
 
       <div className="content-frame content-gutter">
         <div className={styles.content}>
-          <Editable as="p" field="cover.eyebrow" className={styles.eyebrow}>${slug}</Editable>
+          <Editable as="p" id="cover.eyebrow" className={styles.eyebrow}>${slug}</Editable>
           <h1>
-            ${before ? `<Editable as=\"span\" field=\"cover.titleBefore\">${before}</Editable> ` : ''}<Editable as="span" field="cover.titleHighlight" className={styles.highlight}>${highlight}</Editable>
+            ${before ? `<Editable as=\"span\" id=\"cover.titleBefore\">${before}</Editable> ` : ''}<Editable as="span" id="cover.titleHighlight" className={styles.highlight}>${highlight}</Editable>
           </h1>
-          <Editable as="p" field="cover.subtitle" className={styles.subtitle}>
+          <Editable as="p" id="cover.subtitle" multiline className={styles.subtitle}>
             ${subtitle}
           </Editable>
 
@@ -190,7 +190,7 @@ export default function CoverSlide() {
         </div>
       </div>
 
-      <BottomBar text="${slug}" />
+      <BottomBar text={<Editable as="span" id="cover.footer">${slug}</Editable>} />
     </Slide>
   )
 }
@@ -879,6 +879,12 @@ async function main() {
     designSystem === 'shadcn'
       ? COVER_SLIDE_CSS_SHADCN
       : COVER_SLIDE_CSS)
+  // Default-theme content slide demonstrating editable heading + body +
+  // repeated array items. shadcn templates already ship Features/GettingStarted.
+  if (designSystem !== 'shadcn') {
+    write(dir, 'src/slides/HighlightsSlide.jsx', highlightsSlideJsx(slug))
+    write(dir, 'src/slides/HighlightsSlide.module.css', HIGHLIGHTS_SLIDE_CSS)
+  }
   write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme, designSystem, aurora, appearance))
   write(dir, '.github/instructions/sample-content.instructions.md', SAMPLE_CONTENT_INSTRUCTIONS)
 

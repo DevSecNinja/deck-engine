@@ -34,7 +34,7 @@ import {
   useState,
 } from 'react'
 
-const EditableContext = createContext(null)
+const InlineEditContext = createContext(null)
 
 function isDevEnv() {
   try {
@@ -44,14 +44,30 @@ function isDevEnv() {
   }
 }
 
-export function EditableProvider({
+// Defensive normalizer: malformed override JSON must fail closed.
+// Anything that isn't a plain {string -> string} entry is ignored, the deck
+// keeps rendering source defaults, and we never hand a non-string to React
+// as text content.
+function normalizeOverrides(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out = {}
+  for (const key of Object.keys(raw)) {
+    const v = raw[key]
+    if (typeof key !== 'string' || !key) continue
+    if (typeof v !== 'string') continue
+    out[key] = v
+  }
+  return out
+}
+
+export function InlineEditProvider({
   overrides: initialOverrides = {},
   project,
   endpoint = '/__deckio/inline-edit',
   enabled,
   children,
 }) {
-  const [overrides, setOverrides] = useState(() => ({ ...(initialOverrides || {}) }))
+  const [overrides, setOverrides] = useState(() => normalizeOverrides(initialOverrides))
   const hashRef = useRef(null)
   const isDev = useMemo(() => (typeof enabled === 'boolean' ? enabled : isDevEnv()), [enabled])
 
@@ -63,6 +79,10 @@ export function EditableProvider({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          // v2 readiness: explicit kind discriminator. Server defaults to
+          // 'override' but we send it so future 'source-span' clients can
+          // share the endpoint without renaming.
+          kind: 'override',
           project,
           field,
           value,
@@ -89,23 +109,31 @@ export function EditableProvider({
   const value = useMemo(() => ({ overrides, save, isDev }), [overrides, save, isDev])
 
   return (
-    <EditableContext.Provider value={value}>
+    <InlineEditContext.Provider value={value}>
       {children}
-    </EditableContext.Provider>
+    </InlineEditContext.Provider>
   )
 }
 
-export function useEditable() {
-  return useContext(EditableContext)
+// Back-compat alias. New code should import `InlineEditProvider`.
+export const EditableProvider = InlineEditProvider
+
+export function useInlineEdit() {
+  return useContext(InlineEditContext)
 }
 
-export function useEditableValue(field, fallback) {
-  const ctx = useContext(EditableContext)
+export function useInlineEditValue(field, fallback) {
+  const ctx = useContext(InlineEditContext)
   if (!ctx) return fallback
-  return Object.prototype.hasOwnProperty.call(ctx.overrides, field)
-    ? ctx.overrides[field]
-    : fallback
+  if (!Object.prototype.hasOwnProperty.call(ctx.overrides, field)) return fallback
+  const v = ctx.overrides[field]
+  // Defensive: only string overrides are honored. Anything else falls back.
+  return typeof v === 'string' ? v : fallback
 }
+
+// Back-compat aliases.
+export const useEditable = useInlineEdit
+export const useEditableValue = useInlineEditValue
 
 const STATUS_TEXT = {
   saving: 'Saving…',
@@ -131,9 +159,11 @@ function placeCaretAtEnd(node) {
 
 const Editable = forwardRef(function Editable(
   {
-    field,
+    id,
+    field: fieldProp,
     as: Tag = 'span',
     children,
+    fallback,
     className,
     multiline = false,
     allowEmpty = false,
@@ -145,7 +175,11 @@ const Editable = forwardRef(function Editable(
   },
   externalRef,
 ) {
-  const ctx = useContext(EditableContext)
+  // `id` is the documented Messi-spec prop; `field` is kept as a back-compat
+  // alias so MVP-era call sites keep working. We never forward either to the
+  // host DOM element so HTML `id` collisions can't happen.
+  const field = typeof id === 'string' && id ? id : fieldProp
+  const ctx = useContext(InlineEditContext)
   const localRef = useRef(null)
   const ref = externalRef || localRef
   const [editing, setEditing] = useState(false)
@@ -153,13 +187,18 @@ const Editable = forwardRef(function Editable(
   const savedTimerRef = useRef(null)
 
   const hasOverride = ctx && Object.prototype.hasOwnProperty.call(ctx.overrides || {}, field)
-  const display = hasOverride ? ctx.overrides[field] : children
+  // Defensive: treat non-string overrides as missing (fail closed).
+  const overrideValue = hasOverride && typeof ctx.overrides[field] === 'string'
+    ? ctx.overrides[field]
+    : null
+  const defaultContent = children == null ? fallback : children
+  const display = overrideValue != null ? overrideValue : defaultContent
   const displayString = display == null ? '' : (typeof display === 'string' ? display : '')
 
   // Inert path: production, no provider, or provider explicitly disabled.
   // Important: do NOT emit a `contenteditable` attribute at all here, so
   // SlideContext's `[contenteditable]` selector cannot match by accident
-  // and steal nav keys.
+  // and steal nav keys. Also no field data attribute, no edit affordance.
   if (!ctx || !ctx.isDev) {
     return (
       <Tag ref={ref} className={className} {...rest}>

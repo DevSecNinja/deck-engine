@@ -88,6 +88,7 @@ export const ERROR_CODES = Object.freeze({
   STALE_SOURCE: 'INLINE_EDIT_STALE_SOURCE',
   WRITE_FAILED: 'INLINE_EDIT_WRITE_FAILED',
   TOO_LARGE: 'INLINE_EDIT_OVERRIDE_FILE_TOO_LARGE',
+  UNKNOWN_KIND: 'INLINE_EDIT_UNKNOWN_KIND',
 })
 
 const ERROR_MESSAGES = Object.freeze({
@@ -104,6 +105,7 @@ const ERROR_MESSAGES = Object.freeze({
   [ERROR_CODES.STALE_SOURCE]: 'Source changed. Refresh and try again.',
   [ERROR_CODES.WRITE_FAILED]: 'Could not save the change.',
   [ERROR_CODES.TOO_LARGE]: 'Override file would exceed the size limit.',
+  [ERROR_CODES.UNKNOWN_KIND]: 'Unknown edit kind.',
 })
 
 export function isValidField(field) {
@@ -384,7 +386,15 @@ export function createInlineEditMiddleware({
       return
     }
 
-    const { field, value, baseHash } = body
+    const { field, value, baseHash, kind } = body
+    // v2 readiness: the wire protocol carries an optional `kind` discriminator
+    // so the same endpoint can later accept `'source-span'` patches without
+    // a breaking rename. MVP only handles `'override'`. Missing kind defaults
+    // to `'override'` for back-compat with first-cut clients.
+    if (kind != null && kind !== 'override') {
+      sendError(res, 400, ERROR_CODES.UNKNOWN_KIND)
+      return
+    }
     if (!isValidField(field)) {
       sendError(res, 400, ERROR_CODES.FIELD)
       return

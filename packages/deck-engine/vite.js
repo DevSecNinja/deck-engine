@@ -20,16 +20,35 @@ import { createInlineEditMiddleware, isHostExposed } from './server/inline-edit-
 export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
 
 /**
+ * Normalize the `inlineEditing` plugin option to a boolean.
+ *
+ * Accepts:
+ *   - `true` / `false`
+ *   - `{ enabled: true }` / `{ enabled: false }` (namespaced shape Messi
+ *     blessed for future option growth)
+ *   - anything else / missing → `false` (default off, opt-in only)
+ */
+export function normalizeInlineEditingOption(value) {
+  if (value === true) return true
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value.enabled === true
+  }
+  return false
+}
+
+/**
  * @param {object} [options]
  * @param {string} [options.theme] - Theme name or path. Defaults to "dark".
- * @param {boolean} [options.inlineEditing] - Opt in to the local-only
- *   inline-edit dev endpoint. Defaults to `false`. Even when enabled, the
- *   middleware refuses to register if Vite is exposed on the network
- *   (host: '0.0.0.0', true, LAN ip, etc.).
+ * @param {boolean | { enabled?: boolean }} [options.inlineEditing] - Opt in
+ *   to the local-only inline-edit dev endpoint. Accepts both `true` and the
+ *   namespaced `{ enabled: true }` shape so future inline-editing options
+ *   can grow under the same key without scattered top-level flags. Defaults
+ *   to disabled. Even when enabled, the middleware refuses to register if
+ *   Vite is exposed on the network (host: '0.0.0.0', true, LAN ip, etc.).
  */
 export function deckPlugin(options = {}) {
   const themePath = resolveTheme(options.theme)
-  const inlineEditing = Boolean(options.inlineEditing)
+  const inlineEditing = normalizeInlineEditingOption(options.inlineEditing)
 
   return {
     name: 'deck-engine',
