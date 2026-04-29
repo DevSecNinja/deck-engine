@@ -1,6 +1,7 @@
 /* Editable primitive — dev-only affordance, restrained by design.
    Anu's UX guardrails: no layout shift, no persistent badges, calm hover/focus
-   treatment using --accent and a 2px focus ring. */
+   treatment using --accent and a 2px focus ring. Source-save lifecycle now
+   lives in the global .deckio-inline-edit-toast surface (bottom-right). */
 
 .deckio-editable {
   position: relative;
@@ -30,22 +31,13 @@
   cursor: text;
 }
 
-.deckio-editable--saving {
-  outline-color: color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
-  animation: deckio-editable-pulse 1s ease-in-out infinite;
-}
-
-@keyframes deckio-editable-pulse {
-  0%, 100% { outline-color: color-mix(in oklab, var(--accent, #6366f1) 50%, transparent); }
-  50%      { outline-color: color-mix(in oklab, var(--accent, #6366f1) 90%, transparent); }
-}
-
 .deckio-editable--error {
   outline: 2px solid #ef4444;
   outline-offset: 3px;
 }
 
-/* Status region — visually compact, screen-reader friendly, no layout shift. */
+/* Field-local validation chip (e.g. empty-not-allowed). Not used for
+   source-save lifecycle. Compact, no layout shift. */
 .deckio-editable-status {
   position: absolute;
   font-size: 11px;
@@ -54,7 +46,7 @@
   margin-left: 6px;
   border-radius: 6px;
   background: color-mix(in oklab, var(--background, #111) 85%, transparent);
-  color: color-mix(in oklab, var(--accent, #6366f1) 70%, currentColor);
+  color: #ef4444;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0.95;
@@ -62,7 +54,122 @@
 }
 
 .deckio-editable-status:empty {
-  /* When status text is null, take no space at all. */
   display: none;
+}
+
+/* ------------------------------------------------------------------
+   Global source-save toast (dev-only, portaled to <body>).
+   Anchored bottom-right with safe-area inset; one status at a time.
+   Restrained Deckio styling: small radius, quiet shadow, neutral base.
+   Never participates in slide layout; safe inside launcher iframe.
+   ------------------------------------------------------------------ */
+
+.deckio-inline-edit-toast-root {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 2147483000;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+  /* Empty live region must not occupy space. */
+  width: auto;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.deckio-inline-edit-toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: color-mix(in oklab, var(--background, #0f1115) 92%, #000 8%);
+  color: color-mix(in oklab, var(--foreground, #f5f5f7) 92%, #fff 8%);
+  border: 1px solid color-mix(in oklab, var(--accent, #6366f1) 35%, transparent);
+  box-shadow: 0 6px 20px -10px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: deckio-inline-edit-toast-in 140ms ease-out forwards;
+  /* Calm, source-trustworthy. No bouncy easing, no gradient washes. */
+}
+
+.deckio-inline-edit-toast__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent, #6366f1) 80%, transparent);
+  flex: 0 0 auto;
+}
+
+.deckio-inline-edit-toast--saving .deckio-inline-edit-toast__dot {
+  animation: deckio-inline-edit-toast-pulse 1.1s ease-in-out infinite;
+}
+
+.deckio-inline-edit-toast--saved .deckio-inline-edit-toast__dot {
+  background: #10b981;
+}
+
+.deckio-inline-edit-toast--error .deckio-inline-edit-toast__dot,
+.deckio-inline-edit-toast--conflict .deckio-inline-edit-toast__dot {
+  background: #ef4444;
+}
+
+.deckio-inline-edit-toast--error,
+.deckio-inline-edit-toast--conflict {
+  border-color: color-mix(in oklab, #ef4444 50%, transparent);
+}
+
+.deckio-inline-edit-toast__text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deckio-inline-edit-toast__dismiss {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  margin-left: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.deckio-inline-edit-toast__dismiss:hover,
+.deckio-inline-edit-toast__dismiss:focus-visible {
+  opacity: 1;
+  outline: 2px solid color-mix(in oklab, var(--accent, #6366f1) 60%, transparent);
+  outline-offset: 1px;
+}
+
+@keyframes deckio-inline-edit-toast-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes deckio-inline-edit-toast-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckio-inline-edit-toast {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .deckio-inline-edit-toast--saving .deckio-inline-edit-toast__dot {
+    animation: none;
+  }
 }
 

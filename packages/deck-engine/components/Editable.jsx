@@ -1,7 +1,8 @@
 /**
  * Editable — local-dev inline text editing primitive (Decision 63 MVP).
  *
- * UX guardrails (Anu, see .squad/decisions/inbox/anu-inline-edit-ux.md):
+ * UX guardrails (Anu, see .squad/decisions/inbox/anu-inline-edit-ux.md and
+ * anu-inline-edit-toast.md):
  *   - Activation: plain double-click, plus F2/Enter when focused (a11y).
  *   - Single click never starts editing or steals focus.
  *   - Affordance is dev-only and emitted by `styles/editable.css`. No layout
@@ -15,11 +16,17 @@
  *   - Enter saves single-line. Escape cancels and restores. Blur saves
  *     only when content actually changed and validation passes. Shift+Enter
  *     inserts a line break only when `multiline` is set.
- *   - Empty values are rejected unless `allowEmpty` is set.
- *   - Status surface uses an aria-live="polite" region: "Saving…",
- *     "Saved to source", "Couldn’t save.", "Source changed. Refresh and try again."
+ *   - Empty values are rejected unless `allowEmpty` is set. The
+ *     "This field can't be empty." validation is field-local because it
+ *     blocks editing — it is not a source-save lifecycle event.
+ *   - Source-save lifecycle ("Saving…" / "Saved to source" /
+ *     "Couldn't save." / "Source changed. Refresh and try again.") is
+ *     surfaced by a single dev-only global toast portaled to <body>,
+ *     anchored bottom-right with safe-area inset. One status at a time;
+ *     rapid saves coalesce. Polite for saving/saved, assertive for
+ *     error/conflict. Conflict persists until the next save or dismiss.
  *   - In production / no provider: pure render, no listeners, no
- *     contenteditable attribute, no status UI.
+ *     contenteditable attribute, no status UI, no toast DOM.
  *
  * v2 path: this component stays declarative. The endpoint + storage may
  * be swapped for an AST patcher without touching slide JSX.
@@ -29,10 +36,12 @@ import {
   forwardRef,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 const InlineEditContext = createContext(null)
 
@@ -74,6 +83,14 @@ function defaultInlineEditEndpoint() {
   return `${base}__deckio/inline-edit`
 }
 
+// Source-save toast lifecycle timings (ms). Exported for tests.
+// Conflict deliberately persists until the next save attempt.
+export const TOAST_TIMINGS = Object.freeze({
+  saved: 2200,
+  error: 6000,
+  conflict: 0, // 0 = persist
+})
+
 export function InlineEditProvider({
   overrides: initialOverrides = {},
   project,
@@ -86,8 +103,31 @@ export function InlineEditProvider({
   const hashRef = useRef(null)
   const isDev = useMemo(() => (typeof enabled === 'boolean' ? enabled : isDevEnv()), [enabled])
 
+  // Single global source-save status. Replacement, not stacking.
+  const [saveStatus, setSaveStatus] = useState(null)
+  const dismissTimerRef = useRef(null)
+
+  const clearDismissTimer = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current)
+      dismissTimerRef.current = null
+    }
+  }, [])
+
+  const dismissSaveStatus = useCallback(() => {
+    clearDismissTimer()
+    setSaveStatus(null)
+  }, [clearDismissTimer])
+
+  // Cleanup on unmount.
+  useEffect(() => () => clearDismissTimer(), [clearDismissTimer])
+
   const save = useCallback(async (field, value) => {
     if (!isDev) return { ok: false, reason: 'not-dev' }
+    // New save attempt clears any persistent (conflict/error) state and
+    // shows "Saving…" in the same surface — coalesces rapid edits.
+    clearDismissTimer()
+    setSaveStatus('saving')
     let res
     try {
       res = await fetch(resolvedEndpoint, {
@@ -105,27 +145,49 @@ export function InlineEditProvider({
         }),
       })
     } catch (err) {
+      setSaveStatus('error')
+      scheduleAutoDismiss('error')
       return { ok: false, reason: 'network', message: String(err && err.message || err) }
     }
     let body = null
     try { body = await res.json() } catch { /* ignore */ }
     if (res.status === 409) {
       if (body && body.hash) hashRef.current = body.hash
+      setSaveStatus('conflict')
+      scheduleAutoDismiss('conflict')
       return { ok: false, reason: 'conflict' }
     }
     if (!res.ok) {
+      setSaveStatus('error')
+      scheduleAutoDismiss('error')
       return { ok: false, reason: `http-${res.status}`, error: body && body.error }
     }
     if (body && body.hash) hashRef.current = body.hash
     setOverrides((prev) => ({ ...prev, [field]: value }))
+    setSaveStatus('saved')
+    scheduleAutoDismiss('saved')
     return { ok: true }
-  }, [resolvedEndpoint, isDev, project])
 
-  const value = useMemo(() => ({ overrides, save, isDev }), [overrides, save, isDev])
+    function scheduleAutoDismiss(kind) {
+      const ms = TOAST_TIMINGS[kind] || 0
+      if (!ms) return
+      clearDismissTimer()
+      dismissTimerRef.current = setTimeout(() => {
+        dismissTimerRef.current = null
+        setSaveStatus((cur) => (cur === kind ? null : cur))
+      }, ms)
+    }
+  }, [resolvedEndpoint, isDev, project, clearDismissTimer])
+
+  const value = useMemo(
+    () => ({ overrides, save, isDev, saveStatus, dismissSaveStatus }),
+    [overrides, save, isDev, saveStatus, dismissSaveStatus],
+  )
 
   return (
     <InlineEditContext.Provider value={value}>
       {children}
+      {isDev ? <InlineEditToast status={saveStatus} onDismiss={dismissSaveStatus} /> : null}
     </InlineEditContext.Provider>
   )
 }
@@ -150,12 +212,65 @@ export function useInlineEditValue(field, fallback) {
 export const useEditable = useInlineEdit
 export const useEditableValue = useInlineEditValue
 
+// Field-local validation copy. Source-save lifecycle copy lives in
+// TOAST_STATUS_TEXT and is rendered by InlineEditToast.
 const STATUS_TEXT = {
+  empty: 'This field can’t be empty.',
+}
+
+export const TOAST_STATUS_TEXT = Object.freeze({
   saving: 'Saving…',
   saved: 'Saved to source',
   error: 'Couldn’t save.',
   conflict: 'Source changed. Refresh and try again.',
-  empty: 'This field can’t be empty.',
+})
+
+// Dev-only global save-status toast. Portals to <body> so it never
+// participates in slide layout, never shifts content, and survives
+// being mounted inside an iframe (the launcher preview proxy). Anchored
+// bottom-right with safe-area inset; CSS handles reduced-motion.
+function InlineEditToast({ status, onDismiss }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted) return null
+  if (typeof document === 'undefined' || !document.body) return null
+
+  const text = status ? TOAST_STATUS_TEXT[status] : null
+  const isAlert = status === 'error' || status === 'conflict'
+  // Always render the live region container so screen readers hear
+  // updates; the visible chip only renders when there is a status.
+  const node = (
+    <div
+      className="deckio-inline-edit-toast-root"
+      data-deckio-toast-root=""
+      // Single global aria-live region. Polite for routine save lifecycle,
+      // assertive (role="alert") for errors and source conflicts.
+      aria-live={isAlert ? 'assertive' : 'polite'}
+      role={isAlert ? 'alert' : 'status'}
+    >
+      {text ? (
+        <div
+          className={`deckio-inline-edit-toast deckio-inline-edit-toast--${status}`}
+          data-deckio-toast-status={status}
+        >
+          <span className="deckio-inline-edit-toast__dot" aria-hidden="true" />
+          <span className="deckio-inline-edit-toast__text">{text}</span>
+          {status === 'conflict' || status === 'error' ? (
+            <button
+              type="button"
+              className="deckio-inline-edit-toast__dismiss"
+              onClick={onDismiss}
+              aria-label="Dismiss save status"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+  return createPortal(node, document.body)
 }
 
 function placeCaretAtEnd(node) {
@@ -198,8 +313,11 @@ const Editable = forwardRef(function Editable(
   const localRef = useRef(null)
   const ref = externalRef || localRef
   const [editing, setEditing] = useState(false)
+  // Field-local status only carries blocking validation (e.g. empty).
+  // Source-save lifecycle (saving/saved/error/conflict) is owned by the
+  // provider's global toast; field UI must not jump next to whichever
+  // field happens to be edited.
   const [status, setStatus] = useState(null)
-  const savedTimerRef = useRef(null)
 
   const hasOverride = ctx && Object.prototype.hasOwnProperty.call(ctx.overrides || {}, field)
   // Defensive: treat non-string overrides as missing (fail closed).
@@ -245,11 +363,6 @@ const Editable = forwardRef(function Editable(
     }, 0)
   }
 
-  const flushSavedAfter = (ms = 1200) => {
-    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
-    savedTimerRef.current = setTimeout(() => setStatus((s) => (s === 'saved' ? null : s)), ms)
-  }
-
   const commit = async () => {
     if (!editing) return
     const node = ref && 'current' in ref ? ref.current : null
@@ -264,22 +377,20 @@ const Editable = forwardRef(function Editable(
       return
     }
     if (!allowEmpty && newValue.length === 0) {
+      // Field-local because it is a blocking validation, not a save event.
       setStatus('empty')
       placeCaretAtEnd(node)
       return
     }
 
-    setStatus('saving')
+    // Clear any field-local validation; source-save feedback now lives in
+    // the global toast surface owned by the provider.
+    setStatus(null)
     const result = await ctx.save(field, newValue)
     setEditing(false)
-    if (result && result.ok) {
-      setStatus('saved')
-      flushSavedAfter()
-    } else if (result && result.reason === 'conflict') {
-      setStatus('conflict')
-      if (node) node.innerText = oldValue
-    } else {
-      setStatus('error')
+    if (!(result && result.ok)) {
+      // Restore prior value on failure or conflict so the field never
+      // shows an unsaved local edit; the user is told why via the toast.
       if (node) node.innerText = oldValue
     }
     setTimeout(() => {
@@ -344,10 +455,7 @@ const Editable = forwardRef(function Editable(
     className,
     'deckio-editable',
     editing && 'deckio-editable--active',
-    status === 'error' && 'deckio-editable--error',
-    status === 'conflict' && 'deckio-editable--error',
     status === 'empty' && 'deckio-editable--error',
-    status === 'saving' && 'deckio-editable--saving',
   ].filter(Boolean).join(' ')
 
   const accessibleLabel = label || `Editable text${field ? `, ${field}` : ''}. Press Enter or F2 to edit, or double-click.`
@@ -375,13 +483,17 @@ const Editable = forwardRef(function Editable(
       >
         {display}
       </Tag>
-      <span
-        className="deckio-editable-status"
-        role="status"
-        aria-live={status === 'empty' || status === 'error' || status === 'conflict' ? 'assertive' : 'polite'}
-      >
-        {statusText}
-      </span>
+      {/* Field-local status only renders for blocking validation
+          (e.g. empty-not-allowed). Source-save lifecycle is global. */}
+      {statusText ? (
+        <span
+          className="deckio-editable-status"
+          role="status"
+          aria-live="assertive"
+        >
+          {statusText}
+        </span>
+      ) : null}
     </>
   )
 })
