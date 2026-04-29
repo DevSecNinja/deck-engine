@@ -1,91 +1,20 @@
 /**
- * Export deck slides to PowerPoint (.pptx) — direct download, no dialogs.
+ * Export deck slides to PowerPoint (.pptx) - direct download, no dialogs.
  *
- * Uses modern-screenshot (SVG foreignObject) + PptxGenJS.
- * Each slide is captured as a full-bleed image placed on a 10×5.625″ slide (16:9).
+ * Uses the same shared capture path as PDF, then places each capture
+ * full-bleed on a standard PptxGenJS layout.
  */
-
-const SETTLE_MS = 600
-const CAPTURE_WIDTH = 1920
-const CAPTURE_HEIGHT = 1080
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-
-function getCaptureSize() {
-  return { width: CAPTURE_WIDTH, height: CAPTURE_HEIGHT }
-}
-
-async function waitForAssets(root) {
-  if (document.fonts?.ready) await document.fonts.ready
-
-  const images = Array.from(root?.querySelectorAll('img') || [])
-  await Promise.all(images.map(async (img) => {
-    if (img.complete && img.naturalWidth > 0) return
-
-    if (typeof img.decode === 'function') {
-      try {
-        await img.decode()
-        return
-      } catch {
-        // Fall through to load/error listeners for assets decode cannot handle.
-      }
-    }
-
-    await new Promise((resolve) => {
-      const done = () => resolve()
-      img.addEventListener('load', done, { once: true })
-      img.addEventListener('error', done, { once: true })
-    })
-  }))
-}
-
-async function withExportMode(format, run) {
-  const html = document.documentElement
-  const prevMode = html.getAttribute('data-export-mode')
-  const prevFormat = html.getAttribute('data-export-format')
-
-  html.setAttribute('data-export-mode', 'capture')
-  html.setAttribute('data-export-format', format)
-
-  try {
-    return await run()
-  } finally {
-    if (prevMode === null) html.removeAttribute('data-export-mode')
-    else html.setAttribute('data-export-mode', prevMode)
-
-    if (prevFormat === null) html.removeAttribute('data-export-format')
-    else html.setAttribute('data-export-format', prevFormat)
-  }
-}
-
-async function waitForPaint() {
-  await new Promise((r) => requestAnimationFrame(() => r()))
-  await new Promise((r) => requestAnimationFrame(() => r()))
-}
-
-function sanitize(v) {
-  return String(v || 'deck').trim().toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'deck'
-}
-
-function buildFileName({ project, selectedCustomer }) {
-  const base = selectedCustomer
-    ? `${selectedCustomer} ${document.title || project || 'deck'}`
-    : document.title || project || 'deck'
-  return `${sanitize(base)}.pptx`
-}
-
-function pauseAnimations(slide) {
-  const undo = []
-  const pause = (el) => {
-    const orig = el.style.animationPlayState
-    el.style.animationPlayState = 'paused'
-    undo.push(() => { el.style.animationPlayState = orig })
-  }
-  pause(slide)
-  slide.querySelectorAll('*').forEach(pause)
-  return () => { for (let i = undo.length - 1; i >= 0; i--) undo[i]() }
-}
+import {
+  buildExportFileName,
+  captureSlidePng,
+  getSlideBackground,
+  normalizeHexColor,
+  resolveExportOptions,
+  settleExportFrame,
+  waitForAssets,
+  waitForPaint,
+  withExportMode,
+} from './exportDeckService.js'
 
 export async function exportDeckPptx({
   current,
@@ -94,6 +23,7 @@ export async function exportDeckPptx({
   selectedCustomer,
   totalSlides,
   onProgress,
+  exportOptions,
 }) {
   const deck = document.querySelector('.deck')
   const slides = Array.from(deck?.querySelectorAll('.slide') || [])
@@ -105,22 +35,15 @@ export async function exportDeckPptx({
   ])
   const Pptx = PptxGenJS.default || PptxGenJS
 
-  const bg = getComputedStyle(document.documentElement)
-    .getPropertyValue('--background').trim() || '#080b10'
-  const scale = 1
-
-  const initialActive = document.querySelector('.slide.active') || slides[current] || deck
-  const initialCapture = getCaptureSize(initialActive, deck)
-  const pptxWidth = 10
-  const pptxHeight = Number((pptxWidth * initialCapture.height / initialCapture.width).toFixed(4))
+  const { layout, quality, fit } = resolveExportOptions(exportOptions)
+  const bg = getSlideBackground()
 
   const pptx = new Pptx()
-  pptx.defineLayout({ name: 'WIDE', width: pptxWidth, height: pptxHeight })
-  pptx.layout = 'WIDE'
+  pptx.defineLayout({ name: layout.id, width: layout.widthIn, height: layout.heightIn })
+  pptx.layout = layout.id
 
   await withExportMode('pptx', async () => {
-    await waitForPaint()
-    await wait(SETTLE_MS)
+    await settleExportFrame()
     await waitForAssets(deck)
 
     try {
@@ -128,52 +51,29 @@ export async function exportDeckPptx({
         onProgress?.({ current: i + 1, total: totalSlides })
         goTo(i)
         await waitForPaint()
-        await wait(SETTLE_MS)
+        await settleExportFrame()
 
         const active = document.querySelector('.slide.active') || slides[i]
         if (!active) throw new Error(`Slide ${i + 1} not found`)
 
-        await waitForAssets(active)
-
-        const capture = getCaptureSize(active, deck)
-
-        const restore = pauseAnimations(active)
-        await waitForPaint()
-
-        let dataUrl
-        try {
-          dataUrl = await domToPng(active, {
-            width: capture.width,
-            height: capture.height,
-            backgroundColor: bg,
-            scale,
-            style: {
-              position: 'relative',
-              inset: 'auto',
-              left: '0',
-              top: '0',
-              width: `${capture.width}px`,
-              height: `${capture.height}px`,
-              maxWidth: 'none',
-              maxHeight: 'none',
-              boxSizing: 'border-box',
-              opacity: '1',
-              transform: 'none',
-              transition: 'none',
-            },
-          })
-        } finally {
-          restore()
-        }
+        const dataUrl = await captureSlidePng({
+          domToPng,
+          deck,
+          slide: active,
+          layout,
+          quality,
+          fit,
+          backgroundColor: bg,
+        })
 
         const slide = pptx.addSlide()
-        slide.background = { color: bg.replace('#', '') }
+        slide.background = { color: normalizeHexColor(bg) }
         slide.addImage({
           data: dataUrl,
           x: 0,
           y: 0,
-          w: '100%',
-          h: '100%',
+          w: layout.widthIn,
+          h: layout.heightIn,
         })
       }
     } finally {
@@ -182,8 +82,8 @@ export async function exportDeckPptx({
     }
   })
 
-  const fileName = buildFileName({ project, selectedCustomer })
+  const fileName = buildExportFileName({ project, selectedCustomer, extension: 'pptx' })
   await pptx.writeFile({ fileName })
 
-  return { fileName }
+  return { fileName, layout: layout.id }
 }

@@ -248,6 +248,61 @@ html, body, #root {
   transform: translateX(-60px);
 }
 
+/* ── Export capture mode ─────────────────────────────────────────────────
+   Applied only while PDF/PPTX capture is running. The fixed stage size makes
+   exports independent from the user's monitor, and the fit scale lets busy
+   slides shrink without changing their source JSX/CSS. */
+html[data-export-mode="capture"],
+html[data-export-mode="capture"] body,
+html[data-export-mode="capture"] #root,
+html[data-export-mode="capture"] .deck {
+  width: var(--deckio-export-width, 1920px) !important;
+  height: var(--deckio-export-height, 1080px) !important;
+  overflow: hidden !important;
+}
+
+html[data-export-mode="capture"] .slide {
+  width: var(--deckio-export-width, 1920px) !important;
+  height: var(--deckio-export-height, 1080px) !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+html[data-export-mode="capture"] .content-frame {
+  transform: scale(var(--deckio-export-fit-scale, 1));
+  transform-origin: center center;
+}
+
+html[data-export-mode="capture"] .slide-overflow-warn,
+html[data-export-mode="capture"] .deckio-editable-status,
+html[data-export-mode="capture"] .deckio-inline-edit-toast-root {
+  display: none !important;
+}
+
+html[data-export-mode="capture"] .deckio-editable {
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* shadcn badges are optimized for live HTML, but SVG/foreignObject capture can
+   round text metrics differently. During export we give badge text breathing
+   room so pills do not clip or appear to have overflowing labels. */
+html[data-export-mode="capture"] [data-slot="badge"] {
+  width: max-content !important;
+  min-width: max-content !important;
+  max-width: 100% !important;
+  min-height: 1.55em !important;
+  overflow: visible !important;
+  line-height: 1.15 !important;
+  padding-top: 0.28em !important;
+  padding-bottom: 0.28em !important;
+}
+
+html[data-export-mode="capture"] [data-slot="badge"] .deckio-editable {
+  line-height: inherit !important;
+}
+
 /* ── Dev-mode overflow warning ── */
 .slide-overflow-warn {
   position: absolute;

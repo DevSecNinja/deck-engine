@@ -1,6 +1,6 @@
 {
   "name": "@deckio/deck-engine",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "type": "module",
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

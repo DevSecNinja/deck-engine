@@ -3,6 +3,12 @@ import styles from './Navigation.module.css'
 import { useState, useEffect, useRef } from 'react'
 import { exportDeckPdf } from './exportDeckPdf.js'
 import { exportDeckPptx } from './exportDeckPptx.js'
+import {
+  DEFAULT_EXPORT_OPTIONS,
+  EXPORT_FITS,
+  EXPORT_LAYOUTS,
+  EXPORT_QUALITIES,
+} from './exportDeckService.js'
 
 function resolveProp(value, context) {
   return typeof value === 'function' ? value(context) : value
@@ -16,6 +22,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   const [exportStatus, setExportStatus] = useState('PDF')
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [exportError, setExportError] = useState(null)
+  const [exportOptions, setExportOptions] = useState(DEFAULT_EXPORT_OPTIONS)
   const [navHasFocus, setNavHasFocus] = useState(false)
   const exportMenuRef = useRef(null)
   const navRef = useRef(null)
@@ -75,6 +82,10 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   const resolvedPdfPath = resolveProp(pdfPath, navigationState)
   const resolvedPdfLabel = resolveProp(pdfLabel, navigationState) || 'Deck PDF'
 
+  function updateExportOption(key, value) {
+    setExportOptions((prev) => ({ ...prev, [key]: value }))
+  }
+
   async function handleExport(format) {
     if (isExporting) return
     setExportMenuOpen(false)
@@ -94,6 +105,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
         onProgress: ({ current: slideNumber, total }) => {
           setExportStatus(`${slideNumber}/${total}`)
         },
+        exportOptions,
       })
       setExportStatus('Done')
       setExportError(null)
@@ -174,22 +186,71 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
         )}
 
         {exportMenuOpen && !isExporting && (
-          <div className={styles.exportMenu}>
-            <button className={styles.exportMenuItem} onClick={() => handleExport('pdf')}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              PDF
-            </button>
-            <button className={styles.exportMenuItem} onClick={() => handleExport('pptx')}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                <path d="M8 21h8" />
-                <path d="M12 17v4" />
-              </svg>
-              PowerPoint
-            </button>
+          <div className={styles.exportMenu} role="dialog" aria-label="Export deck options">
+            <div className={styles.exportMenuHeader}>
+              <span className={styles.exportMenuTitle}>Export deck</span>
+              <span className={styles.exportMenuHint}>Widescreen is the PowerPoint default</span>
+            </div>
+
+            <label className={styles.exportField}>
+              <span>Size</span>
+              <select
+                value={exportOptions.layout}
+                onChange={(event) => updateExportOption('layout', event.target.value)}
+              >
+                {EXPORT_LAYOUTS.map((layout) => (
+                  <option key={layout.id} value={layout.id}>
+                    {layout.label} - {layout.hint}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.exportField}>
+              <span>Fit</span>
+              <select
+                value={exportOptions.fit}
+                onChange={(event) => updateExportOption('fit', event.target.value)}
+              >
+                {EXPORT_FITS.map((fit) => (
+                  <option key={fit.id} value={fit.id}>
+                    {fit.label} - {fit.hint}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={styles.exportField}>
+              <span>Quality</span>
+              <select
+                value={exportOptions.quality}
+                onChange={(event) => updateExportOption('quality', event.target.value)}
+              >
+                {EXPORT_QUALITIES.map((quality) => (
+                  <option key={quality.id} value={quality.id}>
+                    {quality.label} - {quality.hint}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className={styles.exportActions}>
+              <button className={styles.exportMenuItem} onClick={() => handleExport('pdf')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                PDF
+              </button>
+              <button className={styles.exportMenuItem} onClick={() => handleExport('pptx')}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <path d="M8 21h8" />
+                  <path d="M12 17v4" />
+                </svg>
+                PowerPoint
+              </button>
+            </div>
           </div>
         )}
       </div>

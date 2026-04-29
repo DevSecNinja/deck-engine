@@ -118,17 +118,76 @@
   position: absolute;
   top: calc(100% + var(--space-1-5));
   right: 0;
-  min-width: 140px;
+  width: min(320px, calc(100vw - 32px));
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--surface-overlay-heavy);
   backdrop-filter: blur(12px);
-  padding: var(--space-1);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-elevated);
+  animation: menuFadeIn var(--transition-fast);
+}
+
+.exportMenuHeader {
   display: flex;
   flex-direction: column;
   gap: var(--space-0-5);
-  box-shadow: var(--shadow-elevated);
-  animation: menuFadeIn var(--transition-fast);
+}
+
+.exportMenuTitle {
+  color: var(--foreground);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.exportMenuHint {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.exportField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--muted-foreground);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exportField select {
+  appearance: none;
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%) calc(100% - 16px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%) calc(100% - 11px) 50% / 5px 5px no-repeat,
+    var(--secondary);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-2);
+}
+
+.exportField select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.exportActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
 }
 
 @keyframes menuFadeIn {
@@ -139,11 +198,12 @@
 .exportMenuItem {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border: none;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: transparent;
+  background: var(--glow-primary);
   color: var(--foreground);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
@@ -153,7 +213,8 @@
   white-space: nowrap;
 }
 .exportMenuItem:hover {
-  background: var(--glow-primary);
+  border-color: var(--accent);
+  background: var(--glow-primary-strong);
 }
 .exportMenuItem svg {
   width: 14px; height: 14px;
