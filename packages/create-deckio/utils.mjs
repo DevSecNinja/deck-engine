@@ -598,7 +598,6 @@ import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import ShinyText from '@/components/ui/shiny-text'
 import styles from './CoverSlide.module.css'
 
 export default function CoverSlide() {
@@ -609,13 +608,7 @@ export default function CoverSlide() {
           <div className={styles.main}>
             <div className={styles.overline}>
               <Badge variant="outline" className={styles.overlineBadge}>
-                <ShinyText
-                  text="${slug}"
-                  speed={3}
-                  color="currentColor"
-                  shineColor="var(--accent)"
-                  className={styles.overlineText}
-                />
+                <Editable as="span" id="cover.eyebrow" className={styles.overlineText}>${slug}</Editable>
               </Badge>
             </div>
 
@@ -845,10 +838,12 @@ export default function FeaturesSlide() {
                 <div className={styles.cardHeader}>
                   <span className={styles.cardIcon}>{f.icon}</span>
                   <Editable as="h3" id={\`features.items.\${f.id}.title\`} className={styles.cardTitle}>{f.title}</Editable>
-                  <Badge variant="secondary" className={styles.cardBadge}>{f.badge}</Badge>
+                  <Badge variant="secondary" className={styles.cardBadge}>
+                    <Editable as="span" id={\`features.items.\${f.id}.badge\`}>{f.badge}</Editable>
+                  </Badge>
                 </div>
                 <Editable as="p" id={\`features.items.\${f.id}.desc\`} className={styles.cardDesc}>{f.desc}</Editable>
-                <code className={styles.cardCode}>{f.code}</code>
+                <Editable as="code" id={\`features.items.\${f.id}.code\`} className={styles.cardCode}>{f.code}</Editable>
               </SpotlightCard>
             ))}
           </div>
@@ -1212,7 +1207,6 @@ export function thankYouSlideJsxShadcn(slug, slideIndex = 3) {
 import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import ShinyText from '@/components/ui/shiny-text'
 import { Github, AtSign } from 'lucide-react'
 import styles from './ThankYouSlide.module.css'
 
@@ -1225,15 +1219,9 @@ export default function ThankYouSlide() {
           <Editable as="h2" id="thankYou.title" className={styles.title}>
             Thank You
           </Editable>
-          <p className={styles.subtitle}>
-            <ShinyText
-              text="Let's build something great — together."
-              speed={4}
-              color="var(--muted-foreground)"
-              shineColor="var(--foreground)"
-              className={styles.shinySubtitle}
-            />
-          </p>
+          <Editable as="p" id="thankYou.subtitle" className={styles.subtitle}>
+            Let's build something great — together.
+          </Editable>
           <div className={styles.links}>
             <Button variant="ghost" size="sm">
               <Github />
