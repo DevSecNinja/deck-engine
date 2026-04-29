@@ -14,7 +14,7 @@
  */
 import tailwindcss from '@tailwindcss/vite'
 import { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES } from './themes/theme-loader.js'
-import { createInlineEditMiddleware } from './server/inline-edit-server.mjs'
+import { createInlineEditMiddleware, isHostExposed } from './server/inline-edit-server.mjs'
 
 // Re-export theme utilities for Node.js consumers
 export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
@@ -22,9 +22,14 @@ export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
 /**
  * @param {object} [options]
  * @param {string} [options.theme] - Theme name or path. Defaults to "dark".
+ * @param {boolean} [options.inlineEditing] - Opt in to the local-only
+ *   inline-edit dev endpoint. Defaults to `false`. Even when enabled, the
+ *   middleware refuses to register if Vite is exposed on the network
+ *   (host: '0.0.0.0', true, LAN ip, etc.).
  */
 export function deckPlugin(options = {}) {
   const themePath = resolveTheme(options.theme)
+  const inlineEditing = Boolean(options.inlineEditing)
 
   return {
     name: 'deck-engine',
@@ -56,9 +61,19 @@ export function deckPlugin(options = {}) {
     },
     // Dev-only: mount the inline-edit endpoint. configureServer is never
     // called for production builds, so the write surface is inert in `vite build`.
+    // Opt-in via `deckPlugin({ inlineEditing: true })`. When enabled, requests
+    // are still refused server-side if Vite is bound to a non-loopback host.
     configureServer(server) {
+      if (!inlineEditing) return
       const root = server.config.root
-      server.middlewares.use(createInlineEditMiddleware({ root }))
+      const hostOption = server.config.server && server.config.server.host
+      const networkExposed = isHostExposed(hostOption)
+      if (networkExposed && server.config.logger && server.config.logger.warn) {
+        server.config.logger.warn(
+          '[deck-engine] inline editing disabled: dev server is exposed on the network.',
+        )
+      }
+      server.middlewares.use(createInlineEditMiddleware({ root, networkExposed }))
     },
   }
 }

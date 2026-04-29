@@ -276,7 +276,7 @@ describe('viteConfig', () => {
   it('includes react, deckPlugin, and tailwindPlugin by default', () => {
     const config = viteConfig()
     expect(config).toContain('react(')
-    expect(config).toContain('deckPlugin()')
+    expect(config).toContain('deckPlugin({ inlineEditing: true })')
     expect(config).toContain('tailwindPlugin()')
   })
 

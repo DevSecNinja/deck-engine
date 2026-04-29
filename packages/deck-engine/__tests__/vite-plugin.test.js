@@ -62,6 +62,81 @@ describe('deckPlugin', () => {
   })
 })
 
+describe('deckPlugin inline-edit registration', () => {
+  // Build a fake Vite dev server and capture middleware registrations.
+  function fakeServer({ host } = {}) {
+    const middlewares = []
+    return {
+      registered: middlewares,
+      config: {
+        root: process.cwd(),
+        server: { host },
+        logger: { warn: () => {}, info: () => {} },
+      },
+      middlewares: {
+        use: (mw) => middlewares.push(mw),
+      },
+    }
+  }
+
+  it('does NOT register the inline-edit middleware by default (opt-in)', () => {
+    const plugin = deckPlugin()
+    const srv = fakeServer()
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(0)
+  })
+
+  it('does NOT register when inlineEditing is explicitly false', () => {
+    const plugin = deckPlugin({ inlineEditing: false })
+    const srv = fakeServer()
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(0)
+  })
+
+  it('registers a refusing middleware when inlineEditing=true but host is exposed', async () => {
+    const plugin = deckPlugin({ inlineEditing: true })
+    const srv = fakeServer({ host: '0.0.0.0' })
+    plugin.configureServer(srv)
+    // Middleware is still registered, but every request is refused with NETWORK_EXPOSED.
+    expect(srv.registered.length).toBe(1)
+    const mw = srv.registered[0]
+    const { EventEmitter } = await import('node:events')
+    const req = Object.assign(new EventEmitter(), {
+      method: 'POST',
+      url: '/__deckio/inline-edit',
+      socket: { remoteAddress: '127.0.0.1' },
+      headers: { 'content-type': 'application/json' },
+      destroy() {},
+    })
+    let body = ''; let status = 0
+    const res = {
+      statusCode: 200,
+      setHeader() {},
+      end(b) { body = b || ''; status = this.statusCode },
+    }
+    const p = mw(req, res, () => {})
+    setImmediate(() => { req.emit('data', Buffer.from('{"field":"a","value":"b"}')); req.emit('end') })
+    await p
+    await new Promise((r) => setImmediate(r))
+    expect(status).toBe(403)
+    expect(body).toContain('INLINE_EDIT_DISABLED_REMOTE_HOST')
+  })
+
+  it('registers an active middleware when inlineEditing=true and host is loopback', () => {
+    const plugin = deckPlugin({ inlineEditing: true })
+    const srv = fakeServer({ host: 'localhost' })
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(1)
+  })
+
+  it('registers an active middleware when inlineEditing=true and host is undefined (default loopback)', () => {
+    const plugin = deckPlugin({ inlineEditing: true })
+    const srv = fakeServer()
+    plugin.configureServer(srv)
+    expect(srv.registered.length).toBe(1)
+  })
+})
+
 describe('deckPlugins', () => {
   it('returns an array starting with deck-engine followed by tailwindcss plugins', () => {
     const plugins = deckPlugins()

@@ -1,39 +1,127 @@
 /**
  * Inline-edit server helpers + Vite dev middleware.
  *
- * MVP scope (Decision 63):
- *   - Local Vite dev only — never enabled in production builds.
- *   - Persists field overrides to a project-local JSON file
- *     (default: src/data/inline-edits.json).
- *   - Refuses unsafe writes: paths must resolve under the project root,
- *     requests must originate from loopback, fields/values are bounded
- *     and validated.
+ * Security posture (Decision 63 + Licha's checklist):
+ *   - Dev-only by virtue of being mounted from configureServer.
+ *   - Opt-in via deckPlugin({ inlineEditing: true }).
+ *   - Refuses requests when Vite is exposed on the network (host != loopback).
+ *   - Refuses non-loopback remote clients.
+ *   - Same-origin Origin/Referer check when present.
+ *   - Requires application/json Content-Type.
+ *   - Bounded body / value / line count / total override file size.
+ *   - Realpath-based path containment + denylist (node_modules, .git, dist,
+ *     lockfiles, package files, engine package paths).
+ *   - Per-target async write mutex.
+ *   - Atomic write (sibling temp + rename).
+ *   - Stable, sanitized error codes (no paths, no stack traces, no usernames).
  *
- * The HTTP surface and helpers are deliberately small so the v2
- * AST/source-span patcher can reuse `safeOverridePath`,
- * `writeOverridesAtomic`, `readOverrides`, and the loopback gate.
+ * v2 (AST patcher) reuses these helpers — they take server-owned canonical
+ * paths, never raw client input.
  */
-import { promises as fs } from 'node:fs'
+import { promises as fs, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 
 export const OVERRIDE_REL_PATH = path.posix.join('src', 'data', 'inline-edits.json')
+export const ENDPOINT_PATH = '/__deckio/inline-edit'
+
 export const FIELD_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,127}$/
 export const MAX_VALUE_LENGTH = 4000
+export const MAX_VALUE_LINES = 200
 export const MAX_BODY_BYTES = 64 * 1024
+export const MAX_OVERRIDE_FILE_BYTES = 256 * 1024
 
-const LOOPBACK_HOSTS = new Set([
+const LOOPBACK_IPS = new Set([
   '127.0.0.1',
   '::1',
   '::ffff:127.0.0.1',
 ])
+
+const LOOPBACK_HOST_NAMES = new Set([
+  'localhost',
+  '127.0.0.1',
+  '::1',
+  '0:0:0:0:0:0:0:1',
+  '[::1]',
+])
+
+const DENY_SEGMENTS = new Set([
+  'node_modules',
+  '.git',
+  '.hg',
+  '.svn',
+  'dist',
+  'build',
+  'out',
+  '.vite',
+  '.cache',
+  '.next',
+  '.turbo',
+  '.parcel-cache',
+])
+
+const DENY_FILE_BASENAMES = new Set([
+  'package.json',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  '.env',
+  '.env.local',
+  '.npmrc',
+  '.yarnrc',
+])
+
+// Stable, user-safe error codes. Messages are intentionally short and
+// contain no paths, usernames, or stack traces.
+export const ERROR_CODES = Object.freeze({
+  DISABLED: 'INLINE_EDIT_DISABLED',
+  NETWORK_EXPOSED: 'INLINE_EDIT_DISABLED_REMOTE_HOST',
+  REMOTE_CLIENT: 'INLINE_EDIT_REMOTE_CLIENT',
+  CROSS_ORIGIN: 'INLINE_EDIT_CROSS_ORIGIN',
+  METHOD: 'INLINE_EDIT_METHOD_NOT_ALLOWED',
+  CONTENT_TYPE: 'INLINE_EDIT_BAD_CONTENT_TYPE',
+  PAYLOAD: 'INLINE_EDIT_BAD_PAYLOAD',
+  FIELD: 'INLINE_EDIT_INVALID_FIELD',
+  VALUE: 'INLINE_EDIT_INVALID_VALUE',
+  TARGET_DENIED: 'INLINE_EDIT_TARGET_DENIED',
+  STALE_SOURCE: 'INLINE_EDIT_STALE_SOURCE',
+  WRITE_FAILED: 'INLINE_EDIT_WRITE_FAILED',
+  TOO_LARGE: 'INLINE_EDIT_OVERRIDE_FILE_TOO_LARGE',
+})
+
+const ERROR_MESSAGES = Object.freeze({
+  [ERROR_CODES.DISABLED]: 'Inline editing is disabled.',
+  [ERROR_CODES.NETWORK_EXPOSED]: 'Inline editing is disabled when the dev server is exposed on the network.',
+  [ERROR_CODES.REMOTE_CLIENT]: 'Inline editing only accepts requests from this machine.',
+  [ERROR_CODES.CROSS_ORIGIN]: 'Inline editing only accepts requests from the dev server origin.',
+  [ERROR_CODES.METHOD]: 'Method not allowed.',
+  [ERROR_CODES.CONTENT_TYPE]: 'Content-Type must be application/json.',
+  [ERROR_CODES.PAYLOAD]: 'Request body is invalid.',
+  [ERROR_CODES.FIELD]: 'Field name is not allowed.',
+  [ERROR_CODES.VALUE]: 'Value is too large or contains too many lines.',
+  [ERROR_CODES.TARGET_DENIED]: 'Target is not eligible for inline edit.',
+  [ERROR_CODES.STALE_SOURCE]: 'Source changed. Refresh and try again.',
+  [ERROR_CODES.WRITE_FAILED]: 'Could not save the change.',
+  [ERROR_CODES.TOO_LARGE]: 'Override file would exceed the size limit.',
+})
 
 export function isValidField(field) {
   return typeof field === 'string' && FIELD_PATTERN.test(field)
 }
 
 export function isValidValue(value) {
-  return typeof value === 'string' && value.length <= MAX_VALUE_LENGTH
+  if (typeof value !== 'string') return false
+  if (value.length > MAX_VALUE_LENGTH) return false
+  // Bounded line count.
+  const lines = value.split('\n').length
+  if (lines > MAX_VALUE_LINES) return false
+  // Reject unexpected control characters except \t and \n.
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i)
+    if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) return false
+  }
+  return true
 }
 
 export function hashOverrides(overrides) {
@@ -42,21 +130,74 @@ export function hashOverrides(overrides) {
 }
 
 /**
+ * Determine whether a Vite `server.host` option exposes the dev server
+ * outside the loopback interface. `host: undefined | 'localhost' | '127.0.0.1' | '::1'`
+ * are loopback. `host: true | '0.0.0.0' | '::' | '<lan ip>' | '<hostname>'` are exposed.
+ */
+export function isHostExposed(hostOption) {
+  if (hostOption === undefined || hostOption === false) return false
+  if (hostOption === true) return true
+  if (typeof hostOption !== 'string') return true
+  const h = hostOption.trim().toLowerCase().replace(/^\[|\]$/g, '')
+  if (h === '' || h === '0.0.0.0' || h === '::' || h === '*') return true
+  return !LOOPBACK_HOST_NAMES.has(h)
+}
+
+function realpathOrSelf(p) {
+  try { return realpathSync(p) } catch { return p }
+}
+
+/**
  * Resolve and validate the override file path under the given project root.
- * Throws if the resolved path escapes the root (defense in depth even though
- * the relative path is hard-coded).
+ * Uses realpath to resist symlink escapes. Refuses denylisted segments and
+ * package-owned files.
+ *
+ * - `root` should be the canonical project root (from server.config.root).
+ * - `relPath` defaults to the MVP override path; v2 callers may pass a
+ *   server-owned path.
+ *
+ * Throws an Error tagged with `code = ERROR_CODES.TARGET_DENIED` on refusal.
  */
 export function safeOverridePath(root, relPath = OVERRIDE_REL_PATH) {
   if (typeof root !== 'string' || !root) {
-    throw new Error('inline-edit: project root is required')
+    const err = new Error('inline-edit: project root is required')
+    err.code = ERROR_CODES.TARGET_DENIED
+    throw err
   }
-  const resolvedRoot = path.resolve(root)
+  const resolvedRoot = realpathOrSelf(path.resolve(root))
   const target = path.resolve(resolvedRoot, relPath)
-  const rel = path.relative(resolvedRoot, target)
+
+  // Realpath the *parent* of the target; the target file may not yet exist.
+  const parent = path.dirname(target)
+  const realParent = realpathOrSelf(parent)
+  const realTarget = path.join(realParent, path.basename(target))
+
+  const rel = path.relative(resolvedRoot, realTarget)
   if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('inline-edit: override path escapes project root')
+    const err = new Error('inline-edit: target outside project root')
+    err.code = ERROR_CODES.TARGET_DENIED
+    throw err
   }
-  return target
+
+  // Denylist segments anywhere in the relative path.
+  const segments = rel.split(/[\\/]+/)
+  for (const seg of segments) {
+    if (DENY_SEGMENTS.has(seg)) {
+      const err = new Error('inline-edit: denied path segment')
+      err.code = ERROR_CODES.TARGET_DENIED
+      throw err
+    }
+  }
+
+  // Denylist filename for engine/package/lockfile-style writes.
+  const base = path.basename(realTarget)
+  if (DENY_FILE_BASENAMES.has(base)) {
+    const err = new Error('inline-edit: denied filename')
+    err.code = ERROR_CODES.TARGET_DENIED
+    throw err
+  }
+
+  return realTarget
 }
 
 export async function readOverrides(file) {
@@ -81,11 +222,16 @@ export async function readOverrides(file) {
 export async function writeOverridesAtomic(file, data) {
   const dir = path.dirname(file)
   await fs.mkdir(dir, { recursive: true })
+  const payload = JSON.stringify(data, null, 2) + '\n'
+  if (Buffer.byteLength(payload, 'utf8') > MAX_OVERRIDE_FILE_BYTES) {
+    const err = new Error('inline-edit: override file too large')
+    err.code = ERROR_CODES.TOO_LARGE
+    throw err
+  }
   const tmp = path.join(
     dir,
     `.inline-edits.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`,
   )
-  const payload = JSON.stringify(data, null, 2) + '\n'
   await fs.writeFile(tmp, payload, 'utf8')
   try {
     await fs.rename(tmp, file)
@@ -98,7 +244,34 @@ export async function writeOverridesAtomic(file, data) {
 export function isLoopbackRequest(req) {
   const remote = req && req.socket && req.socket.remoteAddress
   if (!remote) return false
-  return LOOPBACK_HOSTS.has(remote)
+  return LOOPBACK_IPS.has(remote)
+}
+
+/**
+ * Given an Origin or Referer header value, normalize to a `host` (no port)
+ * for comparison. Returns null if not parseable.
+ */
+function originHostname(value) {
+  if (!value || typeof value !== 'string') return null
+  try {
+    const u = new URL(value)
+    return (u.hostname || '').toLowerCase().replace(/^\[|\]$/g, '')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Same-origin check. Allows: missing Origin (CLI/dev tools), or Origin whose
+ * host is loopback. We do not require port equality because Vite dev servers
+ * pick ports dynamically.
+ */
+export function isSameOrigin(req) {
+  const origin = req.headers && (req.headers.origin || req.headers.referer)
+  if (!origin) return true
+  const h = originHostname(origin)
+  if (!h) return false
+  return LOOPBACK_HOST_NAMES.has(h)
 }
 
 function readJsonBody(req, limit = MAX_BODY_BYTES) {
@@ -108,7 +281,9 @@ function readJsonBody(req, limit = MAX_BODY_BYTES) {
     req.on('data', (chunk) => {
       total += chunk.length
       if (total > limit) {
-        reject(new Error('inline-edit: payload too large'))
+        const err = new Error('inline-edit: payload too large')
+        err.code = ERROR_CODES.PAYLOAD
+        reject(err)
         try { req.destroy() } catch { /* ignore */ }
         return
       }
@@ -118,11 +293,17 @@ function readJsonBody(req, limit = MAX_BODY_BYTES) {
       try {
         const text = Buffer.concat(chunks).toString('utf8')
         resolve(text ? JSON.parse(text) : {})
-      } catch (err) {
+      } catch {
+        const err = new Error('inline-edit: invalid json')
+        err.code = ERROR_CODES.PAYLOAD
         reject(err)
       }
     })
-    req.on('error', reject)
+    req.on('error', (e) => {
+      const err = new Error('inline-edit: stream error')
+      err.code = ERROR_CODES.PAYLOAD
+      reject(err)
+    })
   })
 }
 
@@ -132,19 +313,61 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body))
 }
 
+function sendError(res, status, code) {
+  sendJson(res, status, { ok: false, code, error: code, message: ERROR_MESSAGES[code] || ERROR_MESSAGES[ERROR_CODES.DISABLED] })
+}
+
+// Per-target write mutex. Keyed by canonical target path.
+const writeLocks = new Map()
+async function withWriteLock(key, fn) {
+  const previous = writeLocks.get(key) || Promise.resolve()
+  let release
+  const next = new Promise((r) => { release = r })
+  writeLocks.set(key, previous.then(() => next))
+  await previous
+  try {
+    return await fn()
+  } finally {
+    release()
+    if (writeLocks.get(key) === next) writeLocks.delete(key)
+  }
+}
+
 /**
  * Build a Vite/connect middleware that handles POST /__deckio/inline-edit.
- * Pure factory over `{ root }` so tests can drive it without a real server.
+ *
+ * Options:
+ *   - root          (required) canonical project root
+ *   - networkExposed (boolean) if true, every request is refused
+ *   - relPath       override-file path relative to root (default fixed MVP path)
  */
-export function createInlineEditMiddleware({ root, relPath = OVERRIDE_REL_PATH } = {}) {
+export function createInlineEditMiddleware({
+  root,
+  relPath = OVERRIDE_REL_PATH,
+  networkExposed = false,
+} = {}) {
   return async function inlineEditMiddleware(req, res, next) {
-    if (!req || req.url !== '/__deckio/inline-edit') return next()
+    if (!req || req.url !== ENDPOINT_PATH) return next()
+
     if (req.method !== 'POST') {
-      sendJson(res, 405, { ok: false, error: 'method-not-allowed' })
+      sendError(res, 405, ERROR_CODES.METHOD)
+      return
+    }
+    if (networkExposed) {
+      sendError(res, 403, ERROR_CODES.NETWORK_EXPOSED)
       return
     }
     if (!isLoopbackRequest(req)) {
-      sendJson(res, 403, { ok: false, error: 'forbidden-non-loopback' })
+      sendError(res, 403, ERROR_CODES.REMOTE_CLIENT)
+      return
+    }
+    if (!isSameOrigin(req)) {
+      sendError(res, 403, ERROR_CODES.CROSS_ORIGIN)
+      return
+    }
+    const ctype = (req.headers && req.headers['content-type']) || ''
+    if (!String(ctype).toLowerCase().startsWith('application/json')) {
+      sendError(res, 415, ERROR_CODES.CONTENT_TYPE)
       return
     }
 
@@ -152,17 +375,22 @@ export function createInlineEditMiddleware({ root, relPath = OVERRIDE_REL_PATH }
     try {
       body = await readJsonBody(req)
     } catch (err) {
-      sendJson(res, 400, { ok: false, error: 'invalid-json' })
+      sendError(res, 400, ERROR_CODES.PAYLOAD)
       return
     }
 
-    const { field, value } = body || {}
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      sendError(res, 400, ERROR_CODES.PAYLOAD)
+      return
+    }
+
+    const { field, value, baseHash } = body
     if (!isValidField(field)) {
-      sendJson(res, 400, { ok: false, error: 'invalid-field' })
+      sendError(res, 400, ERROR_CODES.FIELD)
       return
     }
     if (!isValidValue(value)) {
-      sendJson(res, 400, { ok: false, error: 'invalid-value' })
+      sendError(res, 400, ERROR_CODES.VALUE)
       return
     }
 
@@ -170,25 +398,34 @@ export function createInlineEditMiddleware({ root, relPath = OVERRIDE_REL_PATH }
     try {
       target = safeOverridePath(root, relPath)
     } catch (err) {
-      sendJson(res, 500, { ok: false, error: 'unsafe-path' })
+      sendError(res, 403, ERROR_CODES.TARGET_DENIED)
       return
     }
 
     try {
-      const current = await readOverrides(target)
-      const currentHash = hashOverrides(current)
-      const { baseHash } = body || {}
-      if (typeof baseHash === 'string' && baseHash && baseHash !== currentHash) {
-        sendJson(res, 409, { ok: false, error: 'source-changed', hash: currentHash })
-        return
-      }
-      current[field] = value
-      await writeOverridesAtomic(target, current)
-      const nextHash = hashOverrides(current)
-      sendJson(res, 200, { ok: true, field, hash: nextHash })
+      await withWriteLock(target, async () => {
+        const current = await readOverrides(target)
+        const currentHash = hashOverrides(current)
+        if (typeof baseHash === 'string' && baseHash && baseHash !== currentHash) {
+          sendJson(res, 409, {
+            ok: false,
+            code: ERROR_CODES.STALE_SOURCE,
+            error: ERROR_CODES.STALE_SOURCE,
+            message: ERROR_MESSAGES[ERROR_CODES.STALE_SOURCE],
+            hash: currentHash,
+          })
+          return
+        }
+        current[field] = value
+        await writeOverridesAtomic(target, current)
+        const nextHash = hashOverrides(current)
+        sendJson(res, 200, { ok: true, field, hash: nextHash })
+      })
     } catch (err) {
-      sendJson(res, 500, { ok: false, error: 'write-failed' })
-      return
+      const code = (err && err.code && typeof err.code === 'string' && err.code.startsWith('INLINE_EDIT_'))
+        ? err.code
+        : ERROR_CODES.WRITE_FAILED
+      sendError(res, code === ERROR_CODES.TOO_LARGE ? 413 : 500, code)
     }
   }
 }

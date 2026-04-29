@@ -208,7 +208,7 @@ export default defineConfig({
     react({
       include: [/\\.[jt]sx?$/, /node_modules\\/@deckio\\/deck-engine\\/.+\\.jsx$/],
     }),
-    deckPlugin(),
+    deckPlugin({ inlineEditing: true }),
     tailwindPlugin(),
   ],${aliasBlock}${serverBlock}
 })
@@ -1261,6 +1261,10 @@ import '@deckio/deck-engine/styles/editable.css'
 import project from '../deck.config.js'
 import inlineEdits from './data/inline-edits.json'
 
+// Inline-edit overrides are dev-only. Production builds render the original
+// source text and ignore the override map, matching Decision 63's posture.
+const overrides = import.meta.env.DEV ? inlineEdits : {}
+
 export default function App() {
   const { accent, id, slides, theme, title } = project
 
@@ -1270,7 +1274,7 @@ export default function App() {
   }, [accent, title])
 
   return (
-    <EditableProvider overrides={inlineEdits} project={id}>
+    <EditableProvider overrides={overrides} project={id}>
       <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
         <Navigation />
         <div className="deck" data-project-id={id}>
