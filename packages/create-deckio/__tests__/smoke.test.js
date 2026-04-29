@@ -103,6 +103,13 @@ describe('create-deckio package', () => {
       expect(existsSync(join(projectDir, 'package.json'))).toBe(true)
       expect(existsSync(join(projectDir, 'deck.config.js'))).toBe(true)
       expect(existsSync(join(projectDir, '.github', 'instructions', 'sample-content.instructions.md'))).toBe(true)
+      // Decision 63: starter deck ships with inline-edit override file + Editable usage.
+      expect(existsSync(join(projectDir, 'src', 'data', 'inline-edits.json'))).toBe(true)
+      const inlineEdits = readFileSync(join(projectDir, 'src', 'data', 'inline-edits.json'), 'utf-8')
+      expect(JSON.parse(inlineEdits)).toEqual({})
+      const coverSlide = readFileSync(join(projectDir, 'src', 'slides', 'CoverSlide.jsx'), 'utf-8')
+      expect(coverSlide).toContain('Editable')
+      expect(coverSlide).toContain('field="cover.subtitle"')
 
       execFileSync(process.execPath, [engineInitScript], {
         cwd: projectDir,

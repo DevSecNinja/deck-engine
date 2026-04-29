@@ -1,0 +1,24 @@
+/* Editable primitive — minimal affordance, dev-only by virtue of the runtime. */
+.deckio-editable {
+  position: relative;
+  cursor: text;
+  border-radius: 4px;
+  transition: outline-color 120ms ease, background-color 120ms ease;
+  outline: 1px dashed transparent;
+  outline-offset: 3px;
+}
+
+.deckio-editable:hover {
+  outline-color: color-mix(in oklab, currentColor 35%, transparent);
+}
+
+.deckio-editable--active {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 3px;
+  background: color-mix(in oklab, var(--accent, #6366f1) 8%, transparent);
+  cursor: text;
+}
+
+.deckio-editable--error {
+  outline-color: #ef4444;
+}

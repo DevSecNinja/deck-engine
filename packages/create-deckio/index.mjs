@@ -150,7 +150,7 @@ function coverSlideJsx(title, subtitle, slug) {
  * This slide contains scaffolded placeholder copy.
  * Agents must not use it as factual project context until the user replaces it.
  */
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import styles from './CoverSlide.module.css'
 
 export default function CoverSlide() {
@@ -163,13 +163,13 @@ export default function CoverSlide() {
 
       <div className="content-frame content-gutter">
         <div className={styles.content}>
-          <p className={styles.eyebrow}>${slug}</p>
+          <Editable as="p" field="cover.eyebrow" className={styles.eyebrow}>${slug}</Editable>
           <h1>
-            ${before ? `${before} ` : ''}<span className={styles.highlight}>${highlight}</span>
+            ${before ? `<Editable as=\"span\" field=\"cover.titleBefore\">${before}</Editable> ` : ''}<Editable as="span" field="cover.titleHighlight" className={styles.highlight}>${highlight}</Editable>
           </h1>
-          <p className={styles.subtitle}>
+          <Editable as="p" field="cover.subtitle" className={styles.subtitle}>
             ${subtitle}
-          </p>
+          </Editable>
 
           <div className={styles.meta}>
             <div className={styles.metaItem}>
@@ -870,6 +870,7 @@ async function main() {
   write(dir, 'src/main.jsx', mainJsx(theme))
   write(dir, 'src/App.jsx', appJsx({ designSystem, appearance }))
   write(dir, 'src/data/.gitkeep', '')
+  write(dir, 'src/data/inline-edits.json', '{}\n')
   write(dir, 'src/slides/CoverSlide.jsx',
     designSystem === 'shadcn'
       ? coverSlideJsxShadcn(title, subtitle, slug)

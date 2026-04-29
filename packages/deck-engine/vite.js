@@ -14,6 +14,7 @@
  */
 import tailwindcss from '@tailwindcss/vite'
 import { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES } from './themes/theme-loader.js'
+import { createInlineEditMiddleware } from './server/inline-edit-server.mjs'
 
 // Re-export theme utilities for Node.js consumers
 export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
@@ -52,6 +53,12 @@ export function deckPlugin(options = {}) {
         children: 'window.$RefreshReg$=window.$RefreshReg$||function(){};window.$RefreshSig$=window.$RefreshSig$||function(){return function(t){return t}};',
         injectTo: 'head-prepend',
       }]
+    },
+    // Dev-only: mount the inline-edit endpoint. configureServer is never
+    // called for production builds, so the write surface is inert in `vite build`.
+    configureServer(server) {
+      const root = server.config.root
+      server.middlewares.use(createInlineEditMiddleware({ root }))
     },
   }
 }

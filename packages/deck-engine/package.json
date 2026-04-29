@@ -30,6 +30,7 @@
     "vite.js",
     "components",
     "context",
+    "server",
     "slides",
     "styles",
     "themes",
