@@ -38,10 +38,14 @@ For each slide `.jsx` file in `src/slides/`, check:
 ### Common checks (all themes)
 
 - [ ] Imports `{ Slide, BottomBar }` from `'@deckio/deck-engine'`
+- [ ] Imports `Editable` from `'@deckio/deck-engine'` when the slide contains user-facing text
 - [ ] Uses `<Slide index={index} className={styles.xxx}>`
 - [ ] Uses a wrapper that includes `content-frame content-gutter`
 - [ ] Places `<BottomBar />` as the last child inside `<Slide>`
 - [ ] Uses consistent `BottomBar text` across slides
+- [ ] Wraps titles, subtitles, body copy, captions, semantic labels, metrics, badges, list items, quotes, and editable footer text in `<Editable>` with unique semantic IDs
+- [ ] Leaves decorative glyphs, icons, fixed counters, and watermarks outside `<Editable>`
+- [ ] Does not nest `<Editable>` elements
 
 ### Descriptor-driven checks
 
@@ -155,5 +159,6 @@ Summarize:
 - [ ] Every `.jsx` slide has a companion `.module.css`
 - [ ] All slides match the descriptor and the design system
 - [ ] `BottomBar` is present and consistent
+- [ ] User-facing slide copy is editable via `<Editable>` and decorative text remains inert
 - [ ] CSS root classes have required properties
 - [ ] No descriptor anti-patterns slipped in

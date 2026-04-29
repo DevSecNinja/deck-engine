@@ -1,5 +1,6 @@
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import Editable from '../components/Editable.jsx'
 
 export default function GenericThankYouSlide({ index = 10, subtitle, tagline, footerText }) {
   return (
@@ -16,12 +17,12 @@ export default function GenericThankYouSlide({ index = 10, subtitle, tagline, fo
 
       <div className="deck-ty-shell content-frame content-gutter">
         <div className="deck-ty-content">
-          <h2 className="deck-ty-title">Thank You</h2>
-          <p className="deck-ty-subtitle">
+          <Editable as="h2" id="thankYou.title" className="deck-ty-title">Thank You</Editable>
+          <Editable as="p" id="thankYou.subtitle" className="deck-ty-subtitle">
             {subtitle || <>Let&rsquo;s build something great &mdash; together.</>}
-          </p>
+          </Editable>
           <div className="deck-ty-divider" />
-          {tagline && <p className="deck-ty-tagline">{tagline}</p>}
+          {tagline && <Editable as="p" id="thankYou.tagline" className="deck-ty-tagline">{tagline}</Editable>}
         </div>
 
         <div className="deck-ty-watermark" aria-hidden="true">
@@ -30,7 +31,7 @@ export default function GenericThankYouSlide({ index = 10, subtitle, tagline, fo
         </div>
       </div>
 
-      <BottomBar text={footerText} />
+      <BottomBar text={footerText && <Editable as="span" id="thankYou.footer">{footerText}</Editable>} />
     </Slide>
   )
 }

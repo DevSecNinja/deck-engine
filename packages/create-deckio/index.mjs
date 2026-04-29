@@ -359,8 +359,8 @@ Create and maintain slide-based presentations. Each project is a self-contained 
 ## Stack
 
 - React 19, Vite, CSS Modules
-- \`@deckio/deck-engine\` provides: \`Slide\`, \`BottomBar\`, \`Navigation\`, \`SlideProvider\`, \`useSlides\`, \`GenericThankYouSlide\`
-- See \`.github/instructions/\` for detailed conventions on slide JSX, CSS modules, and deck.config.js
+- \`@deckio/deck-engine\` provides: \`Slide\`, \`BottomBar\`, \`Navigation\`, \`SlideProvider\`, \`useSlides\`, \`Editable\`, \`GenericThankYouSlide\`
+- See \`.github/instructions/\` for detailed conventions on slide JSX, CSS modules, inline editing, and deck.config.js
 - See \`.github/skills/\` for step-by-step workflows (e.g., adding a slide)
 `
 }

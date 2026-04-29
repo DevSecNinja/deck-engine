@@ -77,6 +77,15 @@ These tell you which real components are preinstalled and ready to import:
 
 Never import a component file that doesn't exist. Add it first, then import.
 
+### Inline editing contract
+
+Also read `.github/instructions/inline-editing.instructions.md` before writing slide JSX.
+
+- Import `Editable` from `@deckio/deck-engine` for any slide with user-facing copy.
+- Wrap titles, subtitles, body copy, captions, semantic labels, metrics, badges, list items, quotes, and `BottomBar` footer text in `<Editable>`.
+- Use stable, semantic IDs such as `slideName.title`, `slideName.items.<itemId>.label`, or `slideName.footer`.
+- Do not wrap decorative glyphs, watermarks, fixed counters, icons, or layout-only text.
+
 ## Step 3 — Create the slide from the descriptor
 
 The descriptor is the source of truth. Read these sections before generating code:
@@ -107,6 +116,7 @@ These apply regardless of theme:
 
 - Always include `content-frame content-gutter`
 - Always include `BottomBar` as the last child inside `<Slide>`
+- Always wrap `BottomBar text` in `<Editable as="span" id="slideName.footer">...</Editable>` when the footer text is user-facing
 - Always use ESM imports for images and logos
 - Never use string paths for images
 - Never use `flex: 1` on the body wrapper
@@ -138,6 +148,10 @@ After writing the slide:
 - [ ] If `designSystem === 'shadcn'`: read the shadcn supplement instructions
 - [ ] If `designSystem === 'shadcn'`: used real component imports (Card, Badge, Button, Alert, Separator) instead of CSS imitation
 - [ ] If `designSystem === 'shadcn'` and a non-preinstalled component is needed: added it via MCP or CLI before importing
+- [ ] Read `inline-editing.instructions.md`
+- [ ] Imported `Editable` when the slide contains user-facing text
+- [ ] Wrapped user-facing text and `BottomBar text` in `<Editable>` with unique semantic IDs
+- [ ] Left decorative glyphs, icons, counters, and watermarks non-editable
 - [ ] Used the descriptor's exact JSX skeleton or direct variant of it
 - [ ] Used the descriptor's exact CSS skeleton or direct variant of it
 - [ ] Stayed inside the descriptor's token set and component ecosystem

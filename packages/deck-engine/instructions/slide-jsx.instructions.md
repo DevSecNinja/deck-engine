@@ -26,9 +26,11 @@ If `designSystem` is `shadcn`, also read the shadcn supplement instructions:
 ## Common imports
 
 ```jsx
-import { BottomBar, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
 import styles from './MySlide.module.css'
 ```
+
+**Always import `Editable`** when creating slides with user-facing text. See `inline-editing.instructions.md` for when and how to wrap text.
 
 ### shadcn deck imports (when `designSystem === 'shadcn'`)
 
