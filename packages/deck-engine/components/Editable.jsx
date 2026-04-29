@@ -229,6 +229,62 @@ export const TOAST_STATUS_TEXT = Object.freeze({
 // participates in slide layout, never shifts content, and survives
 // being mounted inside an iframe (the launcher preview proxy). Anchored
 // bottom-right with safe-area inset; CSS handles reduced-motion.
+function InlineEditToastIcon({ status }) {
+  // Each status has a distinct shape so the surface is identifiable by
+  // icon + text + color (Anu acceptance: don't rely on color alone).
+  // currentColor inherits from the per-status text color → contrast safe.
+  const common = {
+    width: 14,
+    height: 14,
+    viewBox: '0 0 16 16',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.75,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': 'true',
+    focusable: 'false',
+  }
+  if (status === 'saving') {
+    // Quarter-arc spinner; spin animation is CSS, disabled by reduced-motion.
+    return (
+      <svg {...common} className="deckio-inline-edit-toast__icon deckio-inline-edit-toast__icon--spin">
+        <path d="M14 8a6 6 0 1 1-6-6" />
+      </svg>
+    )
+  }
+  if (status === 'saved') {
+    return (
+      <svg {...common} className="deckio-inline-edit-toast__icon">
+        <path d="M3.5 8.5l3 3 6-7" />
+      </svg>
+    )
+  }
+  if (status === 'error') {
+    // Filled triangle with exclamation — universally read as warning.
+    return (
+      <svg {...common} className="deckio-inline-edit-toast__icon">
+        <path d="M8 2.5L14.5 13.5h-13z" />
+        <path d="M8 7v3" />
+        <path d="M8 12.25v.01" />
+      </svg>
+    )
+  }
+  if (status === 'conflict') {
+    // Circular refresh-style glyph — distinct from the error triangle so
+    // a sighted user can tell error from conflict at a glance.
+    return (
+      <svg {...common} className="deckio-inline-edit-toast__icon">
+        <path d="M13.5 4.5v3h-3" />
+        <path d="M2.8 9.5A5.5 5.5 0 0 0 13 11" />
+        <path d="M2.5 11.5v-3h3" />
+        <path d="M13.2 6.5A5.5 5.5 0 0 0 3 5" />
+      </svg>
+    )
+  }
+  return null
+}
+
 function InlineEditToast({ status, onDismiss }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -244,6 +300,13 @@ function InlineEditToast({ status, onDismiss }) {
     <div
       className="deckio-inline-edit-toast-root"
       data-deckio-toast-root=""
+      // Defense-in-depth for the export pipeline: even though the
+      // provider is gated on `isDev` and exporters screenshot slide
+      // nodes (not <body>), tag the root so any future full-page
+      // capture path (modern-screenshot, html2canvas, puppeteer) can
+      // skip it without coupling to internal class names.
+      data-html2canvas-ignore="true"
+      data-deckio-export-ignore="true"
       // Single global aria-live region. Polite for routine save lifecycle,
       // assertive (role="alert") for errors and source conflicts.
       aria-live={isAlert ? 'assertive' : 'polite'}
@@ -254,7 +317,7 @@ function InlineEditToast({ status, onDismiss }) {
           className={`deckio-inline-edit-toast deckio-inline-edit-toast--${status}`}
           data-deckio-toast-status={status}
         >
-          <span className="deckio-inline-edit-toast__dot" aria-hidden="true" />
+          <InlineEditToastIcon status={status} />
           <span className="deckio-inline-edit-toast__text">{text}</span>
           {status === 'conflict' || status === 'error' ? (
             <button
