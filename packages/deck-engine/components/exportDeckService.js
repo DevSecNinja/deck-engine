@@ -46,6 +46,7 @@ export const EXPORT_QUALITIES = Object.freeze([
 
 export const EXPORT_FITS = Object.freeze([
   { id: 'auto', label: 'Auto fit', hint: 'shrinks busy slides only' },
+  { id: '1.2', label: '120%', hint: 'zoomed in', scale: 1.2 },
   { id: '1', label: '100%', hint: 'source size', scale: 1 },
   { id: '0.9', label: '90%', hint: 'slightly tighter', scale: 0.9 },
   { id: '0.8', label: '80%', hint: 'busy slides', scale: 0.8 },

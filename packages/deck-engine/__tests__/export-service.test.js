@@ -51,7 +51,7 @@ describe('exportDeckService presets', () => {
       ['high', 2],
       ['standard', 1],
     ])
-    expect(EXPORT_FITS.map((fit) => fit.id)).toEqual(['auto', '1', '0.9', '0.8'])
+    expect(EXPORT_FITS.map((fit) => fit.id)).toEqual(['auto', '1.2', '1', '0.9', '0.8'])
   })
 
   it('falls back safely when persisted or caller-provided options are stale', () => {
