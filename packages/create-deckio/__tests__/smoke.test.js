@@ -103,6 +103,16 @@ describe('create-deckio package', () => {
       expect(existsSync(join(projectDir, 'package.json'))).toBe(true)
       expect(existsSync(join(projectDir, 'deck.config.js'))).toBe(true)
       expect(existsSync(join(projectDir, '.github', 'instructions', 'sample-content.instructions.md'))).toBe(true)
+      // Decision 25: scaffolded decks must ship the deck-optimize-space skill so
+      // imported / external decks get the same dry-run cleanup guidance.
+      expect(existsSync(join(projectDir, '.github', 'skills', 'deck-optimize-space', 'SKILL.md'))).toBe(true)
+      const optimizeSkill = readFileSync(join(projectDir, '.github', 'skills', 'deck-optimize-space', 'SKILL.md'), 'utf-8')
+      expect(optimizeSkill).toMatch(/dry-run/i)
+      expect(optimizeSkill).toMatch(/never silently delete/i)
+      expect(optimizeSkill).toContain('.deckio-trash/')
+      // AGENTS.md (copied from engine) should point at the skill.
+      const scaffoldedAgents = readFileSync(join(projectDir, 'AGENTS.md'), 'utf-8')
+      expect(scaffoldedAgents).toContain('deck-optimize-space')
       // Decision 63: starter deck ships with inline-edit override file + Editable usage.
       expect(existsSync(join(projectDir, 'src', 'data', 'inline-edits.json'))).toBe(true)
       const inlineEdits = readFileSync(join(projectDir, 'src', 'data', 'inline-edits.json'), 'utf-8')

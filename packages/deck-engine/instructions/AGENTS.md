@@ -25,6 +25,18 @@ Create and maintain slide-based presentations. Each project is a self-contained 
 - See `.github/instructions/` for detailed conventions on slide JSX, CSS modules, inline editing, and deck.config.js
 - See `.github/skills/` for step-by-step workflows (e.g., adding a slide)
 
+## Space hygiene
+
+Decks accumulate unused media, stale exports, generated screenshots, and orphan files — especially for decks imported from outside DECKIO. When asked to optimize, slim down, clean up, free space, prune, or shrink a deck, follow `.github/skills/deck-optimize-space/SKILL.md`.
+
+Non-negotiable rules:
+
+- **Dry-run / report first.** Never delete on the first pass.
+- **Never silently delete** user-authored files (slides, media, data, custom themes).
+- Classify every candidate as **safe** (regenerable: `dist/`, `.vite/`, caches, capture screenshots), **review-required** (unreferenced media, orphan slides/CSS, large videos), or **never-delete** (`deck.config.js`, `package.json`, `vite.config.js`, `index.html`, `App.jsx`, `main.jsx`, `.git/`, `.github/`, `src/data/`, custom themes).
+- Build references conservatively from `deck.config.js`, JSX/JS imports and string literals, CSS `url(...)` / `@import`, files under `src/data`, and basename matches against `public/`. When uncertain, treat the file as referenced.
+- On approval, **quarantine** approved files to `.deckio-trash/<ISO-timestamp>/` with a `manifest.json` instead of `unlink`. Permanent deletion is a separate later action.
+
 ## Design system
 
 Check `designSystem` in `deck.config.js`. When it is `'shadcn'`:
