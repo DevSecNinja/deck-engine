@@ -18,7 +18,7 @@ import * as clack from '@clack/prompts'
 if (process.platform === 'win32') {
   try { execSync('chcp 65001', { stdio: 'ignore' }) } catch {}
 }
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
 
 const execAsync = promisify(exec)
 
@@ -834,7 +834,11 @@ async function main() {
       }
     } else if (envDesignSystem) {
       // New-style env vars
-      if (envDesignSystem === 'shadcn') {
+      if (envDesignSystem === 'fabric') {
+        theme = 'fabric'
+        designSystem = 'none'
+        appearance = 'light'
+      } else if (envDesignSystem === 'shadcn') {
         theme = 'shadcn'
         designSystem = 'shadcn'
         appearance = envAppearance
@@ -882,17 +886,25 @@ async function main() {
   write(dir, 'src/slides/CoverSlide.jsx',
     designSystem === 'shadcn'
       ? coverSlideJsxShadcn(title, subtitle, slug)
+      : theme === 'fabric'
+        ? coverSlideJsxFabric(title, subtitle, slug)
       : coverSlideJsx(title, subtitle, slug))
   write(dir, 'src/slides/CoverSlide.module.css',
     designSystem === 'shadcn'
       ? COVER_SLIDE_CSS_SHADCN
+      : theme === 'fabric'
+        ? COVER_SLIDE_CSS_FABRIC
       : COVER_SLIDE_CSS)
-  // Default scaffold ships only CoverSlide + GenericThankYouSlide. Inline-edit
-  // coverage for the default theme is provided by <Editable> wrappers on
-  // CoverSlide (eyebrow, title parts, subtitle, footer). The shadcn scaffold
-  // adds its own Features/GettingStarted slides below.
+  // Default scaffold ships only CoverSlide + GenericThankYouSlide. Theme-specific
+  // scaffolds can add local branded slides below.
   write(dir, 'deck.config.js', deckConfig(slug, title, subtitle, icon, accent, theme, designSystem, aurora, appearance))
   write(dir, '.github/instructions/sample-content.instructions.md', SAMPLE_CONTENT_INSTRUCTIONS)
+
+  // Theme-specific closing slides stay local when they need branded composition.
+  if (theme === 'fabric') {
+    write(dir, 'src/slides/ThankYouSlide.jsx', thankYouSlideJsxFabric(slug))
+    write(dir, 'src/slides/ThankYouSlide.module.css', THANK_YOU_SLIDE_CSS_FABRIC)
+  }
 
   // shadcn ThankYouSlide is a local file (editorial style); default uses engine's GenericThankYouSlide
   if (designSystem === 'shadcn') {

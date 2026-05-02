@@ -355,6 +355,16 @@ describe('create-deckio CLI flags', () => {
 
       const deckConfig = readFileSync(join(projectDir, 'deck.config.js'), 'utf-8')
       expect(deckConfig).toContain('fabric')
+      expect(deckConfig).toContain("import ThankYouSlide from './src/slides/ThankYouSlide.jsx'")
+      expect(deckConfig).not.toContain('GenericThankYouSlide')
+
+      const coverSlide = readFileSync(join(projectDir, 'src', 'slides', 'CoverSlide.jsx'), 'utf-8')
+      expect(coverSlide).toContain('MicrosoftFabricIcon')
+      expect(coverSlide).toContain('Microsoft Fabric | unified analytics platform')
+
+      const thankYouSlide = readFileSync(join(projectDir, 'src', 'slides', 'ThankYouSlide.jsx'), 'utf-8')
+      expect(thankYouSlide).toContain('MicrosoftFabricIcon')
+      expect(thankYouSlide).toContain('Microsoft Fabric | OneLake, Power BI, and Copilot in Fabric')
 
       const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
       expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
@@ -362,12 +372,44 @@ describe('create-deckio CLI flags', () => {
       const fabricIconsPath = join(projectDir, 'src', 'data', 'fabric-icons.js')
       expect(existsSync(fabricIconsPath)).toBe(true)
       const fabricIcons = readFileSync(fabricIconsPath, 'utf-8')
-      expect(fabricIcons).toContain("import('@fabric-msft/svg-icons')")
+      expect(fabricIcons).toContain("import('@fabric-msft/svg-icons/dist/Fabric32Color.js')")
+      expect(fabricIcons).toContain("viewBox: '0 0 32 32'")
       expect(fabricIcons).toContain('preloadFabricIcons')
       expect(fabricIcons).toContain('Fabric32Color')
       expect(fabricIcons).toContain('PowerBi32Color')
       expect(fabricIcons).toContain('DataFactory32Color')
       expect(fabricIcons).toContain('RealTimeIntelligence32Color')
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('DECK_DESIGN_SYSTEM=fabric creates fabric project in non-interactive mode', () => {
+    const { tempRoot, PATH } = makeTempWithNpmShim()
+    const projectName = 'env-fabric-test'
+    const projectDir = join(tempRoot, projectName)
+
+    try {
+      execFileSync(
+        process.execPath,
+        [join(pkgRoot, 'index.mjs'), projectName],
+        {
+          cwd: tempRoot,
+          stdio: 'pipe',
+          env: {
+            ...process.env,
+            PATH,
+            DECK_DESIGN_SYSTEM: 'fabric',
+            DECK_APPEARANCE: 'dark',
+          },
+        },
+      )
+
+      const deckConfig = readFileSync(join(projectDir, 'deck.config.js'), 'utf-8')
+      expect(deckConfig).toContain("theme: 'fabric'")
+      expect(deckConfig).toContain("appearance: 'light'")
+      expect(deckConfig).toContain("import ThankYouSlide from './src/slides/ThankYouSlide.jsx'")
+      expect(deckConfig).not.toContain('GenericThankYouSlide')
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }

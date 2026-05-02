@@ -169,6 +169,33 @@ export default {
 `
   }
 
+  if (theme === 'fabric') {
+    return `\
+import CoverSlide from './src/slides/CoverSlide.jsx'
+import ThankYouSlide from './src/slides/ThankYouSlide.jsx'
+
+export default {
+  id: '${esc(slug)}',
+  title: '${esc(title)}',
+  subtitle: '${esc(subtitle)}',
+  description: '${esc(subtitle)}',
+  meta: {
+    seededTemplate: true,
+    contentStatus: 'sample',
+    contextPolicy: 'ignore-sample-content-until-user-replaces-it',
+  },
+  icon: '${esc(icon)}',
+  accent: '${esc(accent)}',
+  theme: '${esc(theme)}',${dsLine}${appearanceLine}
+  order: 1,
+  slides: [
+    CoverSlide,
+    ThankYouSlide,
+  ],
+}
+`
+  }
+
   const tyImport = "import { GenericThankYouSlide as ThankYouSlide } from '@deckio/deck-engine'"
   return `\
 import CoverSlide from './src/slides/CoverSlide.jsx'
@@ -1131,6 +1158,457 @@ export default function ThankYouSlide() {
 }
 `
 }
+
+export function coverSlideJsxFabric(title, subtitle, slug) {
+  return `\
+/**
+ * SAMPLE CONTENT ONLY
+ * This slide contains scaffolded placeholder copy.
+ * Agents must not use it as factual project context until the user replaces it.
+ */
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import { CopilotInFabricIcon, MicrosoftFabricIcon, OneLakeIcon, PowerBIIcon } from '../data/fabric-icons.js'
+import styles from './CoverSlide.module.css'
+
+export default function CoverSlide() {
+  return (
+    <Slide index={0} className={styles.cover}>
+      <div className="accent-bar" />
+
+      <div className="content-frame content-gutter">
+        <div className={styles.shell}>
+          <section className={styles.content}>
+            <div className={styles.brandLine}>
+              <span className={styles.microsoftMark} aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+              </span>
+              <Editable as="span" id="cover.eyebrow">Microsoft Fabric</Editable>
+            </div>
+
+            <h1>
+              <Editable as="span" id="cover.title">${title}</Editable>
+            </h1>
+
+            <Editable as="p" id="cover.subtitle" multiline className={styles.subtitle}>
+              ${subtitle}
+            </Editable>
+
+            <div className={styles.meta}>
+              <div>
+                <span className={styles.metaLabel}>Platform</span>
+                <span className={styles.metaValue}>Unified analytics</span>
+              </div>
+              <div>
+                <span className={styles.metaLabel}>Foundation</span>
+                <span className={styles.metaValue}>OneLake</span>
+              </div>
+              <div>
+                <span className={styles.metaLabel}>AI</span>
+                <span className={styles.metaValue}>Copilot in Fabric</span>
+              </div>
+            </div>
+          </section>
+
+          <aside className={styles.fabricPanel} aria-label="Microsoft Fabric workloads">
+            <div className={styles.panelHeader}>
+              <MicrosoftFabricIcon className={styles.fabricIcon} fallback={<span className={styles.iconFallback}>F</span>} />
+              <span>Fabric workload map</span>
+            </div>
+            <div className={styles.workloadStack}>
+              <div className={styles.workload}>
+                <OneLakeIcon className={styles.workloadIcon} fallback={<span className={styles.iconFallback}>OL</span>} />
+                <span>OneLake</span>
+              </div>
+              <div className={styles.workload}>
+                <PowerBIIcon className={styles.workloadIcon} fallback={<span className={styles.iconFallback}>BI</span>} />
+                <span>Power BI</span>
+              </div>
+              <div className={styles.workload}>
+                <CopilotInFabricIcon className={styles.workloadIcon} fallback={<span className={styles.iconFallback}>AI</span>} />
+                <span>Copilot in Fabric</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <BottomBar text={<Editable as="span" id="cover.footer">Microsoft Fabric | unified analytics platform</Editable>} />
+    </Slide>
+  )
+}
+`
+}
+
+export const COVER_SLIDE_CSS_FABRIC = `\
+.cover {
+  background:
+    radial-gradient(circle at 76% 18%, var(--glow-accent), transparent 30%),
+    linear-gradient(180deg, var(--background) 0%, color-mix(in srgb, var(--secondary) 16%, var(--background)) 100%);
+  padding: 0 0 44px 0;
+  overflow: hidden;
+}
+
+.cover :global(.content-frame) {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr);
+  gap: 64px;
+  align-items: center;
+  width: 100%;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+}
+
+.brandLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2.1px;
+  text-transform: uppercase;
+}
+
+.microsoftMark {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  grid-template-rows: repeat(2, 9px);
+  gap: 2px;
+}
+
+.microsoftMark span:nth-child(1) { background: #F25022; }
+.microsoftMark span:nth-child(2) { background: #7FBA00; }
+.microsoftMark span:nth-child(3) { background: #00A4EF; }
+.microsoftMark span:nth-child(4) { background: #FFB900; }
+
+.content h1 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(48px, 5.8vw, 76px);
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: -2.2px;
+}
+
+.subtitle {
+  max-width: 640px;
+  margin: 24px 0 40px;
+  color: var(--muted-foreground);
+  font-size: clamp(18px, 1.8vw, 22px);
+  line-height: 1.55;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 680px;
+}
+
+.meta > div {
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+}
+
+.metaLabel,
+.metaValue {
+  display: block;
+}
+
+.metaLabel {
+  margin-bottom: 4px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.metaValue {
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.fabricPanel {
+  position: relative;
+  padding: 22px;
+  background: color-mix(in srgb, var(--card) 92%, var(--secondary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+}
+
+.fabricPanel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--accent);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.fabricIcon {
+  width: 44px;
+  height: 44px;
+}
+
+.workloadStack {
+  display: grid;
+  gap: 12px;
+}
+
+.workload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.workloadIcon {
+  width: 32px;
+  height: 32px;
+}
+
+.iconFallback {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--secondary);
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .shell {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .meta {
+    grid-template-columns: 1fr;
+  }
+}
+`
+
+export function thankYouSlideJsxFabric(slug, slideIndex = 1) {
+  return `\
+/**
+ * SAMPLE CONTENT ONLY
+ * This slide contains scaffolded placeholder copy.
+ * Agents must not use it as factual project context until the user replaces it.
+ */
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import { CopilotInFabricIcon, MicrosoftFabricIcon, PowerBIIcon } from '../data/fabric-icons.js'
+import styles from './ThankYouSlide.module.css'
+
+export default function ThankYouSlide() {
+  return (
+    <Slide index={${slideIndex}} className={styles.slide}>
+      <div className="accent-bar" />
+
+      <div className="content-frame content-gutter">
+        <div className={styles.content}>
+          <div className={styles.brandLockup}>
+            <span className={styles.microsoftMark} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>Microsoft Fabric</span>
+          </div>
+
+          <div className={styles.iconHalo} aria-hidden="true">
+            <MicrosoftFabricIcon className={styles.heroIcon} fallback={<span className={styles.iconFallback}>F</span>} />
+          </div>
+
+          <Editable as="h2" id="thankYou.title" className={styles.title}>
+            Thank you
+          </Editable>
+          <Editable as="p" id="thankYou.subtitle" multiline className={styles.subtitle}>
+            Build once across data, analytics, and AI with Microsoft Fabric.
+          </Editable>
+
+          <div className={styles.nextRow}>
+            <div>
+              <PowerBIIcon className={styles.nextIcon} fallback={<span className={styles.iconFallback}>BI</span>} />
+              <span>Power BI-ready insights</span>
+            </div>
+            <div>
+              <CopilotInFabricIcon className={styles.nextIcon} fallback={<span className={styles.iconFallback}>AI</span>} />
+              <span>Copilot in Fabric workflows</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <BottomBar text={<Editable as="span" id="thankYou.footer">Microsoft Fabric | OneLake, Power BI, and Copilot in Fabric</Editable>} />
+    </Slide>
+  )
+}
+`
+}
+
+export const THANK_YOU_SLIDE_CSS_FABRIC = `\
+.slide {
+  background:
+    radial-gradient(circle at 50% 36%, var(--glow-accent), transparent 30%),
+    var(--background);
+  padding: 0 0 44px 0;
+  overflow: hidden;
+}
+
+.slide :global(.content-frame) {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 820px;
+  text-align: center;
+}
+
+.brandLockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.microsoftMark {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  grid-template-rows: repeat(2, 9px);
+  gap: 2px;
+}
+
+.microsoftMark span:nth-child(1) { background: #F25022; }
+.microsoftMark span:nth-child(2) { background: #7FBA00; }
+.microsoftMark span:nth-child(3) { background: #00A4EF; }
+.microsoftMark span:nth-child(4) { background: #FFB900; }
+
+.iconHalo {
+  display: grid;
+  width: 112px;
+  height: 112px;
+  place-items: center;
+  margin-bottom: 28px;
+  background: color-mix(in srgb, var(--secondary) 34%, var(--card));
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--shadow-elevated);
+}
+
+.heroIcon {
+  width: 68px;
+  height: 68px;
+}
+
+.title {
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(56px, 7vw, 92px);
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: -3px;
+}
+
+.subtitle {
+  max-width: 650px;
+  margin: 22px 0 34px;
+  color: var(--muted-foreground);
+  font-size: clamp(18px, 1.9vw, 22px);
+  line-height: 1.55;
+}
+
+.nextRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  width: min(680px, 100%);
+}
+
+.nextRow > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 18px;
+  color: var(--primary);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  font-weight: 750;
+}
+
+.nextIcon {
+  width: 28px;
+  height: 28px;
+}
+
+.iconFallback {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--secondary);
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .nextRow {
+    grid-template-columns: 1fr;
+  }
+}
+`
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Dark / Light Mode Components (shadcn design system only)

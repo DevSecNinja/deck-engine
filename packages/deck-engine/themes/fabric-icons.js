@@ -9,19 +9,21 @@
  */
 import React from 'react'
 
-const ICON_EXPORTS = [
-  'Fabric32Color',
-  'PowerBi32Color',
-  'DataFactory32Color',
-  'DataEngineering32Color',
-  'DataWarehouse32Color',
-  'DataScience32Color',
-  'SqlDatabase32Item',
-  'RealTimeIntelligence32Color',
-  'GraphIntelligence32Color',
-  'Copilot32Color',
-  'OneLake32Color',
-]
+const ICON_LOADERS = {
+  Fabric32Color: () => import('@fabric-msft/svg-icons/dist/Fabric32Color.js').then((module) => module.default),
+  PowerBi32Color: () => import('@fabric-msft/svg-icons/dist/PowerBi32Color.js').then((module) => module.default),
+  DataFactory32Color: () => import('@fabric-msft/svg-icons/dist/DataFactory32Color.js').then((module) => module.default),
+  DataEngineering32Color: () => import('@fabric-msft/svg-icons/dist/DataEngineering32Color.js').then((module) => module.default),
+  DataWarehouse32Color: () => import('@fabric-msft/svg-icons/dist/DataWarehouse32Color.js').then((module) => module.default),
+  DataScience32Color: () => import('@fabric-msft/svg-icons/dist/DataScience32Color.js').then((module) => module.default),
+  SqlDatabase32Item: () => import('@fabric-msft/svg-icons/dist/SqlDatabase32Item.js').then((module) => module.default),
+  RealTimeIntelligence32Color: () => import('@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js').then((module) => module.default),
+  GraphIntelligence32Color: () => import('@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js').then((module) => module.default),
+  Copilot32Color: () => import('@fabric-msft/svg-icons/dist/Copilot32Color.js').then((module) => module.default),
+  OneLake32Color: () => import('@fabric-msft/svg-icons/dist/OneLake32Color.js').then((module) => module.default),
+}
+
+const ICON_EXPORTS = Object.keys(ICON_LOADERS)
 
 let iconModule = null
 let iconModulePromise = null
@@ -36,10 +38,12 @@ export function preloadFabricIcons() {
   }
 
   if (!iconModulePromise) {
-    iconModulePromise = import('@fabric-msft/svg-icons')
-      .then((module) => {
-        iconModule = module
-        return module
+    iconModulePromise = Promise.all(
+      Object.entries(ICON_LOADERS).map(async ([iconId, loadIcon]) => [iconId, await loadIcon()]),
+    )
+      .then((entries) => {
+        iconModule = Object.fromEntries(entries)
+        return iconModule
       })
       .catch((error) => {
         iconModulePromise = null
@@ -89,7 +93,7 @@ function FabricIconRenderer({ iconId, fallback = null, ...props }) {
     return fallback
   }
 
-  return React.createElement(Icon, props)
+  return React.createElement(Icon, { viewBox: '0 0 32 32', ...props })
 }
 
 function createFabricIconComponent(iconId, displayName) {
@@ -249,7 +253,8 @@ export async function loadFabricIconSVG(iconId) {
     return null
   }
 
-  return ICON_COMPONENTS[iconId] || null
+  const module = await preloadFabricIcons()
+  return module?.[iconId] || ICON_COMPONENTS[iconId] || null
 }
 
 /**

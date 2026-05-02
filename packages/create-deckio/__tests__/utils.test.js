@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, vscodeMcpConfig } from '../utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, vscodeMcpConfig } from '../utils.mjs'
 
 describe('slugify', () => {
   it('lowercases and hyphenates spaces', () => {
@@ -174,6 +174,15 @@ describe('deckConfig', () => {
 
   it('includes appearance field for shadcn light', () => {
     const config = deckConfig('s', 'T', 'S', '📦', '#000', 'shadcn', 'shadcn', null, 'light')
+    expect(config).toContain("appearance: 'light'")
+  })
+
+  it('uses local cover and thank-you slides for fabric scaffold', () => {
+    const config = deckConfig('s', 'T', 'S', 'F', '#49C5B1', 'fabric', 'none', null, 'light')
+    expect(config).toContain("import CoverSlide from './src/slides/CoverSlide.jsx'")
+    expect(config).toContain("import ThankYouSlide from './src/slides/ThankYouSlide.jsx'")
+    expect(config).not.toContain('GenericThankYouSlide')
+    expect(config).toContain("theme: 'fabric'")
     expect(config).toContain("appearance: 'light'")
   })
 })
@@ -843,6 +852,27 @@ describe('thankYouSlideJsxShadcn', () => {
   it('accepts custom slide index', () => {
     const jsx = thankYouSlideJsxShadcn('test-slug', 5)
     expect(jsx).toContain('<Slide index={5}')
+  })
+})
+
+describe('fabric slide templates', () => {
+  it('uses Fabric icons and Microsoft mark on the cover', () => {
+    const jsx = coverSlideJsxFabric('Title', 'Sub', 'slug')
+    expect(jsx).toContain('MicrosoftFabricIcon')
+    expect(jsx).toContain('OneLakeIcon')
+    expect(jsx).toContain('PowerBIIcon')
+    expect(jsx).toContain('microsoftMark')
+    expect(jsx).toContain('Microsoft Fabric | unified analytics platform')
+    expect(COVER_SLIDE_CSS_FABRIC).toContain('#F25022')
+  })
+
+  it('uses Fabric icons and Fabric footer on the thank-you slide', () => {
+    const jsx = thankYouSlideJsxFabric('slug', 2)
+    expect(jsx).toContain('<Slide index={2}')
+    expect(jsx).toContain('MicrosoftFabricIcon')
+    expect(jsx).toContain('CopilotInFabricIcon')
+    expect(jsx).toContain('Microsoft Fabric | OneLake, Power BI, and Copilot in Fabric')
+    expect(THANK_YOU_SLIDE_CSS_FABRIC).toContain('.brandLockup')
   })
 })
 
