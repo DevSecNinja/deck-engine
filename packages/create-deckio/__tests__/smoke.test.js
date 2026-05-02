@@ -337,15 +337,15 @@ describe('create-deckio CLI flags', () => {
     }
   })
 
-  it('--theme funky-punk creates funky-punk project', () => {
+  it('--theme fabric creates fabric project', () => {
     const { tempRoot, PATH } = makeTempWithNpmShim()
-    const projectName = 'flag-funky-test'
+    const projectName = 'flag-fabric-test'
     const projectDir = join(tempRoot, projectName)
 
     try {
       execFileSync(
         process.execPath,
-        [join(pkgRoot, 'index.mjs'), projectName, '--theme', 'funky-punk'],
+        [join(pkgRoot, 'index.mjs'), projectName, '--theme', 'fabric'],
         {
           cwd: tempRoot,
           stdio: 'pipe',
@@ -354,7 +354,20 @@ describe('create-deckio CLI flags', () => {
       )
 
       const deckConfig = readFileSync(join(projectDir, 'deck.config.js'), 'utf-8')
-      expect(deckConfig).toContain('funky-punk')
+      expect(deckConfig).toContain('fabric')
+
+      const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
+      expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
+
+      const fabricIconsPath = join(projectDir, 'src', 'data', 'fabric-icons.js')
+      expect(existsSync(fabricIconsPath)).toBe(true)
+      const fabricIcons = readFileSync(fabricIconsPath, 'utf-8')
+      expect(fabricIcons).toContain("import('@fabric-msft/svg-icons')")
+      expect(fabricIcons).toContain('preloadFabricIcons')
+      expect(fabricIcons).toContain('Fabric32Color')
+      expect(fabricIcons).toContain('PowerBi32Color')
+      expect(fabricIcons).toContain('DataFactory32Color')
+      expect(fabricIcons).toContain('RealTimeIntelligence32Color')
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }

@@ -12,7 +12,8 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const BUILTIN_THEMES = ['dark', 'light', 'shadcn', 'funky-punk']
+const BUILTIN_THEMES = ['dark', 'light', 'shadcn', 'fabric']
+const LEGACY_THEMES = new Set(['funky-punk'])
 const DEFAULT_THEME = 'dark'
 
 /**
@@ -31,14 +32,16 @@ export function resolveTheme(theme) {
 }
 
 /**
- * Lists all built-in theme names (filenames without extension).
- * Future community themes just need to be dropped into this directory.
+ * Lists all surfaced theme names (filenames without extension).
+ * Legacy themes may remain on disk so old decks keep rendering, but they
+ * should not appear in new-deck selection surfaces.
  */
 export function getAvailableThemes() {
   try {
     return readdirSync(__dirname)
       .filter((f) => f.endsWith('.css'))
       .map((f) => f.replace(/\.css$/, ''))
+      .filter((name) => !LEGACY_THEMES.has(name))
   } catch {
     return [...BUILTIN_THEMES]
   }

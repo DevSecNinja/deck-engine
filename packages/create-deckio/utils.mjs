@@ -71,7 +71,7 @@ export function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-export function packageJson(name, engineRef, { designSystem = 'none' } = {}) {
+export function packageJson(name, engineRef, { designSystem = 'none', theme = 'dark' } = {}) {
   if (!engineRef) engineRef = resolveEngineRef()
   const deps = {
     '@deckio/deck-engine': engineRef,
@@ -86,6 +86,9 @@ export function packageJson(name, engineRef, { designSystem = 'none' } = {}) {
     deps['ogl'] = '^1.0.11'
     deps['radix-ui'] = '^1.4.2'
     deps['tailwind-merge'] = '^3.3.0'
+  }
+  if (theme === 'fabric') {
+    deps['@fabric-msft/svg-icons'] = '^7.0.1'
   }
   return JSON.stringify({
     name: `deck-project-${name}`,

@@ -98,6 +98,12 @@ describe('theme-loader', () => {
       const themes = getAvailableThemes()
       expect(themes).not.toContain('theme-loader')
     })
+
+    it('does not surface legacy funky-punk even though its CSS remains for old decks', () => {
+      const themes = getAvailableThemes()
+      expect(themes).not.toContain('funky-punk')
+      expect(existsSync(join(themesDir, 'funky-punk.css'))).toBe(true)
+    })
   })
 
   describe('constants', () => {
@@ -105,8 +111,8 @@ describe('theme-loader', () => {
       expect(DEFAULT_THEME).toBe('dark')
     })
 
-    it('BUILTIN_THEMES contains dark, light, shadcn, funky-punk', () => {
-      expect(BUILTIN_THEMES).toEqual(['dark', 'light', 'shadcn', 'funky-punk'])
+    it('BUILTIN_THEMES contains dark, light, shadcn, fabric', () => {
+      expect(BUILTIN_THEMES).toEqual(['dark', 'light', 'shadcn', 'fabric'])
     })
   })
 })

@@ -577,7 +577,7 @@ async function main() {
     --title <string>         Deck title
     --subtitle <string>      Deck subtitle
     --icon <string>          Emoji icon (default: ${DEFAULT_ICON})
-    --theme <name>           default | shadcn | funky-punk
+    --theme <name>           default | shadcn | fabric
     --appearance <mode>      dark | light
     --palette <name>         Aurora palette: ocean | sunset | forest | nebula | arctic | minimal (shadcn only)
     --accent <#hex>          Accent color hex (default theme only, e.g. #6366f1)
@@ -588,7 +588,7 @@ async function main() {
     npm create deckio my-talk
     npx create-deckio quarterly-review
     npx create-deckio . --title "My Talk" --theme shadcn --palette ocean
-    npx create-deckio cool-deck --theme funky-punk
+    npx create-deckio cool-deck --theme fabric
 `)
     process.exit(0)
   }
@@ -667,10 +667,10 @@ async function main() {
 
     // Theme selection — skip if --theme flag provided
     if (flags.theme) {
-      if (flags.theme === 'funky-punk') {
-        theme = 'funky-punk'
+      if (flags.theme === 'fabric') {
+        theme = 'fabric'
         designSystem = 'none'
-        appearance = flags.appearance || 'dark'
+        appearance = flags.appearance || 'light'
       } else if (flags.theme === 'shadcn') {
         theme = 'shadcn'
         designSystem = 'shadcn'
@@ -710,17 +710,17 @@ async function main() {
         options: [
           { value: 'default', label: 'Default', hint: 'CSS custom properties' },
           { value: 'shadcn', label: 'shadcn/ui', hint: 'Tailwind + shadcn/ui' },
-          { value: 'funky-punk', label: 'Funky Punk 🤘', hint: 'neon pink + lime + chaos' },
+          { value: 'fabric', label: 'Microsoft Fabric', hint: 'enterprise-grade + Fabric icons' },
         ],
         initialValue: 'default',
       })
       if (clack.isCancel(chosenDesignSystem)) { clack.cancel('Cancelled.'); process.exit(0) }
 
-      // Map funky-punk directly — skip appearance picker
-      if (chosenDesignSystem === 'funky-punk') {
-        theme = 'funky-punk'
+      // Map fabric directly — skip appearance picker
+      if (chosenDesignSystem === 'fabric') {
+        theme = 'fabric'
         designSystem = 'none'
-        appearance = 'dark'
+        appearance = 'light'
       } else {
         // Choose appearance / theme
         appearance = flags.appearance ?? await (async () => {
@@ -747,8 +747,10 @@ async function main() {
       }
     }
 
-    // Color selection depends on design system
-    if (designSystem === 'shadcn') {
+    // Color selection depends on theme / design system.
+    if (theme === 'fabric') {
+      accent = flags.accent || '#49C5B1'
+    } else if (designSystem === 'shadcn') {
       if (flags.palette) {
         const palette = AURORA_PALETTES.find((p) => p.value === flags.palette) || AURORA_PALETTES[0]
         aurora = { palette: palette.value, colors: palette.colors }
@@ -817,10 +819,10 @@ async function main() {
 
     if (effectiveTheme) {
       // --theme flag takes precedence
-      if (effectiveTheme === 'funky-punk') {
-        theme = 'funky-punk'
+      if (effectiveTheme === 'fabric') {
+        theme = 'fabric'
         designSystem = 'none'
-        appearance = flags.appearance || 'dark'
+        appearance = flags.appearance || 'light'
       } else if (effectiveTheme === 'shadcn') {
         theme = 'shadcn'
         designSystem = 'shadcn'
@@ -848,7 +850,9 @@ async function main() {
       designSystem = theme === 'shadcn' ? 'shadcn' : 'none'
     }
 
-    if (designSystem === 'shadcn') {
+    if (theme === 'fabric') {
+      accent = flags.accent || process.env.DECK_ACCENT || '#49C5B1'
+    } else if (designSystem === 'shadcn') {
       // Aurora palette from flag or env — derive accent from it
       const paletteName = flags.palette || process.env.DECK_AURORA_PALETTE || 'ocean'
       const palette = AURORA_PALETTES.find((p) => p.value === paletteName) || AURORA_PALETTES[0]
@@ -867,7 +871,7 @@ async function main() {
 
   s.start('Creating project files...')
   const engineRef = resolveEngineRef(dir)
-  write(dir, 'package.json', packageJson(slug, engineRef, { designSystem }))
+  write(dir, 'package.json', packageJson(slug, engineRef, { designSystem, theme }))
   write(dir, 'vite.config.js', viteConfig({ designSystem }))
   write(dir, 'index.html', INDEX_HTML)
   write(dir, 'src/index.css', indexCss(theme))
@@ -932,6 +936,16 @@ async function main() {
     mkdirSync(destPresentationDir, { recursive: true })
     for (const file of ['MetricCard.jsx', 'SectionBadge.jsx', 'CalloutAlert.jsx']) {
       copyFileSync(join(presentationDir, file), join(destPresentationDir, file))
+    }
+  }
+
+  // Fabric theme setup — add fabric-icons helper
+  if (theme === 'fabric') {
+    mkdirSync(join(dir, 'src', 'data'), { recursive: true })
+    const engineRoot = resolveEngineRoot()
+    const fabricIconsSource = engineRoot ? join(engineRoot, 'themes', 'fabric-icons.js') : null
+    if (fabricIconsSource && existsSync(fabricIconsSource)) {
+      copyFileSync(fabricIconsSource, join(dir, 'src', 'data', 'fabric-icons.js'))
     }
   }
 

@@ -416,6 +416,16 @@ describe('packageJson with designSystem', () => {
     expect(pkg.dependencies).toHaveProperty('react-dom')
     expect(pkg.dependencies).toHaveProperty('@deckio/deck-engine')
   })
+
+  it('packageJson adds @fabric-msft/svg-icons for fabric theme', () => {
+    const pkg = JSON.parse(packageJson('x', undefined, { theme: 'fabric' }))
+    expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
+  })
+
+  it('packageJson does not add @fabric-msft/svg-icons for non-fabric themes', () => {
+    const pkg = JSON.parse(packageJson('x', undefined, { theme: 'dark' }))
+    expect(pkg.dependencies).not.toHaveProperty('@fabric-msft/svg-icons')
+  })
 })
 
 describe('deckConfig with designSystem', () => {
