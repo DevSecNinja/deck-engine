@@ -18,7 +18,7 @@ import * as clack from '@clack/prompts'
 if (process.platform === 'win32') {
   try { execSync('chcp 65001', { stdio: 'ignore' }) } catch {}
 }
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, auroraAccent, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, fabricIconsSlideJsx, FABRIC_ICONS_SLIDE_CSS, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, themeProviderJsx, appJsx, vscodeMcpConfig, mcpGuide } from './utils.mjs'
 
 const execAsync = promisify(exec)
 
@@ -876,7 +876,7 @@ async function main() {
   s.start('Creating project files...')
   const engineRef = resolveEngineRef(dir)
   write(dir, 'package.json', packageJson(slug, engineRef, { designSystem, theme }))
-  write(dir, 'vite.config.js', viteConfig({ designSystem }))
+  write(dir, 'vite.config.js', viteConfig({ designSystem, theme }))
   write(dir, 'index.html', INDEX_HTML)
   write(dir, 'src/index.css', indexCss(theme))
   write(dir, 'src/main.jsx', mainJsx(theme))
@@ -902,7 +902,9 @@ async function main() {
 
   // Theme-specific closing slides stay local when they need branded composition.
   if (theme === 'fabric') {
-    write(dir, 'src/slides/ThankYouSlide.jsx', thankYouSlideJsxFabric(slug))
+    write(dir, 'src/slides/FabricIconsSlide.jsx', fabricIconsSlideJsx(slug, 1))
+    write(dir, 'src/slides/FabricIconsSlide.module.css', FABRIC_ICONS_SLIDE_CSS)
+    write(dir, 'src/slides/ThankYouSlide.jsx', thankYouSlideJsxFabric(slug, 2))
     write(dir, 'src/slides/ThankYouSlide.module.css', THANK_YOU_SLIDE_CSS_FABRIC)
   }
 

@@ -43,6 +43,74 @@ function makeTempWithFailingNpmShim() {
   return { tempRoot, PATH }
 }
 
+function npmCommand() {
+  const npmExecPath = process.env.npm_execpath
+  if (npmExecPath) {
+    const npmCliPath = basename(npmExecPath).toLowerCase() === 'npx-cli.js'
+      ? join(dirname(npmExecPath), 'npm-cli.js')
+      : npmExecPath
+    if (existsSync(npmCliPath)) {
+      return { command: process.execPath, prefixArgs: [npmCliPath] }
+    }
+  }
+
+  const windowsNpmCli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (process.platform === 'win32' && existsSync(windowsNpmCli)) {
+    return { command: process.execPath, prefixArgs: [windowsNpmCli] }
+  }
+
+  return { command: 'npm', prefixArgs: [] }
+}
+
+function runNpm(args, options) {
+  const npm = npmCommand()
+  execFileSync(npm.command, [...npm.prefixArgs, ...args], options)
+}
+
+const FABRIC_ICON_MODULES = [
+  'Fabric32Color',
+  'PowerBi32Color',
+  'DataFactory32Color',
+  'DataEngineering32Color',
+  'DataWarehouse32Color',
+  'DataScience32Color',
+  'SqlDatabase32Item',
+  'RealTimeIntelligence32Color',
+  'GraphIntelligence32Color',
+  'Copilot32Color',
+  'OneLake32Color',
+]
+
+function writePackageStub(projectDir, packageName, files) {
+  const packageDir = join(projectDir, 'node_modules', ...packageName.split('/'))
+  mkdirSync(packageDir, { recursive: true })
+  writeFileSync(join(packageDir, 'package.json'), JSON.stringify({
+    name: packageName,
+    version: '0.0.0-test',
+    type: 'module',
+    main: 'index.js',
+  }))
+
+  for (const [relPath, content] of Object.entries(files)) {
+    const fullPath = join(packageDir, relPath)
+    mkdirSync(dirname(fullPath), { recursive: true })
+    writeFileSync(fullPath, content)
+  }
+}
+
+function writeFabricBuildHarness(projectDir) {
+  writePackageStub(projectDir, '@vitejs/plugin-react', {
+    'index.js': 'export default function react() { return { name: "test-react-stub" } }\n',
+  })
+
+  writePackageStub(projectDir, '@fabric-msft/svg-icons', Object.fromEntries(
+    FABRIC_ICON_MODULES.map((moduleName) => [
+      `dist/${moduleName}.js`,
+      `export default function ${moduleName}() { return null }\n`,
+    ]),
+  ))
+}
+
 describe('create-deckio package', () => {
   it('has a valid package.json with bin entry', async () => {
     const pkg = (await import(join(pkgRoot, 'package.json'), { with: { type: 'json' } })).default
@@ -356,6 +424,8 @@ describe('create-deckio CLI flags', () => {
       const deckConfig = readFileSync(join(projectDir, 'deck.config.js'), 'utf-8')
       expect(deckConfig).toContain('fabric')
       expect(deckConfig).toContain("import ThankYouSlide from './src/slides/ThankYouSlide.jsx'")
+      expect(deckConfig).toContain("import FabricIconsSlide from './src/slides/FabricIconsSlide.jsx'")
+      expect(deckConfig).toContain('FabricIconsSlide,')
       expect(deckConfig).not.toContain('GenericThankYouSlide')
 
       const coverSlide = readFileSync(join(projectDir, 'src', 'slides', 'CoverSlide.jsx'), 'utf-8')
@@ -365,6 +435,26 @@ describe('create-deckio CLI flags', () => {
       const thankYouSlide = readFileSync(join(projectDir, 'src', 'slides', 'ThankYouSlide.jsx'), 'utf-8')
       expect(thankYouSlide).toContain('MicrosoftFabricIcon')
       expect(thankYouSlide).toContain('Microsoft Fabric | OneLake, Power BI, and Copilot in Fabric')
+      // ThankYou now sits at index 2 because FabricIconsSlide takes index 1.
+      expect(thankYouSlide).toContain('index={2}')
+
+      const iconsSlidePath = join(projectDir, 'src', 'slides', 'FabricIconsSlide.jsx')
+      expect(existsSync(iconsSlidePath)).toBe(true)
+      const iconsSlide = readFileSync(iconsSlidePath, 'utf-8')
+      expect(iconsSlide).toContain("from '../data/fabric-icons.js'")
+      expect(iconsSlide).toContain('MicrosoftFabricIcon')
+      expect(iconsSlide).toContain('OneLakeIcon')
+      expect(iconsSlide).toContain('PowerBIIcon')
+      expect(iconsSlide).toContain('DataFactoryIcon')
+      expect(iconsSlide).toContain('DataEngineeringIcon')
+      expect(iconsSlide).toContain('DataWarehouseIcon')
+      expect(iconsSlide).toContain('DataScienceIcon')
+      expect(iconsSlide).toContain('DatabasesIcon')
+      expect(iconsSlide).toContain('RealTimeIntelligenceIcon')
+      expect(iconsSlide).toContain('FabricIQIcon')
+      expect(iconsSlide).toContain('CopilotInFabricIcon')
+      expect(iconsSlide).toContain('index={1}')
+      expect(existsSync(join(projectDir, 'src', 'slides', 'FabricIconsSlide.module.css'))).toBe(true)
 
       const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
       expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
@@ -379,6 +469,17 @@ describe('create-deckio CLI flags', () => {
       expect(fabricIcons).toContain('PowerBi32Color')
       expect(fabricIcons).toContain('DataFactory32Color')
       expect(fabricIcons).toContain('RealTimeIntelligence32Color')
+      // Eager preload must be deferred off the first-paint critical path so
+      // the cover slide can render before Vite resolves the 11 icon imports.
+      expect(fabricIcons).toMatch(/requestIdleCallback|setTimeout\(schedulePreload/)
+
+      // Generated vite.config.js must prime optimizeDeps for the 11 fabric
+      // icon entrypoints so the first browser request does NOT trigger
+      // Vite's discover-then-reload cycle (the dominant Fabric boot tax).
+      const viteConfig = readFileSync(join(projectDir, 'vite.config.js'), 'utf-8')
+      expect(viteConfig).toContain('optimizeDeps:')
+      expect(viteConfig).toContain("'@fabric-msft/svg-icons/dist/Fabric32Color.js'")
+      expect(viteConfig).toContain("'@fabric-msft/svg-icons/dist/OneLake32Color.js'")
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }
@@ -486,4 +587,39 @@ describe('create-deckio CLI flags', () => {
       rmSync(tempRoot, { recursive: true, force: true })
     }
   })
+
+  it('builds a generated fabric project', () => {
+    const tempRoot = mkdtempSync(join(pkgRoot, '.fabric-build-'))
+    const projectName = 'fabric-build-test'
+    const projectDir = join(tempRoot, projectName)
+
+    try {
+      execFileSync(
+        process.execPath,
+        [join(pkgRoot, 'index.mjs'), projectName, '--theme', 'fabric', '--no-install'],
+        {
+          cwd: tempRoot,
+          stdio: 'pipe',
+          env: { ...process.env },
+        },
+      )
+
+      const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
+      expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
+      expect(readFileSync(join(projectDir, 'src', 'data', 'fabric-icons.js'), 'utf-8'))
+        .toContain("import('@fabric-msft/svg-icons/dist/Fabric32Color.js')")
+
+      writeFabricBuildHarness(projectDir)
+
+      runNpm(['run', 'build', '--', '--logLevel', 'error'], {
+        cwd: projectDir,
+        stdio: 'pipe',
+        env: { ...process.env },
+      })
+
+      expect(existsSync(join(projectDir, 'dist', 'index.html'))).toBe(true)
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true })
+    }
+  }, 60000)
 })

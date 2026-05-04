@@ -172,6 +172,7 @@ export default {
   if (theme === 'fabric') {
     return `\
 import CoverSlide from './src/slides/CoverSlide.jsx'
+import FabricIconsSlide from './src/slides/FabricIconsSlide.jsx'
 import ThankYouSlide from './src/slides/ThankYouSlide.jsx'
 
 export default {
@@ -190,6 +191,7 @@ export default {
   order: 1,
   slides: [
     CoverSlide,
+    FabricIconsSlide,
     ThankYouSlide,
   ],
 }
@@ -223,11 +225,32 @@ export default {
 `
 }
 
-export function viteConfig({ designSystem = 'none' } = {}) {
+export const FABRIC_OPTIMIZE_DEPS_INCLUDES = [
+  '@fabric-msft/svg-icons/dist/Fabric32Color.js',
+  '@fabric-msft/svg-icons/dist/PowerBi32Color.js',
+  '@fabric-msft/svg-icons/dist/DataFactory32Color.js',
+  '@fabric-msft/svg-icons/dist/DataEngineering32Color.js',
+  '@fabric-msft/svg-icons/dist/DataWarehouse32Color.js',
+  '@fabric-msft/svg-icons/dist/DataScience32Color.js',
+  '@fabric-msft/svg-icons/dist/SqlDatabase32Item.js',
+  '@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js',
+  '@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js',
+  '@fabric-msft/svg-icons/dist/Copilot32Color.js',
+  '@fabric-msft/svg-icons/dist/OneLake32Color.js',
+]
+
+export function viteConfig({ designSystem = 'none', theme = 'dark' } = {}) {
   const aliasImport = designSystem === 'shadcn' ? "import path from 'path'\nimport { fileURLToPath } from 'url'\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url))\n\n" : ''
   const aliasBlock = designSystem === 'shadcn' ? `\n  resolve: {\n    alias: {\n      '@': path.resolve(__dirname, 'src'),\n    },\n  },` : ''
   // Allow Vite to serve files from parent dirs (needed for file: protocol refs in local dev)
   const serverBlock = `\n  server: {\n    fs: {\n      allow: ['..', '../..'],\n    },\n  },`
+  // Pre-bundle the 11 Fabric SVG icon entrypoints so the first browser request
+  // does NOT trigger Vite's discover-then-reload optimizeDeps cycle (each icon
+  // is its own dynamic import — without priming, Vite finds them at request
+  // time, re-optimizes, and forces a full page reload).
+  const optimizeBlock = theme === 'fabric'
+    ? `\n  optimizeDeps: {\n    include: [\n${FABRIC_OPTIMIZE_DEPS_INCLUDES.map((entry) => `      '${entry}',`).join('\n')}\n    ],\n  },`
+    : ''
   return `\
 ${aliasImport}import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -240,7 +263,7 @@ export default defineConfig({
     }),
     deckPlugin({ inlineEditing: true }),
     tailwindPlugin(),
-  ],${aliasBlock}${serverBlock}
+  ],${aliasBlock}${serverBlock}${optimizeBlock}
 })
 `
 }
@@ -1420,6 +1443,297 @@ export const COVER_SLIDE_CSS_FABRIC = `\
   }
 
   .meta {
+    grid-template-columns: 1fr;
+  }
+}
+`
+
+export function fabricIconsSlideJsx(slug, slideIndex = 1) {
+  return `\
+/**
+ * SAMPLE CONTENT ONLY
+ * This slide showcases the Microsoft Fabric workload icon set bundled with
+ * the fabric theme. Replace the copy or swap workloads to match your story —
+ * the per-icon dynamic imports keep the bundle lean.
+ */
+import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import {
+  CopilotInFabricIcon,
+  DataEngineeringIcon,
+  DataFactoryIcon,
+  DataScienceIcon,
+  DataWarehouseIcon,
+  DatabasesIcon,
+  FabricIQIcon,
+  MicrosoftFabricIcon,
+  OneLakeIcon,
+  PowerBIIcon,
+  RealTimeIntelligenceIcon,
+} from '../data/fabric-icons.js'
+import styles from './FabricIconsSlide.module.css'
+
+const WORKLOADS = [
+  { id: 'onelake', name: 'OneLake', tagline: 'Unified data lake', Icon: OneLakeIcon, fallback: 'OL' },
+  { id: 'power-bi', name: 'Power BI', tagline: 'Business intelligence', Icon: PowerBIIcon, fallback: 'BI' },
+  { id: 'data-factory', name: 'Data Factory', tagline: 'Integration & orchestration', Icon: DataFactoryIcon, fallback: 'DF' },
+  { id: 'data-engineering', name: 'Data Engineering', tagline: 'Spark notebooks & pipelines', Icon: DataEngineeringIcon, fallback: 'DE' },
+  { id: 'data-warehouse', name: 'Data Warehouse', tagline: 'Enterprise SQL warehouse', Icon: DataWarehouseIcon, fallback: 'DW' },
+  { id: 'data-science', name: 'Data Science', tagline: 'ML experiments & models', Icon: DataScienceIcon, fallback: 'DS' },
+  { id: 'databases', name: 'Databases', tagline: 'Operational data services', Icon: DatabasesIcon, fallback: 'DB' },
+  { id: 'real-time-intelligence', name: 'Real-Time Intelligence', tagline: 'Streaming & KQL', Icon: RealTimeIntelligenceIcon, fallback: 'RT' },
+  { id: 'fabric-iq', name: 'Fabric IQ', tagline: 'Graph & insights', Icon: FabricIQIcon, fallback: 'IQ' },
+  { id: 'copilot-fabric', name: 'Copilot in Fabric', tagline: 'AI across the platform', Icon: CopilotInFabricIcon, fallback: 'AI' },
+]
+
+export default function FabricIconsSlide() {
+  return (
+    <Slide index={${slideIndex}} className={styles.slide}>
+      <div className="accent-bar" />
+
+      <div className="content-frame content-gutter">
+        <div className={styles.shell}>
+          <header className={styles.header}>
+            <div className={styles.brandLine}>
+              <span className={styles.microsoftMark} aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+              </span>
+              <Editable as="span" id="fabricIcons.eyebrow">Microsoft Fabric workloads</Editable>
+            </div>
+            <Editable as="h2" id="fabricIcons.title" className={styles.title}>
+              One platform. Every analytics workload.
+            </Editable>
+            <Editable as="p" id="fabricIcons.subtitle" multiline className={styles.subtitle}>
+              The official Fabric icon set ships with this deck. Each tile uses a per-icon
+              dynamic import so only the workloads you reference end up in the bundle.
+            </Editable>
+          </header>
+
+          <div className={styles.platformBadge}>
+            <MicrosoftFabricIcon className={styles.platformIcon} fallback={<span className={styles.iconFallback}>F</span>} />
+            <div>
+              <span className={styles.platformLabel}>Platform</span>
+              <span className={styles.platformValue}>Microsoft Fabric</span>
+            </div>
+          </div>
+
+          <ul className={styles.grid} aria-label="Microsoft Fabric workload icons">
+            {WORKLOADS.map(({ id, name, tagline, Icon, fallback }) => (
+              <li key={id} className={styles.tile}>
+                <span className={styles.tileIcon}>
+                  <Icon className={styles.workloadIcon} fallback={<span className={styles.iconFallback}>{fallback}</span>} />
+                </span>
+                <span className={styles.tileBody}>
+                  <span className={styles.tileName}>{name}</span>
+                  <span className={styles.tileTagline}>{tagline}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <BottomBar text={<Editable as="span" id="fabricIcons.footer">Microsoft Fabric | official @fabric-msft/svg-icons</Editable>} />
+    </Slide>
+  )
+}
+`
+}
+
+export const FABRIC_ICONS_SLIDE_CSS = `\
+.slide {
+  background:
+    radial-gradient(circle at 14% 12%, var(--glow-accent), transparent 32%),
+    radial-gradient(circle at 88% 90%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 36%),
+    linear-gradient(180deg, var(--background) 0%, color-mix(in srgb, var(--secondary) 14%, var(--background)) 100%);
+  padding: 0 0 44px 0;
+  overflow: hidden;
+}
+
+.slide :global(.content-frame) {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 880px;
+}
+
+.brandLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2.1px;
+  text-transform: uppercase;
+}
+
+.microsoftMark {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  grid-template-rows: repeat(2, 9px);
+  gap: 2px;
+}
+
+.microsoftMark span:nth-child(1) { background: #F25022; }
+.microsoftMark span:nth-child(2) { background: #7FBA00; }
+.microsoftMark span:nth-child(3) { background: #00A4EF; }
+.microsoftMark span:nth-child(4) { background: #FFB900; }
+
+.title {
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(36px, 4.4vw, 56px);
+  font-weight: 760;
+  line-height: 1.05;
+  letter-spacing: -1.6px;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 760px;
+  color: var(--muted-foreground);
+  font-size: clamp(16px, 1.45vw, 19px);
+  line-height: 1.55;
+}
+
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  padding: 14px 22px 14px 18px;
+  background: color-mix(in srgb, var(--card) 92%, var(--secondary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+  position: relative;
+  overflow: hidden;
+}
+
+.platformBadge::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+.platformIcon {
+  width: 36px;
+  height: 36px;
+}
+
+.platformLabel,
+.platformValue {
+  display: block;
+  line-height: 1.1;
+}
+
+.platformLabel {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.platformValue {
+  margin-top: 4px;
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-elevated);
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.tileIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--secondary) 60%, var(--card));
+}
+
+.workloadIcon {
+  width: 32px;
+  height: 32px;
+}
+
+.tileBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tileName {
+  color: var(--foreground);
+  font-weight: 750;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.tileTagline {
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.iconFallback {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--secondary);
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .grid {
     grid-template-columns: 1fr;
   }
 }

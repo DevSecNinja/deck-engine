@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, vscodeMcpConfig } from '../utils.mjs'
+import { slugify, packageJson, deckConfig, indexCss, mainJsx, resolveEngineRef, resolveEngineVersionLabel, viteConfig, componentsJson, cnUtility, jsConfig, COLOR_PRESETS, AURORA_PALETTES, AURORA_ACCENT_MAP, auroraAccent, themeProviderJsx, appJsx, coverSlideJsxShadcn, COVER_SLIDE_CSS_SHADCN, coverSlideJsxFabric, COVER_SLIDE_CSS_FABRIC, fabricIconsSlideJsx, FABRIC_ICONS_SLIDE_CSS, featuresSlideJsxShadcn, FEATURES_SLIDE_CSS_SHADCN, gettingStartedSlideJsxShadcn, GETTING_STARTED_SLIDE_CSS_SHADCN, thankYouSlideJsxShadcn, THANK_YOU_SLIDE_CSS_SHADCN, thankYouSlideJsxFabric, THANK_YOU_SLIDE_CSS_FABRIC, vscodeMcpConfig } from '../utils.mjs'
 
 describe('slugify', () => {
   it('lowercases and hyphenates spaces', () => {
@@ -177,13 +177,21 @@ describe('deckConfig', () => {
     expect(config).toContain("appearance: 'light'")
   })
 
-  it('uses local cover and thank-you slides for fabric scaffold', () => {
+  it('uses local cover, fabric icons, and thank-you slides for fabric scaffold', () => {
     const config = deckConfig('s', 'T', 'S', 'F', '#49C5B1', 'fabric', 'none', null, 'light')
     expect(config).toContain("import CoverSlide from './src/slides/CoverSlide.jsx'")
+    expect(config).toContain("import FabricIconsSlide from './src/slides/FabricIconsSlide.jsx'")
     expect(config).toContain("import ThankYouSlide from './src/slides/ThankYouSlide.jsx'")
     expect(config).not.toContain('GenericThankYouSlide')
     expect(config).toContain("theme: 'fabric'")
     expect(config).toContain("appearance: 'light'")
+    // FabricIconsSlide must sit between Cover and ThankYou.
+    const coverIdx = config.indexOf('CoverSlide,')
+    const iconsIdx = config.indexOf('FabricIconsSlide,')
+    const thankIdx = config.indexOf('ThankYouSlide,')
+    expect(coverIdx).toBeGreaterThan(-1)
+    expect(iconsIdx).toBeGreaterThan(coverIdx)
+    expect(thankIdx).toBeGreaterThan(iconsIdx)
   })
 })
 
@@ -328,6 +336,42 @@ describe('viteConfig', () => {
   it('includes server.fs.allow in shadcn mode too', () => {
     const config = viteConfig({ designSystem: 'shadcn' })
     expect(config).toContain("allow: ['..', '../..']")
+  })
+
+  describe('fabric theme optimizeDeps priming', () => {
+    it('includes optimizeDeps.include with all 11 fabric icon entrypoints', () => {
+      const config = viteConfig({ theme: 'fabric' })
+      expect(config).toContain('optimizeDeps:')
+      expect(config).toContain('include:')
+      // All 11 SVG entrypoints must be primed so the first browser request
+      // does not trigger a discover-then-reload cycle from Vite.
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/Fabric32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/PowerBi32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataFactory32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataEngineering32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataWarehouse32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataScience32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/SqlDatabase32Item.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/Copilot32Color.js'")
+      expect(config).toContain("'@fabric-msft/svg-icons/dist/OneLake32Color.js'")
+    })
+
+    it('omits optimizeDeps for non-fabric themes', () => {
+      const dark = viteConfig({ theme: 'dark' })
+      const shadcn = viteConfig({ designSystem: 'shadcn', theme: 'dark' })
+      expect(dark).not.toContain('optimizeDeps:')
+      expect(dark).not.toContain('@fabric-msft/svg-icons')
+      expect(shadcn).not.toContain('optimizeDeps:')
+      expect(shadcn).not.toContain('@fabric-msft/svg-icons')
+    })
+
+    it('combines fabric optimizeDeps with shadcn alias when both are set', () => {
+      const config = viteConfig({ designSystem: 'shadcn', theme: 'fabric' })
+      expect(config).toContain('optimizeDeps:')
+      expect(config).toContain("'@': path.resolve(__dirname, 'src')")
+    })
   })
 })
 
@@ -873,6 +917,44 @@ describe('fabric slide templates', () => {
     expect(jsx).toContain('CopilotInFabricIcon')
     expect(jsx).toContain('Microsoft Fabric | OneLake, Power BI, and Copilot in Fabric')
     expect(THANK_YOU_SLIDE_CSS_FABRIC).toContain('.brandLockup')
+  })
+
+  it('renders a Fabric icons / workloads slide with the official icon set', () => {
+    const jsx = fabricIconsSlideJsx('slug', 1)
+    // Slide index defaults into the second position.
+    expect(jsx).toContain('<Slide index={1}')
+    // Imports come from the local fabric-icons helper (preserves dynamic imports + viewBox fix).
+    expect(jsx).toContain("from '../data/fabric-icons.js'")
+    // Every workload from FABRIC_WORKLOAD_ICONS we showcase must be wired up.
+    for (const icon of [
+      'MicrosoftFabricIcon',
+      'OneLakeIcon',
+      'PowerBIIcon',
+      'DataFactoryIcon',
+      'DataEngineeringIcon',
+      'DataWarehouseIcon',
+      'DataScienceIcon',
+      'DatabasesIcon',
+      'RealTimeIntelligenceIcon',
+      'FabricIQIcon',
+      'CopilotInFabricIcon',
+    ]) {
+      expect(jsx).toContain(icon)
+    }
+    // Editable contract preserved so users can rewrite copy inline.
+    expect(jsx).toContain('id="fabricIcons.title"')
+    expect(jsx).toContain('id="fabricIcons.subtitle"')
+    expect(jsx).toContain('id="fabricIcons.footer"')
+    // Microsoft chrome / branded background.
+    expect(jsx).toContain('microsoftMark')
+    expect(FABRIC_ICONS_SLIDE_CSS).toContain('#F25022')
+    expect(FABRIC_ICONS_SLIDE_CSS).toContain('.tile')
+    expect(FABRIC_ICONS_SLIDE_CSS).toContain('grid-template-columns')
+  })
+
+  it('fabricIconsSlideJsx defaults the slide index to 1 and accepts overrides', () => {
+    expect(fabricIconsSlideJsx('slug')).toContain('<Slide index={1}')
+    expect(fabricIconsSlideJsx('slug', 4)).toContain('<Slide index={4}')
   })
 })
 

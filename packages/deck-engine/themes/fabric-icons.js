@@ -55,9 +55,22 @@ export function preloadFabricIcons() {
 }
 
 if (typeof window !== 'undefined') {
-  void preloadFabricIcons().catch((error) => {
-    console.warn('[deckio] Unable to preload Microsoft Fabric icons.', error)
-  })
+  // Defer the eager preload off the critical first-paint path. Vite resolves
+  // 11 dynamic imports on the first request and, without optimizeDeps priming,
+  // can trigger a dep re-optimization + page reload. Even with priming, a
+  // synchronous Promise.all at module evaluation steals work from the cover
+  // slide's first render. The per-icon `useEffect` lazy-loader still picks up
+  // anything visible immediately; this just warms the rest in idle time.
+  const schedulePreload = () => {
+    void preloadFabricIcons().catch((error) => {
+      console.warn('[deckio] Unable to preload Microsoft Fabric icons.', error)
+    })
+  }
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(schedulePreload, { timeout: 1500 })
+  } else {
+    setTimeout(schedulePreload, 0)
+  }
 }
 
 function getCachedIconComponent(iconId) {
