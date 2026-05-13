@@ -225,32 +225,11 @@ export default {
 `
 }
 
-export const FABRIC_OPTIMIZE_DEPS_INCLUDES = [
-  '@fabric-msft/svg-icons/dist/Fabric32Color.js',
-  '@fabric-msft/svg-icons/dist/PowerBi32Color.js',
-  '@fabric-msft/svg-icons/dist/DataFactory32Color.js',
-  '@fabric-msft/svg-icons/dist/DataEngineering32Color.js',
-  '@fabric-msft/svg-icons/dist/DataWarehouse32Color.js',
-  '@fabric-msft/svg-icons/dist/DataScience32Color.js',
-  '@fabric-msft/svg-icons/dist/SqlDatabase32Item.js',
-  '@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js',
-  '@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js',
-  '@fabric-msft/svg-icons/dist/Copilot32Color.js',
-  '@fabric-msft/svg-icons/dist/OneLake32Color.js',
-]
-
 export function viteConfig({ designSystem = 'none', theme = 'dark' } = {}) {
   const aliasImport = designSystem === 'shadcn' ? "import path from 'path'\nimport { fileURLToPath } from 'url'\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url))\n\n" : ''
   const aliasBlock = designSystem === 'shadcn' ? `\n  resolve: {\n    alias: {\n      '@': path.resolve(__dirname, 'src'),\n    },\n  },` : ''
   // Allow Vite to serve files from parent dirs (needed for file: protocol refs in local dev)
   const serverBlock = `\n  server: {\n    fs: {\n      allow: ['..', '../..'],\n    },\n  },`
-  // Pre-bundle the 11 Fabric SVG icon entrypoints so the first browser request
-  // does NOT trigger Vite's discover-then-reload optimizeDeps cycle (each icon
-  // is its own dynamic import — without priming, Vite finds them at request
-  // time, re-optimizes, and forces a full page reload).
-  const optimizeBlock = theme === 'fabric'
-    ? `\n  optimizeDeps: {\n    include: [\n${FABRIC_OPTIMIZE_DEPS_INCLUDES.map((entry) => `      '${entry}',`).join('\n')}\n    ],\n  },`
-    : ''
   return `\
 ${aliasImport}import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -263,7 +242,7 @@ export default defineConfig({
     }),
     deckPlugin({ inlineEditing: true }),
     tailwindPlugin(),
-  ],${aliasBlock}${serverBlock}${optimizeBlock}
+  ],${aliasBlock}${serverBlock}
 })
 `
 }

@@ -338,24 +338,11 @@ describe('viteConfig', () => {
     expect(config).toContain("allow: ['..', '../..']")
   })
 
-  describe('fabric theme optimizeDeps priming', () => {
-    it('includes optimizeDeps.include with all 11 fabric icon entrypoints', () => {
+  describe('fabric theme vite config (no optimizeDeps)', () => {
+    it('does not include optimizeDeps for fabric theme (icons use @vite-ignore)', () => {
       const config = viteConfig({ theme: 'fabric' })
-      expect(config).toContain('optimizeDeps:')
-      expect(config).toContain('include:')
-      // All 11 SVG entrypoints must be primed so the first browser request
-      // does not trigger a discover-then-reload cycle from Vite.
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/Fabric32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/PowerBi32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataFactory32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataEngineering32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataWarehouse32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/DataScience32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/SqlDatabase32Item.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/Copilot32Color.js'")
-      expect(config).toContain("'@fabric-msft/svg-icons/dist/OneLake32Color.js'")
+      expect(config).not.toContain('optimizeDeps:')
+      expect(config).not.toContain('@fabric-msft/svg-icons')
     })
 
     it('omits optimizeDeps for non-fabric themes', () => {
@@ -367,9 +354,9 @@ describe('viteConfig', () => {
       expect(shadcn).not.toContain('@fabric-msft/svg-icons')
     })
 
-    it('combines fabric optimizeDeps with shadcn alias when both are set', () => {
+    it('combines fabric theme with shadcn alias when both are set', () => {
       const config = viteConfig({ designSystem: 'shadcn', theme: 'fabric' })
-      expect(config).toContain('optimizeDeps:')
+      expect(config).not.toContain('optimizeDeps:')
       expect(config).toContain("'@': path.resolve(__dirname, 'src')")
     })
   })

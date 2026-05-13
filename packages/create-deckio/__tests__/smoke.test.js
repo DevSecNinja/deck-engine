@@ -462,24 +462,21 @@ describe('create-deckio CLI flags', () => {
       const fabricIconsPath = join(projectDir, 'src', 'data', 'fabric-icons.js')
       expect(existsSync(fabricIconsPath)).toBe(true)
       const fabricIcons = readFileSync(fabricIconsPath, 'utf-8')
-      expect(fabricIcons).toContain("import('@fabric-msft/svg-icons/dist/Fabric32Color.js')")
+      expect(fabricIcons).toContain("import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/Fabric32Color.js')")
       expect(fabricIcons).toContain("viewBox: '0 0 32 32'")
       expect(fabricIcons).toContain('preloadFabricIcons')
       expect(fabricIcons).toContain('Fabric32Color')
       expect(fabricIcons).toContain('PowerBi32Color')
       expect(fabricIcons).toContain('DataFactory32Color')
       expect(fabricIcons).toContain('RealTimeIntelligence32Color')
-      // Eager preload must be deferred off the first-paint critical path so
-      // the cover slide can render before Vite resolves the 11 icon imports.
-      expect(fabricIcons).toMatch(/requestIdleCallback|setTimeout\(schedulePreload/)
+      // Icons are now lazy-loaded on demand — no eager preload at module level.
+      expect(fabricIcons).not.toMatch(/requestIdleCallback|setTimeout\(schedulePreload/)
 
-      // Generated vite.config.js must prime optimizeDeps for the 11 fabric
-      // icon entrypoints so the first browser request does NOT trigger
-      // Vite's discover-then-reload cycle (the dominant Fabric boot tax).
+      // Generated vite.config.js must NOT include optimizeDeps for fabric icons
+      // since @vite-ignore dynamic imports prevent pre-bundling bloat.
       const viteConfig = readFileSync(join(projectDir, 'vite.config.js'), 'utf-8')
-      expect(viteConfig).toContain('optimizeDeps:')
-      expect(viteConfig).toContain("'@fabric-msft/svg-icons/dist/Fabric32Color.js'")
-      expect(viteConfig).toContain("'@fabric-msft/svg-icons/dist/OneLake32Color.js'")
+      expect(viteConfig).not.toContain('optimizeDeps:')
+      expect(viteConfig).not.toContain('@fabric-msft/svg-icons')
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
     }

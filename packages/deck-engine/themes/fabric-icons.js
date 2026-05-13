@@ -3,24 +3,24 @@
  *
  * Fabric-themed decks get @fabric-msft/svg-icons as a dependency and this
  * helper is copied into src/data/fabric-icons.js. The package is browser-first
- * and expects window during module evaluation, so the official SVG React
- * components are preloaded only in the browser while Node-based tooling can
- * still import this helper safely.
+ * and expects window during module evaluation. Icons are lazy-loaded on demand
+ * when components mount — Vite-ignored dynamic imports prevent them from
+ * bloating the optimizeDeps pre-bundling step at cold boot.
  */
 import React from 'react'
 
 const ICON_LOADERS = {
-  Fabric32Color: () => import('@fabric-msft/svg-icons/dist/Fabric32Color.js').then((module) => module.default),
-  PowerBi32Color: () => import('@fabric-msft/svg-icons/dist/PowerBi32Color.js').then((module) => module.default),
-  DataFactory32Color: () => import('@fabric-msft/svg-icons/dist/DataFactory32Color.js').then((module) => module.default),
-  DataEngineering32Color: () => import('@fabric-msft/svg-icons/dist/DataEngineering32Color.js').then((module) => module.default),
-  DataWarehouse32Color: () => import('@fabric-msft/svg-icons/dist/DataWarehouse32Color.js').then((module) => module.default),
-  DataScience32Color: () => import('@fabric-msft/svg-icons/dist/DataScience32Color.js').then((module) => module.default),
-  SqlDatabase32Item: () => import('@fabric-msft/svg-icons/dist/SqlDatabase32Item.js').then((module) => module.default),
-  RealTimeIntelligence32Color: () => import('@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js').then((module) => module.default),
-  GraphIntelligence32Color: () => import('@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js').then((module) => module.default),
-  Copilot32Color: () => import('@fabric-msft/svg-icons/dist/Copilot32Color.js').then((module) => module.default),
-  OneLake32Color: () => import('@fabric-msft/svg-icons/dist/OneLake32Color.js').then((module) => module.default),
+  Fabric32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/Fabric32Color.js').then((module) => module.default),
+  PowerBi32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/PowerBi32Color.js').then((module) => module.default),
+  DataFactory32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/DataFactory32Color.js').then((module) => module.default),
+  DataEngineering32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/DataEngineering32Color.js').then((module) => module.default),
+  DataWarehouse32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/DataWarehouse32Color.js').then((module) => module.default),
+  DataScience32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/DataScience32Color.js').then((module) => module.default),
+  SqlDatabase32Item: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/SqlDatabase32Item.js').then((module) => module.default),
+  RealTimeIntelligence32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/RealTimeIntelligence32Color.js').then((module) => module.default),
+  GraphIntelligence32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/GraphIntelligence32Color.js').then((module) => module.default),
+  Copilot32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/Copilot32Color.js').then((module) => module.default),
+  OneLake32Color: () => import(/* @vite-ignore */ '@fabric-msft/svg-icons/dist/OneLake32Color.js').then((module) => module.default),
 }
 
 const ICON_EXPORTS = Object.keys(ICON_LOADERS)
@@ -52,25 +52,6 @@ export function preloadFabricIcons() {
   }
 
   return iconModulePromise
-}
-
-if (typeof window !== 'undefined') {
-  // Defer the eager preload off the critical first-paint path. Vite resolves
-  // 11 dynamic imports on the first request and, without optimizeDeps priming,
-  // can trigger a dep re-optimization + page reload. Even with priming, a
-  // synchronous Promise.all at module evaluation steals work from the cover
-  // slide's first render. The per-icon `useEffect` lazy-loader still picks up
-  // anything visible immediately; this just warms the rest in idle time.
-  const schedulePreload = () => {
-    void preloadFabricIcons().catch((error) => {
-      console.warn('[deckio] Unable to preload Microsoft Fabric icons.', error)
-    })
-  }
-  if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(schedulePreload, { timeout: 1500 })
-  } else {
-    setTimeout(schedulePreload, 0)
-  }
 }
 
 function getCachedIconComponent(iconId) {
