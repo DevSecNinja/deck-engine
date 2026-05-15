@@ -22,6 +22,24 @@ const SlideContext = createContext()
  *  └─────────────────────────────────────────────────────────────┘  */
 
 /**
+ * Read initial slide from URL search params (?slide=N).
+ * Takes priority over sessionStorage — enables deep-linking and
+ * server-side capture (thumbnail service, vision capture) without postMessage.
+ * Returns null if not present or invalid.
+ */
+function getSlideFromUrl(totalSlides) {
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const raw = params.get('slide')
+    if (raw === null) return null
+    const idx = parseInt(raw, 10)
+    return Number.isFinite(idx) && idx >= 0 && idx < totalSlides ? idx : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Recover the last-viewed slide from sessionStorage.
  * Survives Vite HMR so you stay on the same slide during dev.
  *
@@ -50,7 +68,7 @@ function isInteractiveKeyTarget(target) {
 
 export function SlideProvider({ children, totalSlides, project, slides, theme }) {
   const [current, setCurrent] = useState(() =>
-    getStoredSlide(project, totalSlides),
+    getSlideFromUrl(totalSlides) ?? getStoredSlide(project, totalSlides),
   )
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [activeTheme, setActiveTheme] = useState(theme || DEFAULT_THEME)
