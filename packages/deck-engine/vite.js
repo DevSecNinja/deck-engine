@@ -20,6 +20,44 @@ import { createInlineEditMiddleware, isHostExposed } from './server/inline-edit-
 export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
 
 /**
+ * Directories the per-deck Vite dev server should NOT watch.
+ *
+ * Why: in the hosted launcher (and locally), the launcher + thumbnail
+ * service write files inside the deck on every slide mutation:
+ *   - .deckio/thumbnails/ JPG files — regenerated whenever the agent
+ *     adds, edits, or deletes a slide; can fire dozens of times per
+ *     chat turn.
+ *   - .gh-pages-tmp/ — transient staging dir created during Publish.
+ *   - .github/eyes/ — sketches / captures saved by the deck-sketch skill.
+ *
+ * None of these participate in the Vite module graph. Without an explicit
+ * ignore, chokidar still fires an event per write and Vite dispatches it
+ * through its watcher before discarding — pure overhead that scales with
+ * the number of slides × mutations per session, and noticeably worse on
+ * Azure Files (SMB) RWX mounts.
+ *
+ * Vite's defaults already ignore .git, node_modules, test-results, and the
+ * resolved cacheDir. The plugin only adds deckio-specific paths on top —
+ * user server.watch.ignored entries are preserved.
+ *
+ * NOT included intentionally:
+ *   - A broad ignore of all .deckio/ — kept narrow so future deckio runtime
+ *     artifacts (e.g. manifests) can still participate in HMR.
+ *   - followSymlinks: false — Vite's default node_modules glob already
+ *     filters the only symlink the launcher creates (node_modules ->
+ *     /app/node_modules); turning this off would break HMR for any
+ *     legitimately symlinked source package (e.g. npm link).
+ *   - .github/memory/ — no writer observed in the launcher.
+ */
+export const DECK_WATCH_IGNORED = Object.freeze([
+  '**/.deckio/thumbnails/**',
+  '**/.gh-pages-tmp/**',
+  '**/.github/eyes/**',
+  '**/coverage/**',
+  '**/dist/**',
+])
+
+/**
  * Normalize the `inlineEditing` plugin option to a boolean.
  *
  * Accepts:
@@ -62,6 +100,15 @@ export function deckPlugin(options = {}) {
         cacheDir: '.vite',
         resolve: {
           dedupe: ['react', 'react-dom'],
+        },
+        // Avoid wasted chokidar events for launcher-written artifacts that
+        // never participate in HMR. See DECK_WATCH_IGNORED above.
+        // Vite merges these with its defaults (node_modules, .git, ...);
+        // user-supplied ignored patterns are preserved.
+        server: {
+          watch: {
+            ignored: [...DECK_WATCH_IGNORED],
+          },
         },
       }
     },

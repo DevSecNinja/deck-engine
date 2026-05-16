@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deckPlugin, deckPlugins, tailwindPlugin } from '../vite.js'
+import { deckPlugin, deckPlugins, tailwindPlugin, DECK_WATCH_IGNORED } from '../vite.js'
 
 describe('deckPlugin', () => {
   it('returns a valid Vite plugin object', () => {
@@ -229,5 +229,114 @@ describe('tailwindPlugin', () => {
     for (const p of plugins) {
       expect(p.name).toMatch(/tailwindcss|@tailwindcss/)
     }
+  })
+})
+
+describe('deckPlugin watch ignore (chokidar)', () => {
+  it('exports the DECK_WATCH_IGNORED constant with the deckio-specific paths', () => {
+    // Required entries: anything the launcher / thumbnail svc writes inside a
+    // deck that is NOT in the Vite module graph. The thumbnail loop is the
+    // hot path — without it, every slide-mutation fan-out fires a chokidar
+    // event per JPG in the per-deck Vite watcher.
+    expect(DECK_WATCH_IGNORED).toContain('**/.deckio/thumbnails/**')
+    expect(DECK_WATCH_IGNORED).toContain('**/.gh-pages-tmp/**')
+    expect(DECK_WATCH_IGNORED).toContain('**/.github/eyes/**')
+    expect(DECK_WATCH_IGNORED).toContain('**/dist/**')
+    expect(DECK_WATCH_IGNORED).toContain('**/coverage/**')
+  })
+
+  it('config() sets server.watch.ignored to a SUPERSET of DECK_WATCH_IGNORED', () => {
+    const plugin = deckPlugin()
+    const config = plugin.config()
+    expect(config.server).toBeDefined()
+    expect(config.server.watch).toBeDefined()
+    expect(Array.isArray(config.server.watch.ignored)).toBe(true)
+    for (const pattern of DECK_WATCH_IGNORED) {
+      expect(config.server.watch.ignored).toContain(pattern)
+    }
+  })
+
+  it('does NOT broadly ignore .deckio/** (leaves room for HMR-relevant artifacts)', () => {
+    // Regression: an earlier proposal ignored the whole .deckio dir. We
+    // narrowed to thumbnails only so future runtime artifacts (manifests,
+    // captures we want HMR on, etc.) can still participate in the module
+    // graph.
+    const plugin = deckPlugin()
+    const ignored = plugin.config().server.watch.ignored
+    expect(ignored).not.toContain('**/.deckio/**')
+  })
+
+  it('does NOT set followSymlinks (preserves Vite default for npm-linked packages)', () => {
+    // Regression: an earlier proposal set followSymlinks: false globally.
+    // That would silently break HMR for users who `npm link` a local
+    // package into a deck. Vite's default `**/node_modules/**` glob already
+    // filters the only symlink the launcher creates, so we don't need to
+    // disable symlink-following.
+    const plugin = deckPlugin()
+    const watch = plugin.config().server.watch
+    expect(watch.followSymlinks).toBeUndefined()
+  })
+
+  it('returns a fresh server.watch.ignored array per call (no shared mutation)', () => {
+    const a = deckPlugin().config().server.watch.ignored
+    const b = deckPlugin().config().server.watch.ignored
+    expect(a).toEqual(b)
+    expect(a).not.toBe(b)
+    // Mutating one MUST NOT bleed into the other or into the source constant.
+    a.push('mutation-test')
+    const c = deckPlugin().config().server.watch.ignored
+    expect(c).not.toContain('mutation-test')
+    expect(DECK_WATCH_IGNORED).not.toContain('mutation-test')
+  })
+})
+
+describe('deckPlugin watch ignore — Vite createServer merge contract', () => {
+  // These tests spin up a real Vite middleware-mode server and inspect the
+  // chokidar watcher's effective ignore list. In Vite 8, defaults are merged
+  // at the chokidar layer (not in resolveConfig), so this is the only place
+  // to verify the final contract. If Vite ever changes from append-merge to
+  // replace-merge for this field, these tests will fail loudly instead of
+  // silently breaking watch perf.
+
+  async function getWatcherIgnored(userConfig = {}) {
+    const { createServer } = await import('vite')
+    const server = await createServer({
+      plugins: [deckPlugin()],
+      configFile: false,
+      logLevel: 'silent',
+      server: { middlewareMode: true, ...(userConfig.server || {}) },
+      ...userConfig,
+    })
+    try {
+      const watcher = server.watcher
+      const ignored = watcher._ignored || watcher.options?.ignored || []
+      return Array.isArray(ignored) ? ignored : [ignored]
+    } finally {
+      await server.close()
+    }
+  }
+
+  it('preserves Vite default ignores (node_modules, .git) alongside ours', async () => {
+    const list = await getWatcherIgnored()
+    const asStrings = list.map(String)
+    // Vite defaults must survive
+    expect(asStrings.some((p) => p.includes('node_modules'))).toBe(true)
+    expect(asStrings.some((p) => p.includes('.git'))).toBe(true)
+    // Our entries must be present
+    expect(asStrings).toContain('**/.deckio/thumbnails/**')
+    expect(asStrings).toContain('**/.gh-pages-tmp/**')
+    expect(asStrings).toContain('**/.github/eyes/**')
+  })
+
+  it('preserves user-supplied server.watch.ignored entries', async () => {
+    const list = await getWatcherIgnored({
+      server: { watch: { ignored: ['**/__sandbox__/**'] } },
+    })
+    const asStrings = list.map(String)
+    expect(asStrings).toContain('**/__sandbox__/**')
+    // Our defaults still there
+    expect(asStrings).toContain('**/.deckio/thumbnails/**')
+    // Vite defaults still there
+    expect(asStrings.some((p) => p.includes('node_modules'))).toBe(true)
   })
 })
