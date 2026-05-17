@@ -5,25 +5,11 @@ applyTo: "**/slides/**/*.module.css"
 
 # Slide CSS Module Conventions
 
-## Step 0 — Read `deck.config.js` and the active descriptor
+## Step 0 — Resolve the descriptor
 
-Before writing any slide CSS:
+Read `.github/instructions/descriptor-resolution.instructions.md` first. It tells you how to pick the right theme descriptor and how to cross-check `designSystem`. The descriptor is the source of truth for CSS skeleton, token names, decorative rules, and anti-patterns.
 
-1. Read `theme` and `designSystem` from `deck.config.js`
-2. Resolve the active theme descriptor
-3. Use that descriptor as the source of truth for CSS skeleton, token names, decorative rules, and anti-patterns
-
-### Descriptor resolution
-
-- Built-in themes: read `dark.md`, `light.md`, or `shadcn.md` from `node_modules/@deckio/deck-engine/themes/descriptors/`
-- Custom themes: read `src/themes/<theme>/descriptor.md` or `src/themes/<theme>.descriptor.md`
-- If the custom descriptor is missing, fall back to the built-in descriptor implied by `designSystem`
-
-If `designSystem` is `shadcn`, also read the shadcn supplement instructions:
-- `shadcn-setup.instructions.md` — infrastructure contract
-- `shadcn-components.instructions.md` — component reference, preinstalled set, migration patterns
-
-### CSS role in shadcn decks
+## CSS role in shadcn decks
 
 When real components are available, **CSS Modules handle layout only** — grid, spacing, density, positioning. The components own their own surface styling (background, border, border-radius, typography). Do not rewrite component styles in CSS Modules. Override only when the descriptor explicitly calls for deck-specific layout adjustments (e.g., a card width constraint or grid gap).
 

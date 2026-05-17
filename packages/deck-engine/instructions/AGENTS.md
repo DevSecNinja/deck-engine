@@ -11,6 +11,7 @@ Create and maintain slide-based presentations. Each project is a self-contained 
 - Create, edit, and delete slides in `src/slides/`
 - Manage project data in `src/data/`
 - Register and reorder slides in `deck.config.js`
+- Wrap user-facing text in `<Editable>` and user-content arrays in `<EditableList>` (see `.github/instructions/inline-editing.instructions.md`)
 
 ## What NOT to do
 
@@ -21,7 +22,7 @@ Create and maintain slide-based presentations. Each project is a self-contained 
 ## Stack
 
 - React 19, Vite, CSS Modules
-- `@deckio/deck-engine` provides: `Slide`, `BottomBar`, `Navigation`, `SlideProvider`, `useSlides`, `Editable`, `GenericThankYouSlide`
+- `@deckio/deck-engine` provides: `Slide`, `BottomBar`, `Navigation`, `SlideProvider`, `useSlides`, `Editable`, `EditableList`, `GenericThankYouSlide`
 - See `.github/instructions/` for detailed conventions on slide JSX, CSS modules, inline editing, and deck.config.js
 - See `.github/skills/` for step-by-step workflows (e.g., adding a slide)
 

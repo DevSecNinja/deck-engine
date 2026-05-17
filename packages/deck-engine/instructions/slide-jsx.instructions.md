@@ -5,23 +5,9 @@ applyTo: "**/slides/**/*.jsx"
 
 # Slide JSX Conventions
 
-## Step 0 — Read `deck.config.js` and the active descriptor
+## Step 0 — Resolve the descriptor
 
-Before writing any slide JSX:
-
-1. Read `theme` and `designSystem` from `deck.config.js`
-2. Resolve the active theme descriptor
-3. Use that descriptor as the source of truth for slide structure, imports, allowed components, and anti-patterns
-
-### Descriptor resolution
-
-- Built-in themes: read `dark.md`, `light.md`, or `shadcn.md` from `node_modules/@deckio/deck-engine/themes/descriptors/`
-- Custom themes: read `src/themes/<theme>/descriptor.md` or `src/themes/<theme>.descriptor.md`
-- If the custom descriptor is missing, fall back to the built-in descriptor implied by `designSystem`
-
-If `designSystem` is `shadcn`, also read the shadcn supplement instructions:
-- `shadcn-setup.instructions.md` — infrastructure contract
-- `shadcn-components.instructions.md` — component reference, preinstalled set, migration patterns
+Read `.github/instructions/descriptor-resolution.instructions.md` first. It tells you how to pick the right theme descriptor and how to cross-check `designSystem`. The descriptor is the source of truth for skeleton, imports, allowed components, and anti-patterns.
 
 ## Common imports
 

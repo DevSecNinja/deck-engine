@@ -1,5 +1,5 @@
 ---
-description: "Use when creating or editing slides. Explains how to mark user-facing text as editable for inline editing in local development."
+description: "Use when creating or editing slides. Explains how to mark user-facing text as editable with <Editable> and how to make user-content lists drag-reorderable with <EditableList>."
 applyTo: "**/slides/**/*.jsx"
 ---
 
@@ -30,10 +30,12 @@ Wrap **user-facing presentation content** (titles, subtitles, body copy, caption
 ## Import
 
 ```jsx
-import { Editable } from '@deckio/deck-engine'
+import { Editable, EditableList } from '@deckio/deck-engine'
 // or
-import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, EditableList, Slide } from '@deckio/deck-engine'
 ```
+
+Drop `EditableList` if the slide has no user-content arrays.
 
 ## Basic usage
 
@@ -71,24 +73,50 @@ If the footer is optional/dynamic:
 <BottomBar text={footerText && <Editable as="span" id="slide.footer">{footerText}</Editable>} />
 ```
 
-## Dynamic IDs for lists/arrays
+## Reorderable lists — `<EditableList>` (preferred for user-content arrays)
 
-When mapping over data arrays, use template literal IDs to ensure each item has a unique, stable ID:
+Any slide that renders a list of user content (cards, bullets, steps, KPIs, features) MUST wrap the `.map()` in `<EditableList>` so users can drag-reorder items in dev. Each item in the source array MUST carry a stable `id` field.
 
 ```jsx
-{features.map((f) => (
-  <div key={f.id}>
-    <Editable as="h3" id={`features.items.${f.id}.title`}>
-      {f.title}
-    </Editable>
-    <Editable as="p" id={`features.items.${f.id}.desc`}>
-      {f.description}
-    </Editable>
-  </div>
-))}
+const features = [
+  { id: 'speed',   title: 'Fast',     desc: '…' },
+  { id: 'quality', title: 'Reliable', desc: '…' },
+]
+
+<EditableList id="features.items" items={features} keyOf={(f) => f.id}>
+  {(f) => (
+    <article>
+      <Editable as="h3" id={`features.items.${f.id}.title`}>{f.title}</Editable>
+      <Editable as="p"  id={`features.items.${f.id}.desc`}>{f.desc}</Editable>
+    </article>
+  )}
+</EditableList>
 ```
 
-Use `f.id` (or another stable identifier) in the template literal, NOT the array index `i`.
+### Props
+
+- **`id`** (required): the FIELD id where the order is saved. Use the same `slide.list` namespace as the inner Editables (e.g., `features.items`).
+- **`items`** (required): the source array. Each item MUST have a stable `id`.
+- **`keyOf`** (required): function returning the stable item ID. Use `(i) => i.id`. **Never** use the array index — index keys silently disable reorder.
+- **`onReorder`** (optional): callback after a successful drag. Useful for slides with side state (e.g., a "visible up to step N" counter that should reset on reorder).
+
+### When NOT to wrap
+
+Skip `<EditableList>` only for:
+- Decorative arrays (orbs, dots, glyphs)
+- Icon grids (e.g., a Microsoft Fabric workload icon board)
+- System-generated arrays the user can't reorder semantically (e.g., a `useSlides()` thumbnail strip)
+
+### Production behavior
+
+`<EditableList>` is a prod-safe shell — it imports zero drag-and-drop code in production builds. The sortable variant is lazy-loaded only in dev. Zero bundle cost.
+
+### Bare `.map()` is now a code-review smell
+
+If a slide has `{items.map((i) => <Card .../>)}` over a user-content array and no `<EditableList>` wrapper, flag it. The fix is mechanical:
+1. Add `id` to every item in the source data
+2. Wrap the `.map()` in `<EditableList id="<slide>.<list>" items={items} keyOf={(i) => i.id}>`
+3. The render function `(i) => …` replaces the `.map()` callback body
 
 ## Conditional content
 
@@ -192,6 +220,20 @@ Renders as `<h1 className="styles.hero deckio-editable" style="..." data-deckio-
 </div>
 ```
 
+❌ **Do NOT use `<EditableList>` with index keys or stringified indices**
+
+```jsx
+// BAD — index keys disable reorder (silent in prod, dev warns)
+<EditableList id="items" items={items} keyOf={(_, i) => String(i)}>
+
+// BAD — no `id` on source items
+const items = [{ title: 'A' }, { title: 'B' }]
+
+// GOOD — stable `id` per item
+const items = [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }]
+<EditableList id="items" items={items} keyOf={(i) => i.id}>
+```
+
 ## When generating new slides
 
 Always wrap user-facing text in `<Editable>` by default. Follow the patterns in the scaffolded CoverSlide and shadcn slide templates (check `coverSlideJsx`, `coverSlideJsxShadcn`, `featuresSlideJsxShadcn`, etc. in `create-deckio/utils.mjs` and `create-deckio/index.mjs`).
@@ -199,5 +241,6 @@ Always wrap user-facing text in `<Editable>` by default. Follow the patterns in 
 ## Related
 
 - **Editable component implementation**: `packages/deck-engine/components/Editable.jsx`
+- **EditableList component implementation**: `packages/deck-engine/components/EditableList.jsx`
 - **Scaffold templates**: `packages/create-deckio/index.mjs`, `packages/create-deckio/utils.mjs`
-- **Tests**: `packages/create-deckio/__tests__/utils.test.js` (search for "inline editing")
+- **Tests**: `packages/create-deckio/__tests__/utils.test.js` (search for "inline editing"), `packages/deck-engine/__tests__/editable-list.test.js`
