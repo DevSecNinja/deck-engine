@@ -179,3 +179,333 @@
   }
 }
 
+/* ------------------------------------------------------------------
+   Floating inline-edit toolbar (dev-only, portaled to <body>).
+
+   Visual language matches the source-save toast above: small radius,
+   quiet shadow, neutral dark base, accent-tinted hairline, no glow,
+   no gradient washes. Sits above the active <Editable> via fixed
+   positioning computed in JSX (no margins here that would fight it).
+
+   Layout: a single horizontal pill, ~34px tall, with grouped controls
+   separated by 1px dividers tinted from the theme foreground. Active
+   states use a flat accent wash + tinted ring — never glow.
+
+   Theming: all surfaces derive from --accent / --foreground /
+   --background via color-mix(in oklab, ...) so the toolbar inherits
+   whatever theme the deck defines. Fallbacks match the toast.
+   ------------------------------------------------------------------ */
+
+.deckio-editable-toolbar {
+  /* z-index sits just below the toast root so a save status can stack
+     over the toolbar without the toolbar covering its own feedback. */
+  z-index: 2147482900;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  color: #f5f5f7;
+  background: color-mix(in oklab, var(--background, #0f1115) 92%, #000 8%);
+  border: 1px solid color-mix(in oklab, var(--accent, #6366f1) 35%, transparent);
+  border-radius: 8px;
+  box-shadow:
+    0 10px 30px -16px rgba(0, 0, 0, 0.65),
+    0 2px 8px -4px rgba(0, 0, 0, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Calm 120ms entrance; reduced-motion clears it below. */
+  opacity: 0;
+  transform: translateY(2px);
+  animation: deckio-editable-toolbar-in 140ms ease-out forwards;
+}
+
+/* Grouped controls. Each group is its own flex row; a hairline
+   divider separates one group from the next so the toolbar reads as
+   a sequence of related actions rather than a row of buttons. */
+.deckio-editable-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  position: relative;
+}
+
+.deckio-editable-toolbar__group + .deckio-editable-toolbar__group,
+.deckio-editable-toolbar__select + .deckio-editable-toolbar__group,
+.deckio-editable-toolbar__group + .deckio-editable-toolbar__advanced,
+.deckio-editable-toolbar__swatches + .deckio-editable-toolbar__advanced {
+  margin-left: 2px;
+}
+
+.deckio-editable-toolbar__group + .deckio-editable-toolbar__group::before,
+.deckio-editable-toolbar__select + .deckio-editable-toolbar__group::before,
+.deckio-editable-toolbar__group + .deckio-editable-toolbar__advanced::before,
+.deckio-editable-toolbar__swatches + .deckio-editable-toolbar__advanced::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 14%;
+  bottom: 14%;
+  width: 1px;
+  background: color-mix(in oklab, #f5f5f7 14%, transparent);
+  pointer-events: none;
+}
+
+/* Square-ish chrome button. Used for size +/−, B/I, align, advanced,
+   and the clear-color escape hatch. */
+.deckio-editable-toolbar__btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.deckio-editable-toolbar__btn b,
+.deckio-editable-toolbar__btn i {
+  font-style: inherit;
+  font-weight: inherit;
+  letter-spacing: 0.01em;
+}
+
+.deckio-editable-toolbar__btn b { font-weight: 700; }
+.deckio-editable-toolbar__btn i { font-style: italic; }
+
+.deckio-editable-toolbar__btn:hover {
+  background: color-mix(in oklab, #f5f5f7 8%, transparent);
+}
+
+.deckio-editable-toolbar__btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.deckio-editable-toolbar__btn.is-active {
+  background: color-mix(in oklab, var(--accent, #6366f1) 22%, transparent);
+  color: color-mix(in oklab, var(--accent, #6366f1) 30%, #ffffff 70%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent, #6366f1) 45%, transparent);
+}
+
+.deckio-editable-toolbar__btn.is-active:hover {
+  background: color-mix(in oklab, var(--accent, #6366f1) 30%, transparent);
+}
+
+/* Size readout — small, monospaced-feel, kept narrow so the toolbar
+   doesn't reflow when sizes change. Tabular-num keeps glyphs aligned. */
+.deckio-editable-toolbar__readout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, #f5f5f7 70%, transparent);
+  background: color-mix(in oklab, #f5f5f7 6%, transparent);
+  border-radius: 4px;
+  letter-spacing: 0.01em;
+}
+
+/* Font-family <select> — keep the native control (a11y, OS menus) but
+   strip its default chrome so it reads as part of the toolbar. The
+   caret is drawn via a background-image SVG. */
+.deckio-editable-toolbar__select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: color-mix(in oklab, #f5f5f7 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  border: 0;
+  border-radius: 5px;
+  height: 26px;
+  padding: 0 22px 0 8px;
+  margin: 0 2px;
+  max-width: 130px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none' stroke='%23f5f5f7' stroke-opacity='0.65' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 4l2.5 2.5L7.5 4'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px 10px;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.deckio-editable-toolbar__select:hover {
+  background-color: color-mix(in oklab, #f5f5f7 12%, transparent);
+}
+
+.deckio-editable-toolbar__select:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
+  outline-offset: 1px;
+}
+
+/* Native <option> can't be fully themed across browsers, but on
+   most engines this at least keeps the dropdown legible against
+   the toolbar's dark shell. */
+.deckio-editable-toolbar__select option {
+  background: #0f1115;
+  color: #f5f5f7;
+}
+
+/* Theme color swatches. Small circles; active state uses an outer
+   ring (accent + dark gap) so the active state stays visible against
+   any swatch color, including the background swatch itself. */
+.deckio-editable-toolbar__swatches {
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.deckio-editable-toolbar__swatch {
+  appearance: none;
+  border: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  /* Hairline ring so the "background" swatch (likely dark on dark)
+     remains visible. Inset so it doesn't change the swatch's outer
+     footprint when active state adds a second outer ring. */
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, #ffffff 18%, transparent),
+    inset 0 0 0 8px transparent;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.deckio-editable-toolbar__swatch:hover {
+  transform: scale(1.08);
+}
+
+.deckio-editable-toolbar__swatch:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.deckio-editable-toolbar__swatch.is-active {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, #ffffff 22%, transparent),
+    0 0 0 1.5px color-mix(in oklab, var(--background, #0f1115) 92%, #000 8%),
+    0 0 0 3px color-mix(in oklab, var(--accent, #6366f1) 75%, transparent);
+}
+
+/* Advanced disclosure panel — slides in to the right of the toolbar
+   on the same row. Uses the same shell vocabulary so it reads as an
+   extension of the toolbar rather than a popover. */
+.deckio-editable-toolbar__advanced-panel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 8px;
+  margin-left: 2px;
+  position: relative;
+  border-left: 1px solid color-mix(in oklab, #f5f5f7 14%, transparent);
+}
+
+.deckio-editable-toolbar__colorpicker {
+  /* Strip the native chrome so it visually matches the swatch row.
+     The interaction (click → OS color picker) is still native. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, #ffffff 22%, transparent),
+    0 0 0 1.5px color-mix(in oklab, var(--background, #0f1115) 92%, #000 8%),
+    0 0 0 2.5px color-mix(in oklab, var(--accent, #6366f1) 55%, transparent);
+}
+
+.deckio-editable-toolbar__colorpicker::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 50%;
+}
+
+.deckio-editable-toolbar__colorpicker::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.deckio-editable-toolbar__colorpicker::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.deckio-editable-toolbar__colorpicker:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent, #6366f1) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.deckio-editable-toolbar__hexinput {
+  appearance: none;
+  background: color-mix(in oklab, #f5f5f7 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  height: 22px;
+  width: 72px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  outline: 0;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.deckio-editable-toolbar__hexinput::placeholder {
+  color: color-mix(in oklab, #f5f5f7 35%, transparent);
+}
+
+.deckio-editable-toolbar__hexinput:focus-visible {
+  background: color-mix(in oklab, #f5f5f7 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent, #6366f1) 60%, transparent);
+}
+
+@keyframes deckio-editable-toolbar-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckio-editable-toolbar {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .deckio-editable-toolbar__btn,
+  .deckio-editable-toolbar__select,
+  .deckio-editable-toolbar__swatch,
+  .deckio-editable-toolbar__hexinput {
+    transition: none;
+  }
+  .deckio-editable-toolbar__swatch:hover {
+    transform: none;
+  }
+}

@@ -14,10 +14,12 @@
  */
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_OPTIONS = markSampleContent([
   {
+    id: 'option-a',
     num: '01',
     badge: 'Option A',
     title: 'Describe Option A To Copilot',
@@ -26,6 +28,7 @@ const SAMPLE_OPTIONS = markSampleContent([
     tags: ['🤖 Agent mode', '🅰️ Option A', '🔁 Refine live'],
   },
   {
+    id: 'option-b',
     num: '02',
     badge: 'Option B',
     title: 'Ask For The Contrast In Option B',
@@ -43,7 +46,6 @@ export default function GenericTwoOptionsSlide({
   footerText,
 }) {
   const isSampleOptions = options?.__sample === true
-  const [a, b] = options
   return (
     <Slide index={index} className="deck-two-options">
       <div className="accent-bar" />
@@ -64,33 +66,42 @@ export default function GenericTwoOptionsSlide({
         </div>
 
         <div className="deck-two-options-columns">
-          {[a, b].map((opt, i) => (
-            <div key={i} className={`deck-two-options-card deck-two-options-card${i + 1}`}>
-              <div className="deck-two-options-card-glow" />
-              <div className="deck-two-options-card-inner">
-                <div className="deck-two-options-card-top">
-                  <span className="deck-two-options-big-num">{opt.num}</span>
-                  <span className="deck-two-options-badge" data-variant={i === 0 ? 'a' : 'b'}>{opt.badge}</span>
-                </div>
-                <h2 className="deck-two-options-card-title">{opt.title}</h2>
-                <p className="deck-two-options-card-desc">{opt.description}</p>
-                <div className="deck-two-options-divider" />
-                <div className="deck-two-options-items">
-                  {opt.items?.map((item, j) => (
-                    <div key={j} className="deck-two-options-item">
-                      <span className="deck-two-options-item-icon">◆</span>
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="deck-two-options-tags">
-                  {opt.tags?.map((tag, j) => (
-                    <span key={j} className="deck-two-options-tag">{tag}</span>
-                  ))}
+          <EditableList
+            id="twoOptions.options"
+            items={options}
+            keyOf={(o) => o.id}
+            as="div"
+            itemAs="div"
+            className="deck-two-options-cards"
+          >
+            {(opt, i) => (
+              <div className={`deck-two-options-card deck-two-options-card${i + 1}`}>
+                <div className="deck-two-options-card-glow" />
+                <div className="deck-two-options-card-inner">
+                  <div className="deck-two-options-card-top">
+                    <span className="deck-two-options-big-num">{opt.num}</span>
+                    <span className="deck-two-options-badge" data-variant={i === 0 ? 'a' : 'b'}>{opt.badge}</span>
+                  </div>
+                  <h2 className="deck-two-options-card-title">{opt.title}</h2>
+                  <p className="deck-two-options-card-desc">{opt.description}</p>
+                  <div className="deck-two-options-divider" />
+                  <div className="deck-two-options-items">
+                    {opt.items?.map((item, j) => (
+                      <div key={j} className="deck-two-options-item">
+                        <span className="deck-two-options-item-icon">◆</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="deck-two-options-tags">
+                    {opt.tags?.map((tag, j) => (
+                      <span key={j} className="deck-two-options-tag">{tag}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )}
+          </EditableList>
           <div className="deck-two-options-vs">
             <div className="deck-two-options-vs-line" />
             <span className="deck-two-options-vs-text">or</span>

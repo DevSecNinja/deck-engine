@@ -685,7 +685,7 @@ export const COVER_SLIDE_CSS_SHADCN = `\
 
 export function featuresSlideJsxShadcn(slug) {
   return `\
-import { BottomBar, Editable, Slide } from '@deckio/deck-engine'
+import { BottomBar, Editable, EditableList, Slide } from '@deckio/deck-engine'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import SpotlightCard from '@/components/ui/spotlight-card'
@@ -746,10 +746,16 @@ export default function FeaturesSlide() {
             </Editable>
           </div>
 
-          <div className={styles.grid}>
-            {features.map((f, i) => (
+          <EditableList
+            id="features.items"
+            items={features}
+            keyOf={(f) => f.id}
+            as="div"
+            itemAs="div"
+            className={styles.grid}
+          >
+            {(f) => (
               <SpotlightCard
-                key={i}
                 className={styles.spotCard}
                 spotlightColor="color-mix(in srgb, var(--accent) 25%, transparent)"
                 style={{ animationDelay: f.delay }}
@@ -764,8 +770,8 @@ export default function FeaturesSlide() {
                 <Editable as="p" id={\`features.items.\${f.id}.desc\`} className={styles.cardDesc}>{f.desc}</Editable>
                 <Editable as="code" id={\`features.items.\${f.id}.code\`} className={styles.cardCode}>{f.code}</Editable>
               </SpotlightCard>
-            ))}
-          </div>
+            )}
+          </EditableList>
         </div>
       </div>
 

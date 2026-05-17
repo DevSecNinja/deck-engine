@@ -14,15 +14,16 @@
  */
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { useSlides } from '../context/SlideContext.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_TOC_ITEMS = markSampleContent([
-  { num: 1, title: 'The Problem', desc: 'What we are solving and why it matters to the business.', target: 2 },
-  { num: 2, title: 'Our Approach', desc: 'The architecture, trade-offs, and key design decisions.', target: 3 },
-  { num: 3, title: 'Demo', desc: 'A live walkthrough of the working prototype.', target: 4 },
-  { num: 4, title: 'Roadmap', desc: 'What is shipping next and the timeline to GA.', target: 5 },
-  { num: 5, title: 'Ask', desc: 'What we need from leadership to keep momentum.', target: 6 },
+  { id: 'toc-problem',  num: 1, title: 'The Problem', desc: 'What we are solving and why it matters to the business.', target: 2 },
+  { id: 'toc-approach', num: 2, title: 'Our Approach', desc: 'The architecture, trade-offs, and key design decisions.', target: 3 },
+  { id: 'toc-demo',     num: 3, title: 'Demo', desc: 'A live walkthrough of the working prototype.', target: 4 },
+  { id: 'toc-roadmap',  num: 4, title: 'Roadmap', desc: 'What is shipping next and the timeline to GA.', target: 5 },
+  { id: 'toc-ask',      num: 5, title: 'Ask', desc: 'What we need from leadership to keep momentum.', target: 6 },
 ], { kind: 'toc-items' })
 
 export default function GenericTocSlide({
@@ -58,22 +59,30 @@ export default function GenericTocSlide({
 
         <div className="deck-toc-right">
           <div className="deck-toc-card">
-            {items.map(item => (
-              <button
-                key={item.num}
-                type="button"
-                className="deck-toc-item"
-                onClick={() => item.target != null && goTo(item.target)}
-                disabled={item.target == null}
-                aria-label={`Go to slide ${item.num}: ${item.title}`}
-              >
-                <div className="deck-toc-num">{item.num}</div>
-                <div className="deck-toc-text">
-                  <h3>{item.title}</h3>
-                  <p>{item.desc}</p>
-                </div>
-              </button>
-            ))}
+            <EditableList
+              id="toc.entries"
+              items={items}
+              keyOf={(it) => it.id}
+              as="div"
+              itemAs="div"
+              className="deck-toc-list"
+            >
+              {(item) => (
+                <button
+                  type="button"
+                  className="deck-toc-item"
+                  onClick={() => item.target != null && goTo(item.target)}
+                  disabled={item.target == null}
+                  aria-label={`Go to slide ${item.num}: ${item.title}`}
+                >
+                  <div className="deck-toc-num">{item.num}</div>
+                  <div className="deck-toc-text">
+                    <h3>{item.title}</h3>
+                    <p>{item.desc}</p>
+                  </div>
+                </button>
+              )}
+            </EditableList>
           </div>
         </div>
       </div>

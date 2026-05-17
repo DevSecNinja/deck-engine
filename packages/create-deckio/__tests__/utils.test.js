@@ -785,9 +785,16 @@ describe('featuresSlideJsxShadcn', () => {
     expect(jsx).toContain("import SpotlightCard from '@/components/ui/spotlight-card'")
   })
 
-  it('imports Slide, BottomBar, and Editable from deck-engine', () => {
+  it('imports Slide, BottomBar, Editable, and EditableList from deck-engine', () => {
     const jsx = featuresSlideJsxShadcn('test-slug')
-    expect(jsx).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+    expect(jsx).toContain("import { BottomBar, Editable, EditableList, Slide } from '@deckio/deck-engine'")
+  })
+
+  it('wraps the feature grid in <EditableList> so items can be reordered live', () => {
+    const jsx = featuresSlideJsxShadcn('test-slug')
+    expect(jsx).toContain('<EditableList')
+    expect(jsx).toContain('id="features.items"')
+    expect(jsx).toContain('keyOf={(f) => f.id}')
   })
 
   it('uses slide index 1', () => {
@@ -984,9 +991,9 @@ describe('shadcn slide templates inline editing', () => {
   })
 
   describe('featuresSlideJsxShadcn', () => {
-    it('imports Editable', () => {
+    it('imports Editable + EditableList', () => {
       const code = featuresSlideJsxShadcn('my-talk')
-      expect(code).toContain("import { BottomBar, Editable, Slide } from '@deckio/deck-engine'")
+      expect(code).toContain("import { BottomBar, Editable, EditableList, Slide } from '@deckio/deck-engine'")
     })
 
     it('wraps heading in Editable', () => {

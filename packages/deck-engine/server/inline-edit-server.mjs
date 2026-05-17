@@ -26,10 +26,19 @@ export const OVERRIDE_REL_PATH = path.posix.join('src', 'data', 'inline-edits.js
 export const ENDPOINT_PATH = '/__deckio/inline-edit'
 
 export const FIELD_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,127}$/
+// Item IDs (used inside list-reorder entries) are semantically distinct from
+// field names but share the same character class + bounded length. Kept
+// separate so we can evolve either independently without surprise coupling.
+export const ITEM_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,127}$/
 export const MAX_VALUE_LENGTH = 4000
 export const MAX_VALUE_LINES = 200
 export const MAX_BODY_BYTES = 64 * 1024
 export const MAX_OVERRIDE_FILE_BYTES = 256 * 1024
+
+// v2 entry-shape limits — see normalizeEntry/isValidStyle/isValidOrder below.
+export const MAX_STYLE_KEYS = 10
+export const MAX_STYLE_VALUE_LENGTH = 64
+export const MAX_ORDER_ITEMS = 200
 
 const LOOPBACK_IPS = new Set([
   '127.0.0.1',
@@ -89,6 +98,9 @@ export const ERROR_CODES = Object.freeze({
   WRITE_FAILED: 'INLINE_EDIT_WRITE_FAILED',
   TOO_LARGE: 'INLINE_EDIT_OVERRIDE_FILE_TOO_LARGE',
   UNKNOWN_KIND: 'INLINE_EDIT_UNKNOWN_KIND',
+  INVALID_PATCH: 'INLINE_EDIT_INVALID_PATCH',
+  INVALID_STYLE: 'INLINE_EDIT_INVALID_STYLE',
+  INVALID_ORDER: 'INLINE_EDIT_INVALID_ORDER',
 })
 
 const ERROR_MESSAGES = Object.freeze({
@@ -106,6 +118,9 @@ const ERROR_MESSAGES = Object.freeze({
   [ERROR_CODES.WRITE_FAILED]: 'Could not save the change.',
   [ERROR_CODES.TOO_LARGE]: 'Override file would exceed the size limit.',
   [ERROR_CODES.UNKNOWN_KIND]: 'Unknown edit kind.',
+  [ERROR_CODES.INVALID_PATCH]: 'Patch payload is invalid.',
+  [ERROR_CODES.INVALID_STYLE]: 'Style payload contains disallowed keys or values.',
+  [ERROR_CODES.INVALID_ORDER]: 'Order payload is invalid.',
 })
 
 export function isValidField(field) {
@@ -124,6 +139,305 @@ export function isValidValue(value) {
     if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) return false
   }
   return true
+}
+
+// ----------------------------------------------------------------------
+// v2 entry shape — style + list-order facets.
+//
+// Storage shape stays JSON-friendly and back-compat:
+//   - "field": "value"                           (legacy bare text)
+//   - "field": { value: "x" }                    (text, equivalent)
+//   - "field": { value: "x", style: { ... } }    (text with style override)
+//   - "field": { order: [ "a", "b", "c" ] }      (list reorder)
+//
+// Text and list facets MUST NOT mix on the same field. The normalizer
+// drops one or the other rather than silently corrupting consumer logic.
+// ----------------------------------------------------------------------
+
+// Style values must be free of CSS structural punctuation — anything that
+// could break out of the style="..." attribute or smuggle a declaration in.
+// Applies BEFORE any per-key validator.
+const STYLE_VALUE_BLOCKLIST = /url\(|expression\(|[@{};<>]|\/\*|\*\//i
+
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+const FUNC_COLOR = /^(?:rgb|rgba|hsl|hsla|oklch|oklab|lch|lab)\([^()]+\)$/i
+const VAR_TOKEN = /^var\(--[a-zA-Z0-9_-]+(?:\s*,\s*[^()]+)?\)$/
+const LEN_UNIT = /^-?\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh|ch|ex)$/
+const NUMERIC_ONLY = /^-?\d+(?:\.\d+)?$/
+const CLAMP_LEN = /^clamp\([^()]+\)$/i
+
+const FONT_FAMILY_ALLOWED = new Set([
+  'system-ui', 'sans-serif', 'serif', 'monospace', 'ui-sans-serif', 'ui-serif',
+  'ui-monospace', 'inter', 'roboto', 'helvetica', 'arial', 'georgia',
+  'times new roman', 'menlo', 'consolas', 'jetbrains mono', 'fira code',
+])
+const FONT_WEIGHT_KEYWORDS = new Set(['normal', 'bold', 'bolder', 'lighter'])
+const FONT_STYLE_KEYWORDS = new Set(['normal', 'italic', 'oblique'])
+const TEXT_ALIGN_KEYWORDS = new Set(['left', 'center', 'right', 'justify', 'start', 'end'])
+const TEXT_TRANSFORM_KEYWORDS = new Set(['none', 'uppercase', 'lowercase', 'capitalize'])
+
+function isValidColor(v) {
+  if (HEX_COLOR.test(v)) return true
+  if (VAR_TOKEN.test(v)) return true
+  if (FUNC_COLOR.test(v)) return true
+  return false
+}
+
+function isValidLength(v) {
+  if (VAR_TOKEN.test(v)) return true
+  if (LEN_UNIT.test(v)) return true
+  if (CLAMP_LEN.test(v)) return true
+  // Unitless multipliers are only valid for line-height; callers gate it.
+  return false
+}
+
+function isValidFontFamily(v) {
+  if (VAR_TOKEN.test(v)) return true
+  // Accept a comma-separated stack where every individual family is in the
+  // allowlist (case-insensitive, trim quotes/spaces). This lets a deck use
+  // a real stack like "Inter, system-ui, sans-serif" without arbitrary
+  // injection.
+  const parts = v.split(',').map((p) => p.trim().replace(/^['"]|['"]$/g, '').toLowerCase())
+  if (parts.length === 0) return false
+  for (const p of parts) {
+    if (!p) return false
+    if (!FONT_FAMILY_ALLOWED.has(p)) return false
+  }
+  return true
+}
+
+function isValidFontWeight(v) {
+  if (FONT_WEIGHT_KEYWORDS.has(v.toLowerCase())) return true
+  if (NUMERIC_ONLY.test(v)) {
+    const n = Number(v)
+    return n >= 100 && n <= 900
+  }
+  return false
+}
+
+// Per-key validator table. Each validator receives an already-bounded
+// string (length + blocklist already enforced) and returns true if the
+// value is acceptable for THIS specific CSS property.
+const STYLE_KEY_VALIDATORS = Object.freeze({
+  fontFamily: isValidFontFamily,
+  fontSize: isValidLength,
+  fontWeight: isValidFontWeight,
+  fontStyle: (v) => FONT_STYLE_KEYWORDS.has(v.toLowerCase()),
+  color: isValidColor,
+  lineHeight: (v) => VAR_TOKEN.test(v) || LEN_UNIT.test(v) || NUMERIC_ONLY.test(v),
+  letterSpacing: isValidLength,
+  textAlign: (v) => TEXT_ALIGN_KEYWORDS.has(v.toLowerCase()),
+  textTransform: (v) => TEXT_TRANSFORM_KEYWORDS.has(v.toLowerCase()),
+})
+
+export const ALLOWED_STYLE_KEYS = Object.freeze(Object.keys(STYLE_KEY_VALIDATORS))
+
+export function isValidStyle(style) {
+  if (!style || typeof style !== 'object' || Array.isArray(style)) return false
+  const keys = Object.keys(style)
+  if (keys.length === 0) return false
+  if (keys.length > MAX_STYLE_KEYS) return false
+  for (const key of keys) {
+    const validator = STYLE_KEY_VALIDATORS[key]
+    if (!validator) return false
+    const value = style[key]
+    if (typeof value !== 'string') return false
+    if (!value.length || value.length > MAX_STYLE_VALUE_LENGTH) return false
+    if (STYLE_VALUE_BLOCKLIST.test(value)) return false
+    if (!validator(value)) return false
+  }
+  return true
+}
+
+export function isValidOrder(order) {
+  if (!Array.isArray(order)) return false
+  if (order.length > MAX_ORDER_ITEMS) return false
+  const seen = new Set()
+  for (const id of order) {
+    if (typeof id !== 'string') return false
+    if (!ITEM_ID_PATTERN.test(id)) return false
+    if (seen.has(id)) return false
+    seen.add(id)
+  }
+  return true
+}
+
+/**
+ * Normalize a raw store entry into its canonical in-memory shape. Bare
+ * strings auto-promote to `{ value }`. Objects are salvaged: only the
+ * well-formed `value`, `style`, `order` facets survive. A field cannot
+ * mix text and list facets — text wins if both happen to be present
+ * (defensive; clients shouldn't send both).
+ *
+ * Returns `null` if the entry cannot be salvaged at all.
+ */
+export function normalizeEntry(raw) {
+  if (typeof raw === 'string') {
+    if (!isValidValue(raw)) return null
+    return { value: raw }
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+
+  const hasValue = Object.prototype.hasOwnProperty.call(raw, 'value')
+  const hasStyle = Object.prototype.hasOwnProperty.call(raw, 'style')
+  const hasOrder = Object.prototype.hasOwnProperty.call(raw, 'order')
+
+  // Defense: a single entry must not mix text + list facets. If both kinds
+  // appear we have no way to know which the caller actually meant, so we
+  // drop the entry entirely rather than silently picking one and pretending.
+  if (hasOrder && (hasValue || hasStyle)) return null
+
+  // List facet (mutually exclusive with text).
+  if (hasOrder) {
+    if (!isValidOrder(raw.order)) return null
+    return { order: raw.order.slice() }
+  }
+
+  if (hasValue || hasStyle) {
+    const out = {}
+    if (hasValue) {
+      if (!isValidValue(raw.value)) return null
+      out.value = raw.value
+    }
+    if (hasStyle) {
+      if (!isValidStyle(raw.style)) return null
+      out.style = { ...raw.style }
+    }
+    return out
+  }
+
+  return null
+}
+
+/**
+ * Normalize an entire override store. Drops entries that fail validation
+ * instead of throwing — junk shouldn't crash a deck.
+ */
+export function normalizeStore(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out = {}
+  for (const key of Object.keys(raw)) {
+    if (!isValidField(key)) continue
+    const entry = normalizeEntry(raw[key])
+    if (entry == null) continue
+    out[key] = entry
+  }
+  return out
+}
+
+/**
+ * Patch shape accepted by the middleware. Each facet is optional but at
+ * least one must be present. `value` + `style` go together (text); `order`
+ * is mutually exclusive with the text facets.
+ */
+export function isValidPatch(patch) {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return false
+  const keys = Object.keys(patch)
+  if (keys.length === 0) return false
+  for (const k of keys) {
+    if (k !== 'value' && k !== 'style' && k !== 'order') return false
+  }
+  const hasOrder = Object.prototype.hasOwnProperty.call(patch, 'order')
+  const hasTextFacet = Object.prototype.hasOwnProperty.call(patch, 'value')
+    || Object.prototype.hasOwnProperty.call(patch, 'style')
+  if (hasOrder && hasTextFacet) return false
+  if (Object.prototype.hasOwnProperty.call(patch, 'value') && !isValidValue(patch.value)) return false
+  if (Object.prototype.hasOwnProperty.call(patch, 'style') && !isValidStyle(patch.style)) return false
+  if (hasOrder && !isValidOrder(patch.order)) return false
+  return true
+}
+
+/**
+ * Merge a validated patch with the existing normalized entry for a field.
+ * Returns the new canonical entry (never mutates inputs).
+ *
+ * Behavior:
+ *   - A list-order patch always replaces any prior entry wholesale (a
+ *     text→list flip is rare but supported; we don't keep stale value).
+ *   - A text patch merges with an existing text entry, preserving
+ *     non-overridden facets (e.g. saving `value` keeps prior `style`).
+ *   - A text patch on a prior list entry replaces the list entry.
+ */
+export function mergeEntry(currentEntry, patch) {
+  if (Object.prototype.hasOwnProperty.call(patch, 'order')) {
+    return { order: patch.order.slice() }
+  }
+  const base = currentEntry && !currentEntry.order
+    ? {
+      ...(currentEntry.value !== undefined ? { value: currentEntry.value } : {}),
+      ...(currentEntry.style ? { style: { ...currentEntry.style } } : {}),
+    }
+    : {}
+  if (Object.prototype.hasOwnProperty.call(patch, 'value')) {
+    base.value = patch.value
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, 'style')) {
+    base.style = { ...patch.style }
+  }
+  return base
+}
+
+/**
+ * Serialize a canonical entry back to the storage shape. Text-only entries
+ * (no style) are written as bare strings so simple decks stay diff-friendly
+ * and human-editable.
+ */
+export function serializeEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  if (entry.order) return { order: entry.order.slice() }
+  if (entry.style) {
+    const out = { style: { ...entry.style } }
+    if (entry.value !== undefined) out.value = entry.value
+    return out
+  }
+  if (entry.value !== undefined) return entry.value
+  return null
+}
+
+/**
+ * Apply a persisted reorder array to a source items list, defending
+ * against stale IDs (items that have since been removed from source) and
+ * new items that aren't in the persisted order yet (they get appended
+ * in their source order). Pure helper, shared with the client.
+ */
+export function applyOrder(orderArray, sourceItems, getId) {
+  if (!Array.isArray(sourceItems) || sourceItems.length === 0) return []
+  if (typeof getId !== 'function') return sourceItems.slice()
+  if (!Array.isArray(orderArray) || orderArray.length === 0) return sourceItems.slice()
+
+  const byId = new Map()
+  for (const item of sourceItems) {
+    try {
+      const id = getId(item)
+      if (typeof id === 'string' && id) byId.set(id, item)
+    } catch { /* ignore */ }
+  }
+
+  const used = new Set()
+  const out = []
+  for (const id of orderArray) {
+    if (!byId.has(id)) continue
+    if (used.has(id)) continue
+    out.push(byId.get(id))
+    used.add(id)
+  }
+  // Append any source items not present in the order, in source order.
+  for (const item of sourceItems) {
+    try {
+      const id = getId(item)
+      if (typeof id !== 'string' || !id) {
+        out.push(item)
+        continue
+      }
+      if (!used.has(id)) {
+        out.push(item)
+        used.add(id)
+      }
+    } catch {
+      out.push(item)
+    }
+  }
+  return out
 }
 
 export function hashOverrides(overrides) {
@@ -393,7 +707,7 @@ export function createInlineEditMiddleware({
       return
     }
 
-    const { field, value, baseHash, kind } = body
+    const { field, value, baseHash, kind, patch } = body
     // v2 readiness: the wire protocol carries an optional `kind` discriminator
     // so the same endpoint can later accept `'source-span'` patches without
     // a breaking rename. MVP only handles `'override'`. Missing kind defaults
@@ -406,9 +720,42 @@ export function createInlineEditMiddleware({
       sendError(res, 400, ERROR_CODES.FIELD)
       return
     }
-    if (!isValidValue(value)) {
-      sendError(res, 400, ERROR_CODES.VALUE)
-      return
+
+    // Resolve the patch. Two accepted wire shapes:
+    //  - Bare `{ value }`     — back-compat with MVP text-only clients.
+    //  - `{ patch: { value?, style?, order? } }` — v2 facet-patch payload.
+    // The patch wrapper is preferred when present and is the only way to
+    // send style overrides or list reorders.
+    let resolvedPatch = null
+    if (patch !== undefined) {
+      if (!isValidPatch(patch)) {
+        // Drill down so the client gets the most specific code for the bad
+        // facet — easier to surface in the UI than a generic INVALID_PATCH.
+        if (patch && typeof patch === 'object' && !Array.isArray(patch)) {
+          if (Object.prototype.hasOwnProperty.call(patch, 'value') && !isValidValue(patch.value)) {
+            sendError(res, 400, ERROR_CODES.VALUE)
+            return
+          }
+          if (Object.prototype.hasOwnProperty.call(patch, 'style') && !isValidStyle(patch.style)) {
+            sendError(res, 400, ERROR_CODES.INVALID_STYLE)
+            return
+          }
+          if (Object.prototype.hasOwnProperty.call(patch, 'order') && !isValidOrder(patch.order)) {
+            sendError(res, 400, ERROR_CODES.INVALID_ORDER)
+            return
+          }
+        }
+        sendError(res, 400, ERROR_CODES.INVALID_PATCH)
+        return
+      }
+      resolvedPatch = patch
+    } else {
+      // Back-compat: bare `value` (MVP wire shape).
+      if (!isValidValue(value)) {
+        sendError(res, 400, ERROR_CODES.VALUE)
+        return
+      }
+      resolvedPatch = { value }
     }
 
     let target
@@ -421,8 +768,14 @@ export function createInlineEditMiddleware({
 
     try {
       await withWriteLock(target, async () => {
-        const current = await readOverrides(target)
-        const currentHash = hashOverrides(current)
+        const rawCurrent = await readOverrides(target)
+        // Canonical-on-disk hash: serialize the normalized store back to
+        // its storage shape so both client and server compute hashes on
+        // the same artifact (bare strings stay bare, styled/ordered fields
+        // remain objects).
+        const normalizedCurrent = normalizeStore(rawCurrent)
+        const canonicalCurrent = serializeStore(normalizedCurrent)
+        const currentHash = hashOverrides(canonicalCurrent)
         if (typeof baseHash === 'string' && baseHash && baseHash !== currentHash) {
           sendJson(res, 409, {
             ok: false,
@@ -433,10 +786,17 @@ export function createInlineEditMiddleware({
           })
           return
         }
-        current[field] = value
-        await writeOverridesAtomic(target, current)
-        const nextHash = hashOverrides(current)
-        sendJson(res, 200, { ok: true, field, hash: nextHash })
+        const mergedEntry = mergeEntry(normalizedCurrent[field], resolvedPatch)
+        normalizedCurrent[field] = mergedEntry
+        const canonicalNext = serializeStore(normalizedCurrent)
+        await writeOverridesAtomic(target, canonicalNext)
+        const nextHash = hashOverrides(canonicalNext)
+        sendJson(res, 200, {
+          ok: true,
+          field,
+          hash: nextHash,
+          entry: canonicalNext[field],
+        })
       })
     } catch (err) {
       const code = (err && err.code && typeof err.code === 'string' && err.code.startsWith('INLINE_EDIT_'))
@@ -445,4 +805,19 @@ export function createInlineEditMiddleware({
       sendError(res, code === ERROR_CODES.TOO_LARGE ? 413 : 500, code)
     }
   }
+}
+
+/**
+ * Convert a normalized in-memory store back to the storage shape. Mirror of
+ * `normalizeStore` for the write path; uses `serializeEntry` so text-only
+ * entries stay bare strings (smallest diff, human-editable).
+ */
+export function serializeStore(normalized) {
+  const out = {}
+  if (!normalized || typeof normalized !== 'object') return out
+  for (const key of Object.keys(normalized)) {
+    const ser = serializeEntry(normalized[key])
+    if (ser != null) out[key] = ser
+  }
+  return out
 }

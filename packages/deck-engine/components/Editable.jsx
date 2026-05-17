@@ -32,7 +32,6 @@
  * be swapped for an AST patcher without touching slide JSX.
  */
 import {
-  createContext,
   forwardRef,
   useCallback,
   useContext,
@@ -42,8 +41,13 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { InlineEditContext } from './editable-context.js'
+import EditableToolbar from './EditableToolbar.jsx'
 
-const InlineEditContext = createContext(null)
+// Re-exported for back-compat: existing consumers that imported the
+// context directly from this module keep working. New code should import
+// from './editable-context.js'.
+export { InlineEditContext }
 
 function isDevEnv() {
   try {
@@ -53,20 +57,104 @@ function isDevEnv() {
   }
 }
 
-// Defensive normalizer: malformed override JSON must fail closed.
-// Anything that isn't a plain {string -> string} entry is ignored, the deck
-// keeps rendering source defaults, and we never hand a non-string to React
-// as text content.
+// v2 entry shape: each override is either
+//   - a bare string (legacy / canonical text-only)              → {value}
+//   - {value?, style?}                  text + optional style   → text entry
+//   - {style}                           style without value     → text entry
+//   - {order: [ids]}                    list reorder            → list entry
+// `value` (string), `style` (object), `order` (array) facets are mutually
+// exclusive in the order direction: a list entry never carries value/style.
+// Anything malformed is dropped so the deck keeps rendering source defaults.
+function normalizeEntryClient(raw) {
+  if (typeof raw === 'string') return { value: raw }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const hasValue = Object.prototype.hasOwnProperty.call(raw, 'value')
+  const hasStyle = Object.prototype.hasOwnProperty.call(raw, 'style')
+  const hasOrder = Object.prototype.hasOwnProperty.call(raw, 'order')
+  if (hasOrder && (hasValue || hasStyle)) return null
+  if (hasOrder) {
+    if (!Array.isArray(raw.order)) return null
+    const cleaned = []
+    for (const id of raw.order) {
+      if (typeof id !== 'string' || !id) return null
+      cleaned.push(id)
+    }
+    return { order: cleaned }
+  }
+  if (hasValue || hasStyle) {
+    const out = {}
+    if (hasValue) {
+      if (typeof raw.value !== 'string') return null
+      out.value = raw.value
+    }
+    if (hasStyle) {
+      if (!raw.style || typeof raw.style !== 'object' || Array.isArray(raw.style)) return null
+      const styleOut = {}
+      for (const k of Object.keys(raw.style)) {
+        const v = raw.style[k]
+        if (typeof v !== 'string' && typeof v !== 'number') continue
+        styleOut[k] = v
+      }
+      out.style = styleOut
+    }
+    return out
+  }
+  return null
+}
+
 function normalizeOverrides(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const out = {}
   for (const key of Object.keys(raw)) {
-    const v = raw[key]
     if (typeof key !== 'string' || !key) continue
-    if (typeof v !== 'string') continue
-    out[key] = v
+    const entry = normalizeEntryClient(raw[key])
+    if (entry == null) continue
+    out[key] = entry
   }
   return out
+}
+
+// Convert a JS camelCase style key to CSS kebab-case for the inline `style`
+// attribute (DOMTokenList accepts camelCase, but our toolbar may also drive
+// raw style strings). React's `style` prop wants camelCase natively, so we
+// pass entries through unchanged. This helper exists only for the rare path
+// where someone hands us a kebab-case key in a saved override.
+function toReactStyleObject(rawStyle) {
+  if (!rawStyle || typeof rawStyle !== 'object') return null
+  const out = {}
+  let any = false
+  for (const k of Object.keys(rawStyle)) {
+    const v = rawStyle[k]
+    if (typeof v !== 'string' && typeof v !== 'number') continue
+    const camel = k.includes('-')
+      ? k.replace(/-([a-z])/g, (_m, c) => c.toUpperCase())
+      : k
+    out[camel] = v
+    any = true
+  }
+  return any ? out : null
+}
+
+// Optimistic client-side merge used only as a fallback when the server
+// reply omits the canonical `entry`. Mirrors the server's mergeEntry
+// semantics: order patches replace the whole entry; text patches merge
+// with prior text facets; text on prior list entry replaces; etc.
+function mergeEntryClient(prevEntry, patch) {
+  if (!patch || typeof patch !== 'object') return prevEntry
+  const hasValue = Object.prototype.hasOwnProperty.call(patch, 'value')
+  const hasStyle = Object.prototype.hasOwnProperty.call(patch, 'style')
+  const hasOrder = Object.prototype.hasOwnProperty.call(patch, 'order')
+  if (hasOrder) {
+    return normalizeEntryClient({ order: patch.order })
+  }
+  if (!hasValue && !hasStyle) return prevEntry
+  const prevText = (prevEntry && typeof prevEntry === 'object' && !Array.isArray(prevEntry) && !Object.prototype.hasOwnProperty.call(prevEntry, 'order'))
+    ? prevEntry
+    : null
+  const next = { ...(prevText || {}) }
+  if (hasValue) next.value = patch.value
+  if (hasStyle) next.style = { ...(prevText && prevText.style ? prevText.style : {}), ...(patch.style || {}) }
+  return normalizeEntryClient(next)
 }
 
 function defaultInlineEditEndpoint() {
@@ -107,6 +195,26 @@ export function InlineEditProvider({
   const [saveStatus, setSaveStatus] = useState(null)
   const dismissTimerRef = useRef(null)
 
+  // Active field tracking — exactly one Editable may own focus + the
+  // floating toolbar at a time. Stored as plain state so toolbar
+  // subscribers re-render when the anchor flips.
+  const [activeField, setActiveFieldState] = useState(null)
+  const activeElementRef = useRef(null)
+
+  const setActiveField = useCallback((field, element) => {
+    activeElementRef.current = element || null
+    setActiveFieldState(field || null)
+  }, [])
+
+  const clearActiveField = useCallback((field) => {
+    // Optional `field` arg: only clear if we are still the active one.
+    setActiveFieldState((cur) => {
+      if (field != null && cur !== field) return cur
+      activeElementRef.current = null
+      return null
+    })
+  }, [])
+
   const clearDismissTimer = useCallback(() => {
     if (dismissTimerRef.current) {
       clearTimeout(dismissTimerRef.current)
@@ -122,10 +230,19 @@ export function InlineEditProvider({
   // Cleanup on unmount.
   useEffect(() => () => clearDismissTimer(), [clearDismissTimer])
 
-  const save = useCallback(async (field, value) => {
+  // Save accepts either a patch object `{value?, style?, order?}` (v2) or
+  // a bare string (back-compat with MVP callers that pass plain text).
+  // Either form is normalized to the wire shape `{patch: {...}}` so the
+  // server's facet merge logic owns the truth.
+  const save = useCallback(async (field, patchOrValue) => {
     if (!isDev) return { ok: false, reason: 'not-dev' }
-    // New save attempt clears any persistent (conflict/error) state and
-    // shows "Saving…" in the same surface — coalesces rapid edits.
+    const patch = typeof patchOrValue === 'string'
+      ? { value: patchOrValue }
+      : (patchOrValue && typeof patchOrValue === 'object' && !Array.isArray(patchOrValue))
+        ? patchOrValue
+        : null
+    if (!patch) return { ok: false, reason: 'invalid-patch' }
+
     clearDismissTimer()
     setSaveStatus('saving')
     let res
@@ -134,13 +251,10 @@ export function InlineEditProvider({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          // v2 readiness: explicit kind discriminator. Server defaults to
-          // 'override' but we send it so future 'source-span' clients can
-          // share the endpoint without renaming.
           kind: 'override',
           project,
           field,
-          value,
+          patch,
           baseHash: hashRef.current || undefined,
         }),
       })
@@ -163,7 +277,23 @@ export function InlineEditProvider({
       return { ok: false, reason: `http-${res.status}`, error: body && body.error }
     }
     if (body && body.hash) hashRef.current = body.hash
-    setOverrides((prev) => ({ ...prev, [field]: value }))
+    // Server returns the canonical entry after merge. Trust that over
+    // re-merging on the client.
+    setOverrides((prev) => {
+      const next = { ...prev }
+      const serverEntry = body && Object.prototype.hasOwnProperty.call(body, 'entry')
+        ? normalizeEntryClient(body.entry)
+        : null
+      if (serverEntry != null) {
+        next[field] = serverEntry
+      } else {
+        // Fallback: optimistic merge of our patch onto whatever we had.
+        const prevEntry = normalizeEntryClient(prev[field])
+        next[field] = mergeEntryClient(prevEntry, patch)
+        if (next[field] == null) delete next[field]
+      }
+      return next
+    })
     setSaveStatus('saved')
     scheduleAutoDismiss('saved')
     return { ok: true }
@@ -180,14 +310,25 @@ export function InlineEditProvider({
   }, [resolvedEndpoint, isDev, project, clearDismissTimer])
 
   const value = useMemo(
-    () => ({ overrides, save, isDev, saveStatus, dismissSaveStatus }),
-    [overrides, save, isDev, saveStatus, dismissSaveStatus],
+    () => ({
+      overrides,
+      save,
+      isDev,
+      saveStatus,
+      dismissSaveStatus,
+      activeField,
+      activeElementRef,
+      setActiveField,
+      clearActiveField,
+    }),
+    [overrides, save, isDev, saveStatus, dismissSaveStatus, activeField, setActiveField, clearActiveField],
   )
 
   return (
     <InlineEditContext.Provider value={value}>
       {children}
       {isDev ? <InlineEditToast status={saveStatus} onDismiss={dismissSaveStatus} /> : null}
+      {isDev ? <EditableToolbar /> : null}
     </InlineEditContext.Provider>
   )
 }
@@ -199,13 +340,29 @@ export function useInlineEdit() {
   return useContext(InlineEditContext)
 }
 
+// Raw entry accessor (v2). Returns `{value?, style?}` for text entries,
+// `{order: [...]}` for list entries, or null if no override exists.
+// Callers that only want the text value should keep using
+// `useInlineEditValue` so the contract stays string-or-fallback.
+export function useInlineEditEntry(field) {
+  const ctx = useContext(InlineEditContext)
+  if (!ctx) return null
+  if (!Object.prototype.hasOwnProperty.call(ctx.overrides, field)) return null
+  const entry = ctx.overrides[field]
+  // overrides are already normalized at write time; this is just a guard
+  // against a consumer who passed in a hand-rolled overrides bag.
+  return entry && typeof entry === 'object' ? entry : null
+}
+
 export function useInlineEditValue(field, fallback) {
   const ctx = useContext(InlineEditContext)
   if (!ctx) return fallback
   if (!Object.prototype.hasOwnProperty.call(ctx.overrides, field)) return fallback
-  const v = ctx.overrides[field]
-  // Defensive: only string overrides are honored. Anything else falls back.
-  return typeof v === 'string' ? v : fallback
+  const entry = ctx.overrides[field]
+  if (!entry || typeof entry !== 'object') return fallback
+  // List entries never contribute a text value.
+  if (Object.prototype.hasOwnProperty.call(entry, 'order')) return fallback
+  return typeof entry.value === 'string' ? entry.value : fallback
 }
 
 // Back-compat aliases.
@@ -364,6 +521,9 @@ const Editable = forwardRef(function Editable(
     onClick,
     onDoubleClick,
     onKeyDown,
+    onFocus,
+    onBlur,
+    style: styleProp,
     ...rest
   },
   externalRef,
@@ -382,14 +542,27 @@ const Editable = forwardRef(function Editable(
   // field happens to be edited.
   const [status, setStatus] = useState(null)
 
-  const hasOverride = ctx && Object.prototype.hasOwnProperty.call(ctx.overrides || {}, field)
-  // Defensive: treat non-string overrides as missing (fail closed).
-  const overrideValue = hasOverride && typeof ctx.overrides[field] === 'string'
+  // v2 entry shape. May carry `value` (string) and/or `style` (object).
+  // List `order` is never read here — Editable is text-only.
+  const entry = ctx && Object.prototype.hasOwnProperty.call(ctx.overrides || {}, field)
     ? ctx.overrides[field]
     : null
+  const safeEntry = entry && typeof entry === 'object' && !Array.isArray(entry) && !Object.prototype.hasOwnProperty.call(entry, 'order')
+    ? entry
+    : null
+  const overrideValue = safeEntry && typeof safeEntry.value === 'string' ? safeEntry.value : null
+  const overrideStyle = safeEntry ? toReactStyleObject(safeEntry.style) : null
   const defaultContent = children == null ? fallback : children
   const display = overrideValue != null ? overrideValue : defaultContent
   const displayString = display == null ? '' : (typeof display === 'string' ? display : '')
+
+  // Merge order: caller's inline `style` first, then the override `style`
+  // wins (matches inline-edit intent — last write wins on the wire). The
+  // resulting object is applied in BOTH inert and dev paths so prod
+  // renders, screenshots, and PDF export all reflect the saved style.
+  const composedStyle = overrideStyle
+    ? { ...(styleProp || null), ...overrideStyle }
+    : (styleProp || undefined)
 
   // Inert path: production, no provider, or provider explicitly disabled.
   // Important: do NOT emit a `contenteditable` attribute at all here, so
@@ -397,7 +570,7 @@ const Editable = forwardRef(function Editable(
   // and steal nav keys. Also no field data attribute, no edit affordance.
   if (!ctx || !ctx.isDev) {
     return (
-      <Tag ref={ref} className={className} {...rest}>
+      <Tag ref={ref} className={className} style={composedStyle} {...rest}>
         {display}
       </Tag>
     )
@@ -407,9 +580,11 @@ const Editable = forwardRef(function Editable(
     if (editing) return
     setEditing(true)
     setStatus(null)
+    const node = ref && 'current' in ref ? ref.current : null
+    if (ctx.setActiveField) ctx.setActiveField(field, node)
     setTimeout(() => {
-      const node = ref && 'current' in ref ? ref.current : null
-      if (node) placeCaretAtEnd(node)
+      const n = ref && 'current' in ref ? ref.current : null
+      if (n) placeCaretAtEnd(n)
     }, 0)
   }
 
@@ -421,6 +596,7 @@ const Editable = forwardRef(function Editable(
     }
     setEditing(false)
     setStatus(null)
+    if (ctx.clearActiveField) ctx.clearActiveField(field)
     setTimeout(() => {
       if (node) node.focus({ preventScroll: true })
     }, 0)
@@ -437,6 +613,7 @@ const Editable = forwardRef(function Editable(
     if (newValue === oldValue) {
       setEditing(false)
       setStatus(null)
+      if (ctx.clearActiveField) ctx.clearActiveField(field)
       return
     }
     if (!allowEmpty && newValue.length === 0) {
@@ -449,8 +626,11 @@ const Editable = forwardRef(function Editable(
     // Clear any field-local validation; source-save feedback now lives in
     // the global toast surface owned by the provider.
     setStatus(null)
-    const result = await ctx.save(field, newValue)
+    // v2 wire shape: send a facet patch. The provider falls back to legacy
+    // bare-string saves if a caller hands us a raw string instead.
+    const result = await ctx.save(field, { value: newValue })
     setEditing(false)
+    if (ctx.clearActiveField) ctx.clearActiveField(field)
     if (!(result && result.ok)) {
       // Restore prior value on failure or conflict so the field never
       // shows an unsaved local edit; the user is told why via the toast.
@@ -509,9 +689,33 @@ const Editable = forwardRef(function Editable(
     }
   }
 
-  const handleBlur = () => {
-    if (!editing) return
-    void commit()
+  const handleFocus = (event) => {
+    if (onFocus) onFocus(event)
+    // Mere focus (not editing yet) registers us as the active field so the
+    // toolbar can anchor. We re-register on every focus so the toolbar
+    // follows the user when they tab between fields.
+    if (ctx.setActiveField) {
+      const node = ref && 'current' in ref ? ref.current : null
+      ctx.setActiveField(field, node)
+    }
+  }
+
+  const handleBlur = (event) => {
+    if (onBlur) onBlur(event)
+    if (event && event.defaultPrevented) return
+    // Toolbar-aware blur: if the new focus target lives inside the
+    // provider's toolbar root, do NOT commit and do NOT clear active.
+    // This keeps the contenteditable selection alive while the user
+    // clicks a swatch / picks a font in the toolbar.
+    const next = event && event.relatedTarget
+    if (next && typeof next.closest === 'function' && next.closest('[data-deckio-toolbar-root]')) {
+      return
+    }
+    if (editing) {
+      void commit()
+      return
+    }
+    if (ctx.clearActiveField) ctx.clearActiveField(field)
   }
 
   const composedClassName = [
@@ -533,12 +737,14 @@ const Editable = forwardRef(function Editable(
       <Tag
         ref={ref}
         className={composedClassName}
+        style={composedStyle}
         data-deckio-field={field}
         data-deckio-multiline={multiline ? 'true' : undefined}
         aria-label={accessibleLabel}
         title={editing ? undefined : 'Double-click to edit'}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         {...editingProps}

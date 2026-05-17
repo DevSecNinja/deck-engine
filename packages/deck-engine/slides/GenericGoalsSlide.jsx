@@ -16,22 +16,26 @@
  */
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_GOALS = markSampleContent([
   {
+    id: 'goal-ship',
     title: 'Ship with Confidence',
     description: 'Every commit is tested, every deploy is automated. Move fast without breaking things.',
     icon: '⚡',
     accent: 'accent',
   },
   {
+    id: 'goal-measure',
     title: 'Measure What Matters',
     description: 'Track the metrics that drive business outcomes, not vanity stats.',
     icon: '📊',
     accent: 'purple',
   },
   {
+    id: 'goal-grow',
     title: 'Grow the Community',
     description: 'Open source first. Documentation as a feature. Make it easy for others to contribute.',
     icon: '🌍',
@@ -60,16 +64,25 @@ export default function GenericGoalsSlide({
         </div>
 
         <div className="deck-goals-cards">
-          {goals.map((g, i) => (
-            <div key={i} className={`deck-goals-card deck-goals-card-${g.accent || 'accent'}`}>
-              <div className="deck-goals-card-glow" />
-              <div className="deck-goals-card-icon">
-                {typeof g.icon === 'string' ? <span style={{ fontSize: 36 }}>{g.icon}</span> : g.icon}
+          <EditableList
+            id="goals.items"
+            items={goals}
+            keyOf={(g) => g.id}
+            as="div"
+            itemAs="div"
+            className="deck-goals-list"
+          >
+            {(g) => (
+              <div className={`deck-goals-card deck-goals-card-${g.accent || 'accent'}`}>
+                <div className="deck-goals-card-glow" />
+                <div className="deck-goals-card-icon">
+                  {typeof g.icon === 'string' ? <span style={{ fontSize: 36 }}>{g.icon}</span> : g.icon}
+                </div>
+                <h3 className="deck-goals-card-title">{g.title}</h3>
+                <p className="deck-goals-card-desc">{g.description}</p>
               </div>
-              <h3 className="deck-goals-card-title">{g.title}</h3>
-              <p className="deck-goals-card-desc">{g.description}</p>
-            </div>
-          ))}
+            )}
+          </EditableList>
         </div>
       </div>
 

@@ -16,14 +16,15 @@
  */
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_BLOCKS = markSampleContent([
-  { time: '09:00', end: '09:15', label: 'Welcome & Introduction', icon: '🎙', color: 'accent' },
-  { time: '09:15', end: '09:45', label: 'Opening Keynote', sub: 'Your amazing speaker here', icon: '🎤', color: 'blue' },
-  { time: '09:45', end: '10:00', label: 'Break', icon: '☕', color: 'muted' },
+  { id: 'welcome',     time: '09:00', end: '09:15', label: 'Welcome & Introduction', icon: '🎙', color: 'accent' },
+  { id: 'keynote',     time: '09:15', end: '09:45', label: 'Opening Keynote', sub: 'Your amazing speaker here', icon: '🎤', color: 'blue' },
+  { id: 'break-am',    time: '09:45', end: '10:00', label: 'Break', icon: '☕', color: 'muted' },
   {
-    time: '10:00', end: '12:00', label: 'Breakout Sessions', icon: '💻', color: 'purple',
+    id: 'breakouts',   time: '10:00', end: '12:00', label: 'Breakout Sessions', icon: '💻', color: 'purple',
     parallel: true,
     tracks: [
       { name: 'Track A: Building', emoji: '🔨', desc: 'Hands-on coding and architecture' },
@@ -31,7 +32,7 @@ const SAMPLE_BLOCKS = markSampleContent([
       { name: 'Track C: Scaling', emoji: '🚀', desc: 'Infrastructure, DevOps, and platform engineering' },
     ],
   },
-  { time: '12:00', end: '13:00', label: 'Lunch & Networking', icon: '🍕', color: 'green' },
+  { id: 'lunch',       time: '12:00', end: '13:00', label: 'Lunch & Networking', icon: '🍕', color: 'green' },
 ], { kind: 'agenda-blocks' })
 
 export default function GenericAgendaSlide({
@@ -59,33 +60,43 @@ export default function GenericAgendaSlide({
 
         <div className="deck-agenda-timeline">
           <div className="deck-agenda-rail" />
-          {blocks.map((block, i) => (
-            <div key={i} className={`deck-agenda-block deck-agenda-${block.color || 'accent'}`}>
-              <div className="deck-agenda-time">{block.time}</div>
-              <div className="deck-agenda-dot" />
-              <div className="deck-agenda-card">
-                <div className="deck-agenda-card-header">
-                  <span className="deck-agenda-icon">{block.icon}</span>
-                  <span className="deck-agenda-label">{block.label}</span>
-                  <span className="deck-agenda-range">{block.time} – {block.end}</span>
-                </div>
-                {block.sub && <span className="deck-agenda-sub">{block.sub}</span>}
-                {block.parallel && block.tracks && (
-                  <div className="deck-agenda-tracks">
-                    {block.tracks.map((t, j) => (
-                      <div key={j} className="deck-agenda-track">
-                        <span className="deck-agenda-track-emoji">{t.emoji}</span>
-                        <div className="deck-agenda-track-info">
-                          <span className="deck-agenda-track-name">{t.name}</span>
-                          {t.desc && <span className="deck-agenda-track-desc">{t.desc}</span>}
-                        </div>
-                      </div>
-                    ))}
+          <EditableList
+            id="agenda.blocks"
+            items={blocks}
+            keyOf={(b) => b.id}
+            as="div"
+            itemAs="div"
+            className="deck-agenda-blocks"
+            itemClassName=""
+          >
+            {(block) => (
+              <div className={`deck-agenda-block deck-agenda-${block.color || 'accent'}`}>
+                <div className="deck-agenda-time">{block.time}</div>
+                <div className="deck-agenda-dot" />
+                <div className="deck-agenda-card">
+                  <div className="deck-agenda-card-header">
+                    <span className="deck-agenda-icon">{block.icon}</span>
+                    <span className="deck-agenda-label">{block.label}</span>
+                    <span className="deck-agenda-range">{block.time} – {block.end}</span>
                   </div>
-                )}
+                  {block.sub && <span className="deck-agenda-sub">{block.sub}</span>}
+                  {block.parallel && block.tracks && (
+                    <div className="deck-agenda-tracks">
+                      {block.tracks.map((t, j) => (
+                        <div key={j} className="deck-agenda-track">
+                          <span className="deck-agenda-track-emoji">{t.emoji}</span>
+                          <div className="deck-agenda-track-info">
+                            <span className="deck-agenda-track-name">{t.name}</span>
+                            {t.desc && <span className="deck-agenda-track-desc">{t.desc}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )}
+          </EditableList>
         </div>
       </div>
 

@@ -16,18 +16,19 @@
  */
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_KPIS = markSampleContent([
-  { number: '10x', label: 'Faster Deploys' },
-  { number: '99.9%', label: 'Uptime SLA' },
-  { number: '500+', label: 'Engineers' },
+  { id: 'kpi-speed',  number: '10x', label: 'Faster Deploys' },
+  { id: 'kpi-uptime', number: '99.9%', label: 'Uptime SLA' },
+  { id: 'kpi-team',   number: '500+', label: 'Engineers' },
 ], { kind: 'objective-kpis' })
 
 const SAMPLE_CARDS = markSampleContent([
-  { icon: '🚀', title: 'Ship Faster', description: 'Automate the pipeline from commit to production. Less ceremony, more shipping.' },
-  { icon: '🏗️', title: 'Build to Last', description: 'Architecture decisions that scale. Design for the traffic you want, not the traffic you have.' },
-  { icon: '🤝', title: 'Grow the Team', description: 'Invest in people. Pair programming, code reviews, and a culture where everyone levels up.' },
+  { id: 'card-ship',  icon: '🚀', title: 'Ship Faster', description: 'Automate the pipeline from commit to production. Less ceremony, more shipping.' },
+  { id: 'card-build', icon: '🏗️', title: 'Build to Last', description: 'Architecture decisions that scale. Design for the traffic you want, not the traffic you have.' },
+  { id: 'card-grow',  icon: '🤝', title: 'Grow the Team', description: 'Invest in people. Pair programming, code reviews, and a culture where everyone levels up.' },
 ], { kind: 'objective-cards' })
 
 export default function GenericObjectiveSlide({
@@ -50,22 +51,40 @@ export default function GenericObjectiveSlide({
         <h2 className="deck-objective-heading">{heading}</h2>
 
         <div className="deck-objective-kpis">
-          {kpis.map((kpi, i) => (
-            <div key={i} className="deck-objective-kpi">
-              <span className="deck-objective-kpi-number">{kpi.number}</span>
-              <span className="deck-objective-kpi-label">{kpi.label}</span>
-            </div>
-          ))}
+          <EditableList
+            id="objective.kpis"
+            items={kpis}
+            keyOf={(k) => k.id}
+            as="div"
+            itemAs="div"
+            className="deck-objective-kpis-list"
+          >
+            {(kpi) => (
+              <div className="deck-objective-kpi">
+                <span className="deck-objective-kpi-number">{kpi.number}</span>
+                <span className="deck-objective-kpi-label">{kpi.label}</span>
+              </div>
+            )}
+          </EditableList>
         </div>
 
         <div className="deck-objective-cards">
-          {cards.map((card, i) => (
-            <div key={i} className="deck-objective-card">
-              <div className="deck-objective-card-icon">{card.icon}</div>
-              <h3>{card.title}</h3>
-              <p>{card.description}</p>
-            </div>
-          ))}
+          <EditableList
+            id="objective.cards"
+            items={cards}
+            keyOf={(c) => c.id}
+            as="div"
+            itemAs="div"
+            className="deck-objective-cards-list"
+          >
+            {(card) => (
+              <div className="deck-objective-card">
+                <div className="deck-objective-card-icon">{card.icon}</div>
+                <h3>{card.title}</h3>
+                <p>{card.description}</p>
+              </div>
+            )}
+          </EditableList>
         </div>
 
         {banner && (

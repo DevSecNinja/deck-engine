@@ -17,15 +17,16 @@
 import { useState, useEffect } from 'react'
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
+import EditableList from '../components/EditableList.jsx'
 import { useSlides } from '../context/SlideContext.jsx'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_STEPS = markSampleContent([
-  { num: '01', title: 'Define the Problem', desc: 'Identify the core challenge, constraints, and success criteria before writing a single line of code.', icon: '🎯' },
-  { num: '02', title: 'Design the Approach', desc: 'Map the architecture, choose the right tools, and validate assumptions with the team.', icon: '🧠' },
-  { num: '03', title: 'Build Iteratively', desc: 'Ship small increments, get feedback early, and let the code evolve with real-world usage.', icon: '🔨' },
-  { num: '04', title: 'Test & Validate', desc: 'Automate the boring stuff. Integration tests, load tests, and chaos engineering — trust but verify.', icon: '🧪' },
-  { num: '05', title: 'Ship & Observe', desc: 'Deploy with confidence. Monitor, alert, iterate. The best code is the code that runs in production.', icon: '🚀' },
+  { id: 'step-01', num: '01', title: 'Define the Problem', desc: 'Identify the core challenge, constraints, and success criteria before writing a single line of code.', icon: '🎯' },
+  { id: 'step-02', num: '02', title: 'Design the Approach', desc: 'Map the architecture, choose the right tools, and validate assumptions with the team.', icon: '🧠' },
+  { id: 'step-03', num: '03', title: 'Build Iteratively', desc: 'Ship small increments, get feedback early, and let the code evolve with real-world usage.', icon: '🔨' },
+  { id: 'step-04', num: '04', title: 'Test & Validate', desc: 'Automate the boring stuff. Integration tests, load tests, and chaos engineering — trust but verify.', icon: '🧪' },
+  { id: 'step-05', num: '05', title: 'Ship & Observe', desc: 'Deploy with confidence. Monitor, alert, iterate. The best code is the code that runs in production.', icon: '🚀' },
 ], { kind: 'step-sequence' })
 
 export default function GenericStepsSlide({
@@ -68,22 +69,32 @@ export default function GenericStepsSlide({
         </div>
 
         <div className="deck-steps-timeline">
-          {steps.map((step, i) => (
-            <div key={step.num} className={`deck-steps-step ${i < visibleCount ? 'deck-steps-visible' : ''}`}>
-              <div className="deck-steps-connector">
-                <div className="deck-steps-dot" />
-                {i < steps.length - 1 && <div className="deck-steps-line" />}
-              </div>
-              <div className="deck-steps-card">
-                <div className="deck-steps-card-top">
-                  <span className="deck-steps-num">{step.num}</span>
-                  <span className="deck-steps-icon">{step.icon}</span>
+          <EditableList
+            id="steps.list"
+            items={steps}
+            keyOf={(s) => s.id}
+            as="div"
+            itemAs="div"
+            className="deck-steps-list"
+            onReorder={() => setVisibleCount(0)}
+          >
+            {(step, i, ordered) => (
+              <div className={`deck-steps-step ${i < visibleCount ? 'deck-steps-visible' : ''}`}>
+                <div className="deck-steps-connector">
+                  <div className="deck-steps-dot" />
+                  {i < ordered.length - 1 && <div className="deck-steps-line" />}
                 </div>
-                <h3 className="deck-steps-card-title">{step.title}</h3>
-                <p className="deck-steps-card-desc">{step.desc}</p>
+                <div className="deck-steps-card">
+                  <div className="deck-steps-card-top">
+                    <span className="deck-steps-num">{step.num}</span>
+                    <span className="deck-steps-icon">{step.icon}</span>
+                  </div>
+                  <h3 className="deck-steps-card-title">{step.title}</h3>
+                  <p className="deck-steps-card-desc">{step.desc}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            )}
+          </EditableList>
         </div>
       </div>
 
