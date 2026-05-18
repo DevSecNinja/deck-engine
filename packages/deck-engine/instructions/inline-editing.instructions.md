@@ -105,13 +105,14 @@ Companion CSS module (the list container MUST establish a slide-aware layout —
 
 ```css
 /* FeaturesSlide.module.css */
+/* Keep the grid content-sized. The slide's .body uses
+   `justify-content: center; flex: 1` to vertically center its child
+   blocks — adding `flex: 1` here would stretch the grid to fill .body
+   and pin items to the top. */
 .featuresGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.25rem;
-  flex: 1;
-  min-height: 0;          /* allow grid to shrink inside the slide column */
-  align-content: start;
 }
 .featureItem { min-width: 0; }
 ```
