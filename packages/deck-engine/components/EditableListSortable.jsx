@@ -205,7 +205,7 @@ export default function EditableListSortable({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={localIds} strategy={verticalListSortingStrategy}>
-        <As className={[className, 'deckio-list'].filter(Boolean).join(' ')} data-deckio-list-field={id || undefined} {...rest}>
+        <As className={[className ?? 'deckio-editable-list', 'deckio-list'].filter(Boolean).join(' ')} data-deckio-list-field={id || undefined} {...rest}>
           {localIds.map((itemId, i) => {
             const item = byId.get(itemId)
             if (item === undefined) return null

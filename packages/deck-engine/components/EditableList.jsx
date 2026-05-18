@@ -80,8 +80,14 @@ function ProdShell({
   itemClassName,
   ...rest
 }) {
+  // Defensive default: a slide is a fixed-height canvas, so a naked
+  // <EditableList> with no className must still establish a layout that
+  // respects the slide bounds. The .deckio-editable-list class (in
+  // editable.css) provides a safe responsive grid. Pass any className
+  // to opt out entirely (e.g. className={styles.featuresGrid}).
+  const containerClassName = className ?? 'deckio-editable-list'
   return (
-    <As className={className} data-deckio-list-field={fieldId || undefined} {...rest}>
+    <As className={containerClassName} data-deckio-list-field={fieldId || undefined} {...rest}>
       {ordered.map((item, i) => {
         const k = keyOf ? keyOf(item, i) : i
         return (

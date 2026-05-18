@@ -400,6 +400,69 @@
   outline-offset: 2px;
 }
 
+/* ---------------- EditableList layout (defensive default) ----------------
+   Slides have a fixed canvas. When a slide emits a bare <EditableList>
+   without a layout className, this default establishes a responsive grid
+   that respects the slide height instead of stacking items off-canvas.
+   Opt out by passing your own className — any user-provided className
+   replaces this default entirely. Added in v1.17.2 to fix the v1.17.0
+   regression where naked EditableList renders overflowed the slide. */
+.deckio-editable-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  min-height: 0;
+  align-content: start;
+}
+
+/* ---------------- Drag handle (dev-only) ----------------
+   The reorder handle is rendered on every sortable list item but kept
+   visually silent until the item is hovered, the handle is keyboard-
+   focused, or the item is actively being dragged. This keeps the slide
+   surface clean while preserving the drag affordance and keyboard a11y.
+   Restored hover-only behaviour matches the original JSDoc intent. */
+.deckio-list-handle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--background, #111) 70%, transparent);
+  color: color-mix(in oklab, currentColor 65%, transparent);
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.deckio-list-item:hover > .deckio-list-handle,
+.deckio-list-handle:focus-visible,
+.deckio-list-item--dragging > .deckio-list-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.deckio-list-handle:hover {
+  background: color-mix(in oklab, var(--accent, #6366f1) 18%, transparent);
+  color: currentColor;
+}
+
+.deckio-list-handle:focus-visible {
+  outline: 2px solid var(--accent, #6366f1);
+  outline-offset: 2px;
+}
+
+.deckio-list-item--dragging > .deckio-list-handle {
+  cursor: grabbing;
+}
+
 .deckio-editable-toolbar__swatch.is-active {
   box-shadow:
     inset 0 0 0 1px color-mix(in oklab, #ffffff 22%, transparent),

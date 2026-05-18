@@ -51,7 +51,7 @@ These apply regardless of theme:
 - Always include `content-frame content-gutter`
 - Always include `BottomBar` as the last child inside `<Slide>`
 - Always wrap `BottomBar text` in `<Editable as="span" id="slideName.footer">...</Editable>` when the footer text is user-facing
-- Always wrap user-content `.map()` calls in `<EditableList>` with a stable item `id` field (skip only for decorative arrays)
+- Always wrap user-content `.map()` calls in `<EditableList>` with a stable item `id` field, and pass a `className` whose CSS module rule establishes a slide-aware layout that fits within the density limits below (skip only for decorative arrays)
 - Always use ESM imports for images and logos
 - Never use string paths for images
 - Never use `flex: 1` on the body wrapper
@@ -67,6 +67,8 @@ These apply regardless of theme:
 | Timeline / event list | 3–4 items | Use compact card height for 4 |
 | Bullet points | 6–8 | Depends on line length |
 | Full-width content blocks | 2–3 | Split across slides if it gets tight |
+
+The `<EditableList>` container is where these limits become a layout: pass a `className` whose CSS module rule renders the items as the matching grid/flex layout (e.g. `display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem` for a 3-col card grid). When no `className` is provided the engine falls back to a responsive `auto-fit minmax(220px, 1fr)` grid — safe for cards/features, but compact bullet lists and timelines should always pass their own class.
 
 ## Step 5 — Verify
 

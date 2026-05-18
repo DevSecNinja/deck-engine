@@ -16,7 +16,11 @@ describe('inline editing authoring guidance', () => {
     const source = readEngineFile('instructions', 'inline-editing.instructions.md')
 
     expect(source).toContain('Wrap **user-facing presentation content**')
-    expect(source).toContain('import { Editable }')
+    // Tolerate co-imports (e.g. `import { Editable, EditableList } from …`)
+    // introduced when v1.17.0 added the EditableList primitive alongside
+    // Editable. The instructions must teach the named-import pattern, not
+    // any specific co-import permutation.
+    expect(source).toMatch(/import \{[^}]*\bEditable\b[^}]*\} from '@deckio\/deck-engine'/)
     expect(source).toContain('BottomBar footer pattern')
     expect(source).toContain('Always wrap user-facing text in `<Editable>` by default')
   })

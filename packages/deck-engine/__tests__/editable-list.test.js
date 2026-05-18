@@ -159,3 +159,60 @@ describe('engine index re-exports EditableList surface', () => {
     expect(typeof mod.useInlineEditEntry).toBe('function')
   })
 })
+
+describe('EditableList defensive layout default (v1.17.2)', () => {
+  // Why source-text assertions: the existing test surface is source-text-
+  // based (no jsdom configured in vitest.config). These regressions are the
+  // ones that matter — if the prod shell stops emitting the safe default
+  // class, or the CSS file drops the layout rule, list slides start
+  // overflowing again. We test the WIRING, not the rendering.
+
+  it('ProdShell applies .deckio-editable-list when no className is passed', async () => {
+    const fs = await import('fs')
+    const path = await import('path')
+    const url = await import('url')
+    const here = path.dirname(url.fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.join(here, '..', 'components', 'EditableList.jsx'), 'utf-8')
+    // Must use ?? fallback (not || ) so an empty string className still
+    // opts the caller out — though in practice no one passes ''.
+    expect(src).toMatch(/className\s*\?\?\s*['"]deckio-editable-list['"]/)
+  })
+
+  it('Sortable variant applies .deckio-editable-list default alongside .deckio-list', async () => {
+    const fs = await import('fs')
+    const path = await import('path')
+    const url = await import('url')
+    const here = path.dirname(url.fileURLToPath(import.meta.url))
+    const src = fs.readFileSync(path.join(here, '..', 'components', 'EditableListSortable.jsx'), 'utf-8')
+    // Default class joined with the always-on 'deckio-list' marker.
+    expect(src).toMatch(/\[\s*className\s*\?\?\s*['"]deckio-editable-list['"]\s*,\s*['"]deckio-list['"]\s*\]/)
+  })
+
+  it('editable.css ships the .deckio-editable-list responsive grid', async () => {
+    const fs = await import('fs')
+    const path = await import('path')
+    const url = await import('url')
+    const here = path.dirname(url.fileURLToPath(import.meta.url))
+    const css = fs.readFileSync(path.join(here, '..', 'styles', 'editable.css'), 'utf-8')
+    // Layout default: grid with auto-fit minmax for slide-safe wrapping.
+    expect(css).toMatch(/\.deckio-editable-list\s*\{[^}]*display:\s*grid/)
+    expect(css).toMatch(/\.deckio-editable-list\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit/)
+  })
+
+  it('editable.css hides the drag handle until hover, focus, or drag', async () => {
+    const fs = await import('fs')
+    const path = await import('path')
+    const url = await import('url')
+    const here = path.dirname(url.fileURLToPath(import.meta.url))
+    const css = fs.readFileSync(path.join(here, '..', 'styles', 'editable.css'), 'utf-8')
+    // Base state: invisible + click-through so the affordance doesn't
+    // pollute the slide surface.
+    expect(css).toMatch(/\.deckio-list-handle\s*\{[^}]*opacity:\s*0/)
+    expect(css).toMatch(/\.deckio-list-handle\s*\{[^}]*pointer-events:\s*none/)
+    // Reveal states: hover on the item, keyboard focus on the handle,
+    // and active drag must each light the handle up.
+    expect(css).toMatch(/\.deckio-list-item:hover\s*>\s*\.deckio-list-handle/)
+    expect(css).toMatch(/\.deckio-list-handle:focus-visible/)
+    expect(css).toMatch(/\.deckio-list-item--dragging\s*>\s*\.deckio-list-handle/)
+  })
+})

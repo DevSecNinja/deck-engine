@@ -78,12 +78,20 @@ If the footer is optional/dynamic:
 Any slide that renders a list of user content (cards, bullets, steps, KPIs, features) MUST wrap the `.map()` in `<EditableList>` so users can drag-reorder items in dev. Each item in the source array MUST carry a stable `id` field.
 
 ```jsx
+import styles from './FeaturesSlide.module.css'
+
 const features = [
   { id: 'speed',   title: 'Fast',     desc: '…' },
   { id: 'quality', title: 'Reliable', desc: '…' },
 ]
 
-<EditableList id="features.items" items={features} keyOf={(f) => f.id}>
+<EditableList
+  id="features.items"
+  items={features}
+  keyOf={(f) => f.id}
+  className={styles.featuresGrid}
+  itemClassName={styles.featureItem}
+>
   {(f) => (
     <article>
       <Editable as="h3" id={`features.items.${f.id}.title`}>{f.title}</Editable>
@@ -93,11 +101,37 @@ const features = [
 </EditableList>
 ```
 
+Companion CSS module (the list container MUST establish a slide-aware layout — see density limits in `deck-add-slide/SKILL.md`):
+
+```css
+/* FeaturesSlide.module.css */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;          /* allow grid to shrink inside the slide column */
+  align-content: start;
+}
+.featureItem { min-width: 0; }
+```
+
+### Slides are fixed-height — the list container must constrain layout
+
+`<EditableList>` renders a plain container. **The container must establish layout that fits the slide's fixed canvas** (a grid, a flex row with wrapping, etc.), otherwise items stack vertically in source order and overflow off-slide.
+
+Two ways to give it a layout:
+
+1. **Pass your own `className`** (recommended) — full control over columns, gap, and per-density tuning (cards 3-col ≤ 6 items, cards 2-col ≤ 4, bullets ≤ 6–8, timeline 3–4).
+2. **Omit `className`** — `<EditableList>` falls back to the defensive `.deckio-editable-list` default (responsive `auto-fit minmax(220px, 1fr)` grid shipped in `editable.css` since v1.17.2). Safe for cards/features but not tuned for compact bullet lists or timelines — those should pass a `className`.
+
 ### Props
 
 - **`id`** (required): the FIELD id where the order is saved. Use the same `slide.list` namespace as the inner Editables (e.g., `features.items`).
 - **`items`** (required): the source array. Each item MUST have a stable `id`.
 - **`keyOf`** (required): function returning the stable item ID. Use `(i) => i.id`. **Never** use the array index — index keys silently disable reorder.
+- **`className`** (recommended): wrapper class that establishes the slide-aware layout. Replaces the defensive default when provided.
+- **`itemClassName`** (optional): class for each item wrapper. Useful for `min-width: 0` so grid cells don't blow out on long text.
 - **`onReorder`** (optional): callback after a successful drag. Useful for slides with side state (e.g., a "visible up to step N" counter that should reset on reorder).
 
 ### When NOT to wrap
@@ -115,8 +149,9 @@ Skip `<EditableList>` only for:
 
 If a slide has `{items.map((i) => <Card .../>)}` over a user-content array and no `<EditableList>` wrapper, flag it. The fix is mechanical:
 1. Add `id` to every item in the source data
-2. Wrap the `.map()` in `<EditableList id="<slide>.<list>" items={items} keyOf={(i) => i.id}>`
+2. Wrap the `.map()` in `<EditableList id="<slide>.<list>" items={items} keyOf={(i) => i.id} className={styles.listClass}>`
 3. The render function `(i) => …` replaces the `.map()` callback body
+4. Make sure the companion CSS module class establishes a layout that fits the slide
 
 ## Conditional content
 
