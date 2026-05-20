@@ -604,7 +604,7 @@ describe('create-deckio CLI flags', () => {
       const pkg = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'utf-8'))
       expect(pkg.dependencies['@fabric-msft/svg-icons']).toBe('^7.0.1')
       expect(readFileSync(join(projectDir, 'src', 'data', 'fabric-icons.js'), 'utf-8'))
-        .toContain("import('@fabric-msft/svg-icons/dist/Fabric32Color.js')")
+        .toMatch(/import\([^)]*['"]@fabric-msft\/svg-icons\/dist\/Fabric32Color\.js['"]\)/)
 
       writeFabricBuildHarness(projectDir)
 
