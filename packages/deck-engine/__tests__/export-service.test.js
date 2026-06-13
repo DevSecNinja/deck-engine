@@ -7,7 +7,9 @@ import {
   buildExportFileName,
   getLayoutPageFormat,
   getPdfOrientation,
+  neutralizeClippedText,
   normalizeHexColor,
+  parseFirstGradientColor,
   resolveExportOptions,
   sanitizeFilePart,
   waitForAssets,
@@ -103,5 +105,99 @@ describe('exportDeckService presets', () => {
     await expect(waitForAssets({
       querySelectorAll: () => [brokenCompleteImage],
     })).resolves.toBeUndefined()
+  })
+})
+
+describe('parseFirstGradientColor', () => {
+  it('pulls the first solid color out of a gradient for flattening clipped text', () => {
+    expect(parseFirstGradientColor('linear-gradient(135deg, rgb(99, 102, 241), rgb(0, 0, 0))'))
+      .toBe('rgb(99, 102, 241)')
+    expect(parseFirstGradientColor('linear-gradient(90deg, rgba(16, 185, 129, 0.8) 0%, #000 100%)'))
+      .toBe('rgba(16, 185, 129, 0.8)')
+    expect(parseFirstGradientColor('radial-gradient(hsl(280, 90%, 60%), hsl(0, 0%, 0%))'))
+      .toBe('hsl(280, 90%, 60%)')
+    expect(parseFirstGradientColor('linear-gradient(#6366f1, #000000)')).toBe('#6366f1')
+  })
+
+  it('returns null when there is no usable color to flatten to', () => {
+    expect(parseFirstGradientColor('none')).toBeNull()
+    expect(parseFirstGradientColor('')).toBeNull()
+    expect(parseFirstGradientColor(undefined)).toBeNull()
+    expect(parseFirstGradientColor('url(image.png)')).toBeNull()
+  })
+})
+
+describe('neutralizeClippedText', () => {
+  const originalGetComputedStyle = globalThis.getComputedStyle
+  const originalElement = globalThis.Element
+
+  afterEach(() => {
+    globalThis.getComputedStyle = originalGetComputedStyle
+    globalThis.Element = originalElement
+  })
+
+  class FakeElement {
+    constructor(computed) {
+      this.style = {}
+      this.__computed = computed
+      this.children = []
+    }
+    querySelectorAll() {
+      return this.children
+    }
+  }
+
+  function install() {
+    globalThis.Element = FakeElement
+    globalThis.getComputedStyle = (el) => el.__computed
+  }
+
+  it('flattens gradient-clipped text to a solid color and restores afterward', () => {
+    install()
+    const clipped = new FakeElement({
+      webkitBackgroundClip: 'text',
+      backgroundClip: 'text',
+      backgroundImage: 'linear-gradient(135deg, rgb(99, 102, 241), rgb(0, 0, 0))',
+    })
+
+    const restore = neutralizeClippedText(clipped, '#ffffff')
+
+    expect(clipped.style.backgroundImage).toBe('none')
+    expect(clipped.style.webkitTextFillColor).toBe('rgb(99, 102, 241)')
+    expect(clipped.style.color).toBe('rgb(99, 102, 241)')
+
+    restore()
+    expect(clipped.style.backgroundImage).toBeUndefined()
+    expect(clipped.style.webkitTextFillColor).toBeUndefined()
+  })
+
+  it('falls back to the provided color when no gradient color can be parsed', () => {
+    install()
+    const clipped = new FakeElement({
+      webkitBackgroundClip: 'text',
+      backgroundImage: 'none',
+    })
+
+    neutralizeClippedText(clipped, '#facc15')
+    expect(clipped.style.webkitTextFillColor).toBe('#facc15')
+    expect(clipped.style.color).toBe('#facc15')
+  })
+
+  it('leaves ordinary text untouched', () => {
+    install()
+    const plain = new FakeElement({
+      webkitBackgroundClip: 'border-box',
+      backgroundImage: 'none',
+    })
+
+    const restore = neutralizeClippedText(plain, '#ffffff')
+    expect(plain.style).toEqual({})
+    restore()
+    expect(plain.style).toEqual({})
+  })
+
+  it('is a safe no-op when getComputedStyle is unavailable', () => {
+    delete globalThis.getComputedStyle
+    expect(() => neutralizeClippedText({}, '#ffffff')()).not.toThrow()
   })
 })

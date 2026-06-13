@@ -62,6 +62,82 @@ const AUTO_FIT_SCALES = Object.freeze([1, 0.95, 0.9, 0.85, 0.8])
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+const TRANSPARENT_RE = /^(transparent|rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\))$/i
+
+/**
+ * Pull the first concrete color out of a computed `background-image` gradient.
+ *
+ * Gradient-clipped text (`background: linear-gradient(...)` +
+ * `-webkit-background-clip: text` + transparent fill) is a very common way to
+ * paint headline text. We reduce it to a solid color for export (see
+ * `neutralizeClippedText`), so we need a representative color — the first stop
+ * is the closest single-color approximation.
+ *
+ * Returns a CSS color string (e.g. `rgb(99, 102, 241)` or `#6366f1`) or null.
+ */
+export function parseFirstGradientColor(backgroundImage) {
+  if (!backgroundImage || backgroundImage === 'none') return null
+  const match = backgroundImage.match(
+    /rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,8}\b/,
+  )
+  return match ? match[0] : null
+}
+
+function isClippedText(styles) {
+  const clip = styles.webkitBackgroundClip || styles.backgroundClip || ''
+  return /text/i.test(clip)
+}
+
+/**
+ * Make gradient-clipped ("text fill") elements export-safe.
+ *
+ * Chrome's foreignObject rasterization (used by modern-screenshot) does not
+ * honor `-webkit-background-clip: text`, so any element painting its glyphs
+ * with a clipped gradient renders fully transparent — i.e. invisible — in the
+ * PNG capture. This walks the subtree, and for every clipped-text element
+ * temporarily replaces the gradient with a solid color (derived from the first
+ * gradient stop, falling back to the element's own color or a provided
+ * fallback) so the text actually shows up. Works regardless of class name,
+ * which matters for hashed CSS-module classes. Returns a restore fn.
+ */
+export function neutralizeClippedText(root, fallbackColor = '#ffffff') {
+  if (!root || typeof getComputedStyle !== 'function') return () => {}
+
+  const elements = [root, ...root.querySelectorAll('*')]
+  const restores = []
+
+  for (const el of elements) {
+    if (!(el instanceof Element)) continue
+    const styles = getComputedStyle(el)
+    if (!isClippedText(styles)) continue
+
+    const ownColor = TRANSPARENT_RE.test(styles.color) ? null : styles.color
+    const color = parseFirstGradientColor(styles.backgroundImage)
+      || ownColor
+      || fallbackColor
+
+    const style = el.style
+    const prev = {
+      backgroundImage: style.backgroundImage,
+      webkitBackgroundClip: style.webkitBackgroundClip,
+      backgroundClip: style.backgroundClip,
+      webkitTextFillColor: style.webkitTextFillColor,
+      color: style.color,
+    }
+    restores.push(() => Object.assign(style, prev))
+
+    style.backgroundImage = 'none'
+    style.webkitBackgroundClip = 'border-box'
+    style.backgroundClip = 'border-box'
+    style.webkitTextFillColor = color
+    style.color = color
+  }
+
+  return () => {
+    for (let i = restores.length - 1; i >= 0; i--) restores[i]()
+  }
+}
+
 function byId(items, id, fallbackId) {
   return items.find((item) => item.id === id)
     || items.find((item) => item.id === fallbackId)
@@ -313,6 +389,10 @@ export async function captureSlidePng({
     await waitForAssets(slide)
 
     const restoreAnimations = pauseAnimations(slide)
+    // Gradient-clipped text renders transparent through foreignObject capture;
+    // flatten it to a solid color so it stays visible. White fallback (not the
+    // dark slide background) guards the rare case where no stop color parses.
+    const restoreClippedText = neutralizeClippedText(slide, '#ffffff')
     try {
       await waitForPaint()
       return await domToPng(slide, {
@@ -344,6 +424,7 @@ export async function captureSlidePng({
         },
       })
     } finally {
+      restoreClippedText()
       restoreAnimations()
     }
   } finally {

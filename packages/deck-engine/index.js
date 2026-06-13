@@ -1,4 +1,5 @@
 export { SlideProvider, useSlides } from './context/SlideContext.jsx'
+export { useIsExporting, isExportingNow } from './context/export-state.js'
 export { default as Slide } from './components/Slide.jsx'
 export { default as SlideEditTools } from './components/SlideEditTools.jsx'
 export { callSlideOp, defaultSlideOpEndpoint, resolveSlideOpEndpoint } from './components/slide-op-client.js'

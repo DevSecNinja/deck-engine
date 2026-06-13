@@ -19,6 +19,7 @@ import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
 import EditableList from '../components/EditableList.jsx'
 import { useSlides } from '../context/SlideContext.jsx'
+import { useIsExporting } from '../context/export-state.js'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_STEPS = markSampleContent([
@@ -38,8 +39,12 @@ export default function GenericStepsSlide({
   footerText,
 }) {
   const { current } = useSlides()
+  const exporting = useIsExporting()
   const [visibleCount, setVisibleCount] = useState(0)
   const isActive = current === index
+  // During export, reveal every step so the captured image shows the slide's
+  // final state instead of its pre-disclosure (mostly-dimmed) state.
+  const effectiveVisible = exporting ? steps.length : visibleCount
 
   useEffect(() => { if (isActive) setVisibleCount(0) }, [isActive])
 
@@ -79,7 +84,7 @@ export default function GenericStepsSlide({
             onReorder={() => setVisibleCount(0)}
           >
             {(step, i, ordered) => (
-              <div className={`deck-steps-step ${i < visibleCount ? 'deck-steps-visible' : ''}`}>
+              <div className={`deck-steps-step ${i < effectiveVisible ? 'deck-steps-visible' : ''}`}>
                 <div className="deck-steps-connector">
                   <div className="deck-steps-dot" />
                   {i < ordered.length - 1 && <div className="deck-steps-line" />}

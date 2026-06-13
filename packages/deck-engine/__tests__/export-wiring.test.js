@@ -46,4 +46,27 @@ describe('export wiring', () => {
     expect(source).toContain('[data-slot="badge"]')
     expect(source).toContain('overflow: visible !important')
   })
+
+  it('reveals progressive-disclosure steps and generalizes badge breathing room for capture', () => {
+    const source = readEngineFile('styles', 'global.css')
+
+    expect(source).toContain('.deck-steps-step')
+    expect(source).toContain('[class*="badge" i]')
+  })
+
+  it('flattens gradient-clipped text before rasterizing each slide', () => {
+    const service = readEngineFile('components', 'exportDeckService.js')
+
+    expect(service).toContain('neutralizeClippedText(slide')
+    expect(service).toContain('restoreClippedText()')
+  })
+
+  it('forces every disclosure step visible during export via the engine hook', () => {
+    const steps = readEngineFile('slides', 'GenericStepsSlide.jsx')
+    const index = readEngineFile('index.js')
+
+    expect(steps).toContain('useIsExporting')
+    expect(steps).toContain('effectiveVisible')
+    expect(index).toContain('useIsExporting')
+  })
 })
