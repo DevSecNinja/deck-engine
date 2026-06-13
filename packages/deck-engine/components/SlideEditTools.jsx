@@ -8,9 +8,10 @@
  * inert in production, during presentation, and in fullscreen.
  *
  * Operations go through the deterministic slide-op endpoint (callSlideOp),
- * which edits deck.config.js. The resulting file write triggers a Vite reload,
- * so there is no optimistic local state to keep in sync — the reload reflects
- * the new hiddenSlides / slides array.
+ * which edits deck.config.js. That file write lands in the running deck as
+ * either a full Vite reload or a state-preserving HMR update, so the buttons
+ * hold a short "busy" lock after a successful op and release it once the deck
+ * reflects the change (hiddenSlides / slides array updates) — never optimistic.
  *
  * The buttons take their visual style from the host (Navigation passes its
  * export-button classes) so they sit flush in the group. Both are tagged so
@@ -35,31 +36,72 @@ export default function SlideEditTools({
   const slides = useSlides()
   const ie = useInlineEdit()
   const [busy, setBusy] = useState(false)
+  const [pendingReload, setPendingReload] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [error, setError] = useState(null)
   const confirmTimer = useRef(null)
+  const releaseTimer = useRef(null)
+  const preOpRef = useRef(null)
 
-  useEffect(() => () => clearTimeout(confirmTimer.current), [])
+  // Derived defensively (slides can be null before the provider mounts) so the
+  // hooks below run unconditionally — the early-return guards come AFTER every
+  // hook, satisfying the Rules of Hooks.
+  const current = slides?.current ?? 0
+  const totalSlides = slides?.totalSlides ?? 0
+  const hidden = typeof slides?.isHidden === 'function' ? slides.isHidden(current) : false
+
+  useEffect(() => () => {
+    clearTimeout(confirmTimer.current)
+    clearTimeout(releaseTimer.current)
+  }, [])
+
+  // Release the optimistic "busy" lock once the deck actually reflects the op.
+  // A successful hide/delete rewrites deck.config.js, which Vite applies as
+  // EITHER a full reload (this component remounts → busy starts false again) OR
+  // a state-preserving HMR update (the hiddenSlides prop changes, the slide
+  // dims, but nothing remounts). The old code assumed a reload and left `busy`
+  // true forever on the HMR path — the reported "stuck spinner, can't unhide
+  // from the slide" bug. We snapshot hidden/totalSlides when the op starts and
+  // clear busy as soon as either changes, regardless of whether the fetch
+  // response or the HMR event lands first.
+  useEffect(() => {
+    if (!pendingReload) return
+    const snap = preOpRef.current
+    if (!snap || hidden !== snap.hidden || totalSlides !== snap.totalSlides) {
+      clearTimeout(releaseTimer.current)
+      preOpRef.current = null
+      setPendingReload(false)
+      setBusy(false)
+    }
+  }, [pendingReload, hidden, totalSlides])
 
   // Gate: only when inline editing is active (middleware mounted) and editing.
   if (!ie || !ie.isDev) return null
   if (!slides || slides.mode !== 'edit') return null
 
-  const { current, totalSlides, isHidden } = slides
-  const hidden = typeof isHidden === 'function' ? isHidden(current) : false
-
   async function runOp(body, label) {
     if (busy) return
+    preOpRef.current = { hidden, totalSlides }
     setBusy(true)
     setError(null)
     const result = await callSlideOp(body)
     if (!result.ok) {
+      preOpRef.current = null
       setBusy(false)
       setError(result.data?.code || `${label} failed`)
       return
     }
-    // Success: deck.config.js changed → Vite will reload. Keep the buttons
-    // disabled until that happens so a second click can't race the reload.
+    // Success: deck.config.js changed. Wait for Vite to reflect it (reload or
+    // HMR) — the effect above releases busy when hidden/totalSlides changes.
+    // The timer is a final safety net so the controls can never latch disabled
+    // if neither value changes observably or an HMR event is dropped.
+    setPendingReload(true)
+    clearTimeout(releaseTimer.current)
+    releaseTimer.current = setTimeout(() => {
+      preOpRef.current = null
+      setPendingReload(false)
+      setBusy(false)
+    }, 5000)
   }
 
   function toggleHide() {
