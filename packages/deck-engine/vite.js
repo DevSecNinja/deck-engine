@@ -15,6 +15,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES } from './themes/theme-loader.js'
 import { createInlineEditMiddleware, isHostExposed } from './server/inline-edit-server.mjs'
+import { createSlideOpsMiddleware } from './server/slide-ops-server.mjs'
 
 // Re-export theme utilities for Node.js consumers
 export { resolveTheme, getAvailableThemes, DEFAULT_THEME, BUILTIN_THEMES }
@@ -140,6 +141,7 @@ export function deckPlugin(options = {}) {
         )
       }
       server.middlewares.use(createInlineEditMiddleware({ root, networkExposed }))
+      server.middlewares.use(createSlideOpsMiddleware({ root, networkExposed }))
     },
   }
 }

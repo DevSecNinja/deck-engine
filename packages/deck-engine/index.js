@@ -1,5 +1,7 @@
 export { SlideProvider, useSlides } from './context/SlideContext.jsx'
 export { default as Slide } from './components/Slide.jsx'
+export { default as SlideEditTools } from './components/SlideEditTools.jsx'
+export { callSlideOp, defaultSlideOpEndpoint, resolveSlideOpEndpoint } from './components/slide-op-client.js'
 export { default as Navigation } from './components/Navigation.jsx'
 export { default as SlideErrorBoundary } from './components/SlideErrorBoundary.jsx'
 export { default as BottomBar } from './components/BottomBar.jsx'

@@ -71,7 +71,7 @@ describe('deckPlugin inlineEditing option shape', () => {
     }
     const plugin = deckPlugin({ inlineEditing: true })
     plugin.configureServer(srv)
-    expect(srv.registered.length).toBe(1)
+    expect(srv.registered.length).toBe(2)
   })
 
   it('accepts namespaced `inlineEditing: { enabled: true }` per Messi spec', () => {
@@ -82,7 +82,7 @@ describe('deckPlugin inlineEditing option shape', () => {
     }
     const plugin = deckPlugin({ inlineEditing: { enabled: true } })
     plugin.configureServer(srv)
-    expect(srv.registered.length).toBe(1)
+    expect(srv.registered.length).toBe(2)
   })
 
   it('treats `inlineEditing: { enabled: false }` as disabled', () => {
@@ -151,12 +151,12 @@ describe('deckPlugin inline-edit registration', () => {
     expect(srv.registered.length).toBe(0)
   })
 
-  it('registers a refusing middleware when inlineEditing=true but host is exposed', async () => {
+  it('registers refusing middlewares when inlineEditing=true but host is exposed', async () => {
     const plugin = deckPlugin({ inlineEditing: true })
     const srv = fakeServer({ host: '0.0.0.0' })
     plugin.configureServer(srv)
-    // Middleware is still registered, but every request is refused with NETWORK_EXPOSED.
-    expect(srv.registered.length).toBe(1)
+    // Both middlewares are still registered, but every request is refused.
+    expect(srv.registered.length).toBe(2)
     const mw = srv.registered[0]
     const { EventEmitter } = await import('node:events')
     const req = Object.assign(new EventEmitter(), {
@@ -178,20 +178,42 @@ describe('deckPlugin inline-edit registration', () => {
     await new Promise((r) => setImmediate(r))
     expect(status).toBe(403)
     expect(body).toContain('INLINE_EDIT_DISABLED_REMOTE_HOST')
+
+    // The slide-ops middleware (registered second) also refuses when exposed.
+    const slideMw = srv.registered[1]
+    const sReq = Object.assign(new EventEmitter(), {
+      method: 'POST',
+      url: '/__deckio/slide-op',
+      socket: { remoteAddress: '127.0.0.1' },
+      headers: { 'content-type': 'application/json' },
+      destroy() {},
+    })
+    let sBody = ''; let sStatus = 0
+    const sRes = {
+      statusCode: 200,
+      setHeader() {},
+      end(b) { sBody = b || ''; sStatus = this.statusCode },
+    }
+    const sp = slideMw(sReq, sRes, () => {})
+    setImmediate(() => { sReq.emit('data', Buffer.from('{"op":"hide","index":0,"hidden":true}')); sReq.emit('end') })
+    await sp
+    await new Promise((r) => setImmediate(r))
+    expect(sStatus).toBe(403)
+    expect(sBody).toContain('SLIDE_OP_DISABLED_REMOTE_HOST')
   })
 
-  it('registers an active middleware when inlineEditing=true and host is loopback', () => {
+  it('registers active middlewares when inlineEditing=true and host is loopback', () => {
     const plugin = deckPlugin({ inlineEditing: true })
     const srv = fakeServer({ host: 'localhost' })
     plugin.configureServer(srv)
-    expect(srv.registered.length).toBe(1)
+    expect(srv.registered.length).toBe(2)
   })
 
-  it('registers an active middleware when inlineEditing=true and host is undefined (default loopback)', () => {
+  it('registers active middlewares when inlineEditing=true and host is undefined (default loopback)', () => {
     const plugin = deckPlugin({ inlineEditing: true })
     const srv = fakeServer()
     plugin.configureServer(srv)
-    expect(srv.registered.length).toBe(1)
+    expect(srv.registered.length).toBe(2)
   })
 })
 

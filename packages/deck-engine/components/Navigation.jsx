@@ -15,7 +15,7 @@ function resolveProp(value, context) {
 }
 
 export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
-  const { current, totalSlides, go, goTo, selectedCustomer, project } = useSlides()
+  const { current, totalSlides, go, goTo, selectedCustomer, project, progress, atStart, atEnd, firstVisibleIndex } = useSlides()
   const [hintVisible, setHintVisible] = useState(true)
   const [idle, setIdle] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -77,7 +77,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [exportMenuOpen])
 
-  const progress = ((current + 1) / totalSlides) * 100
+  const progressPercent = typeof progress === 'number' ? progress : ((current + 1) / totalSlides) * 100
   const navigationState = { current, totalSlides, selectedCustomer, project }
   const resolvedPdfPath = resolveProp(pdfPath, navigationState)
   const resolvedPdfLabel = resolveProp(pdfLabel, navigationState) || 'Deck PDF'
@@ -124,13 +124,13 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
   return (
     <div ref={navRef} className={`${styles.navWrapper} ${idle && !navHasFocus ? styles.navHidden : ''}`}>
       <div className={styles.progressTrack}>
-        <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+        <div className={styles.progressFill} style={{ width: `${progressPercent}%` }} />
       </div>
 
-      {current !== 0 && (
+      {current !== firstVisibleIndex && (
         <button
           className={styles.homeBtn}
-          onClick={() => goTo(0)}
+          onClick={() => goTo(firstVisibleIndex)}
           title="Back to home"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -257,7 +257,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
 
       <button
         className={`${styles.navBtn} ${styles.prev}`}
-        disabled={current === 0}
+        disabled={atStart}
         onClick={() => go(-1)}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -266,7 +266,7 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
       </button>
       <button
         className={`${styles.navBtn} ${styles.next}`}
-        disabled={current === totalSlides - 1}
+        disabled={atEnd}
         onClick={() => go(1)}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

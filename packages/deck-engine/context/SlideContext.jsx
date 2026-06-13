@@ -4,7 +4,17 @@ import {
   useState,
   useCallback,
   useEffect,
+  useMemo,
 } from 'react'
+import {
+  normalizeHidden,
+  computeVisibleIndices,
+  stepVisible,
+  resolveGoTo,
+  snapToVisible,
+  displayMetrics,
+  resolveInitialMode as resolveInitialModeFromSearch,
+} from './nav-utils'
 
 /*  ╔══════════════════════════════════════════════════════════════╗
  *  ║                                                              ║
@@ -55,6 +65,15 @@ function getStoredSlide(project, totalSlides) {
   }
 }
 
+/**
+ * Decide the initial edit/present mode (URL params + prop + dev flag).
+ */
+function resolveInitialMode(modeProp) {
+  let search = ''
+  try { search = window.location.search } catch { /* SSR */ }
+  return resolveInitialModeFromSearch(search, modeProp, import.meta.env?.DEV)
+}
+
 /*  ╭──────────────────────────────────────────────────────────────╮
  *  │  ◈  P R O V I D E R                                         │
  *  ╰──────────────────────────────────────────────────────────────╯  */
@@ -66,12 +85,37 @@ function isInteractiveKeyTarget(target) {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_KEY_TARGET))
 }
 
-export function SlideProvider({ children, totalSlides, project, slides, theme }) {
+export function SlideProvider({ children, totalSlides, project, slides, theme, hiddenSlides, mode }) {
   const [current, setCurrent] = useState(() =>
     getSlideFromUrl(totalSlides) ?? getStoredSlide(project, totalSlides),
   )
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [activeTheme, setActiveTheme] = useState(theme || DEFAULT_THEME)
+  const [activeMode, setActiveMode] = useState(() => resolveInitialMode(mode))
+
+  /*  🙈 ─────────────────────────────────────────────
+   *  │  Hidden slides (durable, from deck.config.js) │
+   *  │  Present mode skips them; edit mode shows all │
+   *  ───────────────────────────────────────── 🙈   */
+
+  // Stable key so the effect only re-runs on real changes (arrays get a fresh
+  // identity each render). hiddenSlides is authored in deck.config.js and
+  // updated via the slide-op endpoint, which triggers a full reload.
+  const hiddenKey = JSON.stringify(Array.isArray(hiddenSlides) ? hiddenSlides : [])
+  const [hidden, setHidden] = useState(() => normalizeHidden(hiddenSlides, totalSlides))
+  useEffect(() => {
+    setHidden(normalizeHidden(hiddenSlides, totalSlides))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenKey, totalSlides])
+
+  const hiddenSet = useMemo(() => new Set(hidden), [hidden])
+
+  // Absolute indices reachable in the current mode. Present mode drops hidden
+  // slides; edit mode keeps everything (hidden are shown dimmed with controls).
+  const visibleIndices = useMemo(
+    () => computeVisibleIndices(totalSlides, hiddenSet, activeMode),
+    [totalSlides, activeMode, hiddenSet],
+  )
 
   /*  🎨 ─────────────────────────────────────────────
    *  │  Theme → data-theme on <html> for CSS hooks  │
@@ -86,6 +130,14 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
   useEffect(() => {
     if (theme && theme !== activeTheme) setActiveTheme(theme)
   }, [theme])
+
+  // Sync if the mode prop changes at runtime (explicit override).
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'present') && mode !== activeMode) {
+      setActiveMode(mode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
 
   /*  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
    *  ░  Persist slide index  ─  HMR keeps position  ░
@@ -114,31 +166,40 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
           slideIndex: current,
           slideName,
           totalSlides,
+          hiddenSlides: hidden,
+          mode: activeMode,
         }, '*')
       }
     } catch {
       /* cross-origin or non-iframe – ignore */
     }
-  }, [current, project, totalSlides, slides])
+  }, [current, project, totalSlides, slides, hidden, activeMode])
 
   /*  ▸ ▸ ▸  Navigation helpers  ◂ ◂ ◂  */
 
+  // In present mode, navigation steps through visible slides only; in edit mode
+  // every slide is reachable so hidden slides can still be inspected/un-hidden.
   const go = useCallback(
     (dir) => {
-      setCurrent((prev) => {
-        const next = prev + dir
-        return next < 0 || next >= totalSlides ? prev : next
-      })
+      setCurrent((prev) => stepVisible(prev, dir, visibleIndices, activeMode, totalSlides))
     },
-    [totalSlides],
+    [activeMode, totalSlides, visibleIndices],
   )
 
   const goTo = useCallback(
     (idx) => {
-      if (idx >= 0 && idx < totalSlides) setCurrent(idx)
+      const resolved = resolveGoTo(idx, activeMode, hiddenSet, visibleIndices, totalSlides)
+      if (resolved != null) setCurrent(resolved)
     },
-    [totalSlides],
+    [activeMode, totalSlides, hiddenSet, visibleIndices],
   )
+
+  // Keep `current` on a visible slide when in present mode (e.g. after the mode
+  // flips while sitting on a hidden slide, or a slide gets hidden under us).
+  useEffect(() => {
+    const snap = snapToVisible(current, activeMode, hiddenSet, visibleIndices, totalSlides)
+    if (snap != null) setCurrent(snap)
+  }, [activeMode, current, hiddenSet, visibleIndices, totalSlides])
 
   /*  ⌨ ─────────────────────────────────────────────────────
    *  │  Keyboard  →  ←  Space  PageDown  PageUp  Enter    │
@@ -180,6 +241,22 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
     return () => window.removeEventListener('message', handler)
   }, [project, totalSlides])
 
+  /*  🎬 ──────────────────────────────────────────
+   *  │  postMessage listener for deck:setMode      │
+   *  │  Launcher toggles edit ⇆ present remotely   │
+   *  ────────────────────────────────────── 🎬   */
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === 'deck:setMode' && e.data.project === project) {
+        const m = e.data.mode
+        if (m === 'edit' || m === 'present') setActiveMode(m)
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [project])
+
   /*  👆 ─────────────────────────────────
    *  │  Touch / swipe  (threshold 50px) │
    *  ───────────────────────────── 👆   */
@@ -205,6 +282,12 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
 
   /*  ◇─────────────── render ───────────────◇  */
 
+  // Present-aware display helpers (Navigation, progress, edit overlays).
+  const { displayIndex, visibleCount, progress, atStart, atEnd, firstVisibleIndex } =
+    displayMetrics(current, visibleIndices, activeMode, totalSlides)
+
+  const isHidden = useCallback((idx) => hiddenSet.has(idx), [hiddenSet])
+
   return (
     <SlideContext.Provider
       value={{
@@ -217,6 +300,18 @@ export function SlideProvider({ children, totalSlides, project, slides, theme })
         project,
         theme: activeTheme,
         setTheme: setActiveTheme,
+        // Hide / present-mode surface
+        mode: activeMode,
+        setMode: setActiveMode,
+        hiddenSlides: hidden,
+        isHidden,
+        visibleIndices,
+        visibleCount,
+        displayIndex,
+        progress,
+        atStart,
+        atEnd,
+        firstVisibleIndex,
       }}
     >
       {children}

@@ -320,6 +320,13 @@ export async function captureSlidePng({
         height: layout.pixelHeight,
         backgroundColor,
         scale: quality.scale,
+        // Defense-in-depth: never rasterize dev-only affordances rendered
+        // inside the slide (e.g. the hide/delete overlay). They are tagged
+        // data-deckio-export-ignore and are also opacity:0 without hover, but
+        // excluding the subtree here guarantees clean exports regardless.
+        filter: (node) =>
+          !(node instanceof Element) ||
+          node.getAttribute('data-deckio-export-ignore') !== 'true',
         style: {
           position: 'relative',
           inset: 'auto',

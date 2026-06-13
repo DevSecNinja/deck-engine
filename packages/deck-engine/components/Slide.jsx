@@ -1,16 +1,22 @@
 import { useRef, useEffect, useState } from 'react'
 import { useSlides } from '../context/SlideContext'
+import SlideEditTools from './SlideEditTools.jsx'
 
 const DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV
 
 export default function Slide({ index, className = '', children }) {
-  const { current } = useSlides()
+  const { current, mode, isHidden } = useSlides()
   const ref = useRef(null)
   const [overflow, setOverflow] = useState(false)
 
   let stateClass = ''
   if (index === current) stateClass = 'active'
   else if (index < current) stateClass = 'exit-left'
+
+  // Only surface "hidden" styling in edit mode — in present mode hidden slides
+  // are skipped entirely, so there is nothing to dim.
+  const hiddenSlide = typeof isHidden === 'function' ? isHidden(index) : false
+  const hiddenClass = hiddenSlide && mode === 'edit' ? 'deckio-slide--hidden' : ''
 
   useEffect(() => {
     if (!DEV || index !== current || !ref.current) return
@@ -31,8 +37,9 @@ export default function Slide({ index, className = '', children }) {
   }, [index, current])
 
   return (
-    <div ref={ref} className={`slide ${stateClass} ${className}`} data-slide={index}>
+    <div ref={ref} className={`slide ${stateClass} ${hiddenClass} ${className}`} data-slide={index}>
       {children}
+      {index === current && <SlideEditTools />}
       {DEV && overflow && (
         <div className="slide-overflow-warn">
           ⚠ Content overflows slide — reduce content or use smaller elements

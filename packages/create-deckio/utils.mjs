@@ -159,6 +159,7 @@ export default {
   accent: '${esc(accent)}',
   theme: '${esc(theme)}',${dsLine}${appearanceLine}${auroraBlock}
   order: 1,
+  hiddenSlides: [],
   slides: [
     CoverSlide,
     FeaturesSlide,
@@ -189,6 +190,7 @@ export default {
   accent: '${esc(accent)}',
   theme: '${esc(theme)}',${dsLine}${appearanceLine}
   order: 1,
+  hiddenSlides: [],
   slides: [
     CoverSlide,
     FabricIconsSlide,
@@ -217,6 +219,7 @@ export default {
   accent: '${esc(accent)}',
   theme: '${esc(theme)}',${dsLine}${appearanceLine}
   order: 1,
+  hiddenSlides: [],
   slides: [
     CoverSlide,
     ThankYouSlide,
@@ -1988,7 +1991,7 @@ import inlineEdits from './data/inline-edits.json'
 const overrides = import.meta.env.DEV ? inlineEdits : {}
 
 export default function App() {
-  const { accent, id, slides, theme, title } = project
+  const { accent, id, slides, theme, title, hiddenSlides } = project
   const auroraColors = project.aurora?.colors ?? ['#0ea5e9', '#6366f1', '#8b5cf6']
 
   useEffect(() => {
@@ -2004,7 +2007,7 @@ export default function App() {
         </div>
         <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
           <InlineEditProvider overrides={overrides} project={id}>
-            <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
+            <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme} hiddenSlides={hiddenSlides}>
               <Navigation />
               <div className="deck" data-project-id={id}>
                 {slides.map((SlideComponent, index) => (
@@ -2035,7 +2038,7 @@ import inlineEdits from './data/inline-edits.json'
 const overrides = import.meta.env.DEV ? inlineEdits : {}
 
 export default function App() {
-  const { accent, id, slides, theme, title } = project
+  const { accent, id, slides, theme, title, hiddenSlides } = project
 
   useEffect(() => {
     document.documentElement.style.setProperty('--accent', accent)
@@ -2044,7 +2047,7 @@ export default function App() {
 
   return (
     <InlineEditProvider overrides={overrides} project={id}>
-      <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme}>
+      <SlideProvider totalSlides={slides.length} project={id} slides={slides} theme={theme} hiddenSlides={hiddenSlides}>
         <Navigation />
         <div className="deck" data-project-id={id}>
           {slides.map((SlideComponent, index) => (
