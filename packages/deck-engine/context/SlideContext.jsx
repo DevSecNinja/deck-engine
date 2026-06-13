@@ -13,6 +13,7 @@ import {
   resolveGoTo,
   snapToVisible,
   displayMetrics,
+  resolveEffectiveMode,
   resolveInitialMode as resolveInitialModeFromSearch,
 } from './nav-utils'
 
@@ -93,6 +94,25 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
   const [activeTheme, setActiveTheme] = useState(theme || DEFAULT_THEME)
   const [activeMode, setActiveMode] = useState(() => resolveInitialMode(mode))
 
+  /*  ⛶ ─────────────────────────────────────────────
+   *  │  Browser fullscreen → force present visibility │
+   *  │  Standalone decks shown fullscreen skip hidden │
+   *  │  slides even when the active mode is edit.      │
+   *  ───────────────────────────────────────── ⛶   */
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setIsFullscreen(Boolean(document.fullscreenElement))
+      } catch {
+        setIsFullscreen(false)
+      }
+    }
+    sync()
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [])
+
   /*  🙈 ─────────────────────────────────────────────
    *  │  Hidden slides (durable, from deck.config.js) │
    *  │  Present mode skips them; edit mode shows all │
@@ -110,12 +130,20 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
 
   const hiddenSet = useMemo(() => new Set(hidden), [hidden])
 
+  // Fullscreen forces present behaviour; otherwise the active mode wins.
+  const effectiveMode = resolveEffectiveMode(activeMode, isFullscreen)
+
   // Absolute indices reachable in the current mode. Present mode drops hidden
   // slides; edit mode keeps everything (hidden are shown dimmed with controls).
   const visibleIndices = useMemo(
-    () => computeVisibleIndices(totalSlides, hiddenSet, activeMode),
-    [totalSlides, activeMode, hiddenSet],
+    () => computeVisibleIndices(totalSlides, hiddenSet, effectiveMode),
+    [totalSlides, effectiveMode, hiddenSet],
   )
+
+  // Present-aware display helpers (Navigation, progress, edit overlays, and the
+  // launcher's slide counter via the deck:slide message below).
+  const { displayIndex, visibleCount, progress, atStart, atEnd, firstVisibleIndex } =
+    displayMetrics(current, visibleIndices, effectiveMode, totalSlides)
 
   /*  🎨 ─────────────────────────────────────────────
    *  │  Theme → data-theme on <html> for CSS hooks  │
@@ -167,13 +195,17 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
           slideName,
           totalSlides,
           hiddenSlides: hidden,
-          mode: activeMode,
+          mode: effectiveMode,
+          // Present-aware counter values so consumers (launcher presentation
+          // bar) can show "visible / visible" instead of counting hidden.
+          displayIndex,
+          visibleCount,
         }, '*')
       }
     } catch {
       /* cross-origin or non-iframe – ignore */
     }
-  }, [current, project, totalSlides, slides, hidden, activeMode])
+  }, [current, project, totalSlides, slides, hidden, effectiveMode, displayIndex, visibleCount])
 
   /*  ▸ ▸ ▸  Navigation helpers  ◂ ◂ ◂  */
 
@@ -181,25 +213,25 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
   // every slide is reachable so hidden slides can still be inspected/un-hidden.
   const go = useCallback(
     (dir) => {
-      setCurrent((prev) => stepVisible(prev, dir, visibleIndices, activeMode, totalSlides))
+      setCurrent((prev) => stepVisible(prev, dir, visibleIndices, effectiveMode, totalSlides))
     },
-    [activeMode, totalSlides, visibleIndices],
+    [effectiveMode, totalSlides, visibleIndices],
   )
 
   const goTo = useCallback(
     (idx) => {
-      const resolved = resolveGoTo(idx, activeMode, hiddenSet, visibleIndices, totalSlides)
+      const resolved = resolveGoTo(idx, effectiveMode, hiddenSet, visibleIndices, totalSlides)
       if (resolved != null) setCurrent(resolved)
     },
-    [activeMode, totalSlides, hiddenSet, visibleIndices],
+    [effectiveMode, totalSlides, hiddenSet, visibleIndices],
   )
 
   // Keep `current` on a visible slide when in present mode (e.g. after the mode
   // flips while sitting on a hidden slide, or a slide gets hidden under us).
   useEffect(() => {
-    const snap = snapToVisible(current, activeMode, hiddenSet, visibleIndices, totalSlides)
+    const snap = snapToVisible(current, effectiveMode, hiddenSet, visibleIndices, totalSlides)
     if (snap != null) setCurrent(snap)
-  }, [activeMode, current, hiddenSet, visibleIndices, totalSlides])
+  }, [effectiveMode, current, hiddenSet, visibleIndices, totalSlides])
 
   /*  ⌨ ─────────────────────────────────────────────────────
    *  │  Keyboard  →  ←  Space  PageDown  PageUp  Enter    │
@@ -282,10 +314,6 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
 
   /*  ◇─────────────── render ───────────────◇  */
 
-  // Present-aware display helpers (Navigation, progress, edit overlays).
-  const { displayIndex, visibleCount, progress, atStart, atEnd, firstVisibleIndex } =
-    displayMetrics(current, visibleIndices, activeMode, totalSlides)
-
   const isHidden = useCallback((idx) => hiddenSet.has(idx), [hiddenSet])
 
   return (
@@ -300,8 +328,9 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
         project,
         theme: activeTheme,
         setTheme: setActiveTheme,
-        // Hide / present-mode surface
-        mode: activeMode,
+        // Hide / present-mode surface. `mode` is the *effective* mode so edit
+        // affordances vanish and hidden slides hide while fullscreen.
+        mode: effectiveMode,
         setMode: setActiveMode,
         hiddenSlides: hidden,
         isHidden,
@@ -312,6 +341,7 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
         atStart,
         atEnd,
         firstVisibleIndex,
+        isFullscreen,
       }}
     >
       {children}

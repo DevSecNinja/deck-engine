@@ -59,11 +59,13 @@ function isDevEnv() {
 
 // v2 entry shape: each override is either
 //   - a bare string (legacy / canonical text-only)              → {value}
-//   - {value?, style?}                  text + optional style   → text entry
+//   - {value?, style?, base?}           text + optional style   → text entry
 //   - {style}                           style without value     → text entry
 //   - {order: [ids]}                    list reorder            → list entry
-// `value` (string), `style` (object), `order` (array) facets are mutually
-// exclusive in the order direction: a list entry never carries value/style.
+// `value` (string), `style` (object), `base` (string), `order` (array). The
+// text facets (value/style/base) are mutually exclusive with `order`: a list
+// entry never carries text facets. `base` records the source text the override
+// was made against so a stale override can auto-heal when the source changes.
 // Anything malformed is dropped so the deck keeps rendering source defaults.
 function normalizeEntryClient(raw) {
   if (typeof raw === 'string') return { value: raw }
@@ -71,7 +73,11 @@ function normalizeEntryClient(raw) {
   const hasValue = Object.prototype.hasOwnProperty.call(raw, 'value')
   const hasStyle = Object.prototype.hasOwnProperty.call(raw, 'style')
   const hasOrder = Object.prototype.hasOwnProperty.call(raw, 'order')
-  if (hasOrder && (hasValue || hasStyle)) return null
+  // `base` = the source text this override was made against. Used to
+  // auto-heal: a stale override is ignored once the source it shadowed
+  // changes (e.g. an agent edits the JSX). Text-only facet.
+  const hasBase = Object.prototype.hasOwnProperty.call(raw, 'base')
+  if (hasOrder && (hasValue || hasStyle || hasBase)) return null
   if (hasOrder) {
     if (!Array.isArray(raw.order)) return null
     const cleaned = []
@@ -81,7 +87,7 @@ function normalizeEntryClient(raw) {
     }
     return { order: cleaned }
   }
-  if (hasValue || hasStyle) {
+  if (hasValue || hasStyle || hasBase) {
     const out = {}
     if (hasValue) {
       if (typeof raw.value !== 'string') return null
@@ -96,6 +102,10 @@ function normalizeEntryClient(raw) {
         styleOut[k] = v
       }
       out.style = styleOut
+    }
+    if (hasBase) {
+      if (typeof raw.base !== 'string') return null
+      out.base = raw.base
     }
     return out
   }
@@ -144,16 +154,18 @@ function mergeEntryClient(prevEntry, patch) {
   const hasValue = Object.prototype.hasOwnProperty.call(patch, 'value')
   const hasStyle = Object.prototype.hasOwnProperty.call(patch, 'style')
   const hasOrder = Object.prototype.hasOwnProperty.call(patch, 'order')
+  const hasBase = Object.prototype.hasOwnProperty.call(patch, 'base')
   if (hasOrder) {
     return normalizeEntryClient({ order: patch.order })
   }
-  if (!hasValue && !hasStyle) return prevEntry
+  if (!hasValue && !hasStyle && !hasBase) return prevEntry
   const prevText = (prevEntry && typeof prevEntry === 'object' && !Array.isArray(prevEntry) && !Object.prototype.hasOwnProperty.call(prevEntry, 'order'))
     ? prevEntry
     : null
   const next = { ...(prevText || {}) }
   if (hasValue) next.value = patch.value
   if (hasStyle) next.style = { ...(prevText && prevText.style ? prevText.style : {}), ...(patch.style || {}) }
+  if (hasBase) next.base = patch.base
   return normalizeEntryClient(next)
 }
 
@@ -245,58 +257,80 @@ export function InlineEditProvider({
 
     clearDismissTimer()
     setSaveStatus('saving')
-    let res
-    try {
-      res = await fetch(resolvedEndpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          kind: 'override',
-          project,
-          field,
-          patch,
-          baseHash: hashRef.current || undefined,
-        }),
-      })
-    } catch (err) {
-      setSaveStatus('error')
-      scheduleAutoDismiss('error')
-      return { ok: false, reason: 'network', message: String(err && err.message || err) }
-    }
-    let body = null
-    try { body = await res.json() } catch { /* ignore */ }
-    if (res.status === 409) {
-      if (body && body.hash) hashRef.current = body.hash
-      setSaveStatus('conflict')
-      scheduleAutoDismiss('conflict')
-      return { ok: false, reason: 'conflict' }
-    }
-    if (!res.ok) {
-      setSaveStatus('error')
-      scheduleAutoDismiss('error')
-      return { ok: false, reason: `http-${res.status}`, error: body && body.error }
-    }
-    if (body && body.hash) hashRef.current = body.hash
-    // Server returns the canonical entry after merge. Trust that over
-    // re-merging on the client.
-    setOverrides((prev) => {
-      const next = { ...prev }
-      const serverEntry = body && Object.prototype.hasOwnProperty.call(body, 'entry')
-        ? normalizeEntryClient(body.entry)
-        : null
-      if (serverEntry != null) {
-        next[field] = serverEntry
-      } else {
-        // Fallback: optimistic merge of our patch onto whatever we had.
-        const prevEntry = normalizeEntryClient(prev[field])
-        next[field] = mergeEntryClient(prevEntry, patch)
-        if (next[field] == null) delete next[field]
+
+    // Why retry on conflict: the dev override store is a single JSON file and
+    // the server's merge is field-scoped — a save only ever rewrites the
+    // target field, never other fields. The whole-store `baseHash` check
+    // therefore false-positives whenever an UNRELATED field changed between
+    // this provider caching its hash and this request landing: e.g. a toolbar
+    // style save and a text commit firing back-to-back on the same field, or
+    // a list reorder overlapping a text edit. Treating that 409 as fatal
+    // silently reverts the user's edit — the "sometimes text doesn't save"
+    // report. Since every save is last-write-wins for its own field, we
+    // transparently rebase onto the server's current hash and retry once.
+    // Only a second, genuinely racing 409 surfaces as a conflict.
+    const MAX_SAVE_ATTEMPTS = 2
+    for (let attempt = 1; attempt <= MAX_SAVE_ATTEMPTS; attempt++) {
+      let res
+      try {
+        res = await fetch(resolvedEndpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            kind: 'override',
+            project,
+            field,
+            patch,
+            baseHash: hashRef.current || undefined,
+          }),
+        })
+      } catch (err) {
+        setSaveStatus('error')
+        scheduleAutoDismiss('error')
+        return { ok: false, reason: 'network', message: String(err && err.message || err) }
       }
-      return next
-    })
-    setSaveStatus('saved')
-    scheduleAutoDismiss('saved')
-    return { ok: true }
+      let body = null
+      try { body = await res.json() } catch { /* ignore */ }
+      if (res.status === 409) {
+        // Rebase onto the server's current hash so the next attempt carries a
+        // fresh base. If the retry budget is spent, surface the conflict and
+        // let the caller roll the field back.
+        if (body && body.hash) hashRef.current = body.hash
+        if (attempt < MAX_SAVE_ATTEMPTS) continue
+        setSaveStatus('conflict')
+        scheduleAutoDismiss('conflict')
+        return { ok: false, reason: 'conflict' }
+      }
+      if (!res.ok) {
+        setSaveStatus('error')
+        scheduleAutoDismiss('error')
+        return { ok: false, reason: `http-${res.status}`, error: body && body.error }
+      }
+      if (body && body.hash) hashRef.current = body.hash
+      // Server returns the canonical entry after merge. Trust that over
+      // re-merging on the client.
+      setOverrides((prev) => {
+        const next = { ...prev }
+        const serverEntry = body && Object.prototype.hasOwnProperty.call(body, 'entry')
+          ? normalizeEntryClient(body.entry)
+          : null
+        if (serverEntry != null) {
+          next[field] = serverEntry
+        } else {
+          // Fallback: optimistic merge of our patch onto whatever we had.
+          const prevEntry = normalizeEntryClient(prev[field])
+          next[field] = mergeEntryClient(prevEntry, patch)
+          if (next[field] == null) delete next[field]
+        }
+        return next
+      })
+      setSaveStatus('saved')
+      scheduleAutoDismiss('saved')
+      return { ok: true }
+    }
+    // Defensive: the loop always returns. Kept so a future change to the
+    // attempt bounds can never fall through to an undefined result.
+    return { ok: false, reason: 'conflict' }
 
     function scheduleAutoDismiss(kind) {
       const ms = TOAST_TIMINGS[kind] || 0
@@ -493,6 +527,16 @@ function InlineEditToast({ status, onDismiss }) {
   return createPortal(node, document.body)
 }
 
+// Normalize editable text identically for typed input AND source children,
+// so the auto-heal comparison (current source vs. the source an override was
+// saved against) is apples-to-apples. Single-line collapses newlines + trims;
+// multiline preserves \n but normalizes CRLF. Mirrors commit()'s old inline
+// logic so existing save behavior is byte-for-byte unchanged.
+function normalizeEditableText(raw, multiline) {
+  const s = raw == null ? '' : String(raw)
+  return multiline ? s.replace(/\r\n/g, '\n') : s.replace(/[\r\n]+/g, ' ').trim()
+}
+
 function placeCaretAtEnd(node) {
   try {
     node.focus({ preventScroll: true })
@@ -542,17 +586,29 @@ const Editable = forwardRef(function Editable(
   // field happens to be edited.
   const [status, setStatus] = useState(null)
 
-  // v2 entry shape. May carry `value` (string) and/or `style` (object).
-  // List `order` is never read here — Editable is text-only.
+  // v2 entry shape. May carry `value` (string), `style` (object), and
+  // `base` (the source text the override was made against). List `order` is
+  // never read here — Editable is text-only.
   const entry = ctx && Object.prototype.hasOwnProperty.call(ctx.overrides || {}, field)
     ? ctx.overrides[field]
     : null
   const safeEntry = entry && typeof entry === 'object' && !Array.isArray(entry) && !Object.prototype.hasOwnProperty.call(entry, 'order')
     ? entry
     : null
-  const overrideValue = safeEntry && typeof safeEntry.value === 'string' ? safeEntry.value : null
-  const overrideStyle = safeEntry ? toReactStyleObject(safeEntry.style) : null
   const defaultContent = children == null ? fallback : children
+  // Auto-heal: when an override recorded the source text it was made against
+  // (`base`) and the current source no longer matches, the source changed
+  // underneath us — e.g. an agent edited the JSX directly. We then ignore the
+  // stale override's text so the fresh source wins, keeping inline edits and
+  // agent/source edits convergent. Only diffed when the source is a plain
+  // string (dynamic children can't be compared reliably). Style is orthogonal
+  // to text content, so a stale text override still keeps any saved style.
+  const sourceIsString = typeof defaultContent === 'string'
+  const overrideBase = safeEntry && typeof safeEntry.base === 'string' ? safeEntry.base : null
+  const overrideStale = overrideBase != null && sourceIsString
+    && normalizeEditableText(defaultContent, multiline) !== overrideBase
+  const overrideValue = (!overrideStale && safeEntry && typeof safeEntry.value === 'string') ? safeEntry.value : null
+  const overrideStyle = safeEntry ? toReactStyleObject(safeEntry.style) : null
   const display = overrideValue != null ? overrideValue : defaultContent
   const displayString = display == null ? '' : (typeof display === 'string' ? display : '')
 
@@ -607,7 +663,7 @@ const Editable = forwardRef(function Editable(
     const node = ref && 'current' in ref ? ref.current : null
     if (!node) return
     const raw = node.innerText == null ? (node.textContent || '') : node.innerText
-    const newValue = multiline ? raw.replace(/\r\n/g, '\n') : raw.replace(/[\r\n]+/g, ' ').trim()
+    const newValue = normalizeEditableText(raw, multiline)
     const oldValue = displayString
 
     if (newValue === oldValue) {
@@ -627,8 +683,14 @@ const Editable = forwardRef(function Editable(
     // the global toast surface owned by the provider.
     setStatus(null)
     // v2 wire shape: send a facet patch. The provider falls back to legacy
-    // bare-string saves if a caller hands us a raw string instead.
-    const result = await ctx.save(field, { value: newValue })
+    // bare-string saves if a caller hands us a raw string instead. When the
+    // source is a plain string we also stamp `base` with the current source
+    // text so this override can auto-heal if the source later changes (e.g.
+    // an agent edits the JSX): a stale override stops shadowing fresh source.
+    const patch = sourceIsString
+      ? { value: newValue, base: normalizeEditableText(defaultContent, multiline) }
+      : { value: newValue }
+    const result = await ctx.save(field, patch)
     setEditing(false)
     if (ctx.clearActiveField) ctx.clearActiveField(field)
     if (!(result && result.ok)) {

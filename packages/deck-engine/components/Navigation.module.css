@@ -109,9 +109,32 @@
   top: var(--space-4);
   right: var(--space-5);
   z-index: var(--z-nav);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .exportGroup .exportBtn {
   position: static;
+}
+
+/* Hide/delete tools (rendered inside the export group). They borrow .exportBtn
+   for layout; these modifiers add the "hidden" (eye active) and "confirming
+   delete" (danger) states. */
+.editToolActive {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--glow-primary);
+}
+.editToolDanger {
+  opacity: 1;
+  color: #fff;
+  border-color: #ef4444;
+  background: color-mix(in oklab, #ef4444 42%, var(--surface-overlay));
+}
+.editToolDanger:hover {
+  border-color: #ef4444;
+  background: color-mix(in oklab, #ef4444 55%, var(--surface-overlay));
 }
 
 .exportMenu {

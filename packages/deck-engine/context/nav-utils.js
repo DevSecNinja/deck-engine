@@ -107,6 +107,16 @@ export function displayMetrics(current, visibleIndices, mode, totalSlides) {
 }
 
 /**
+ * Resolve the *effective* navigation mode. Browser fullscreen forces present
+ * behaviour (hidden slides skipped, edit affordances gone) regardless of the
+ * authored/active mode, so a standalone deck shown fullscreen never reveals
+ * slides the author hid. Outside fullscreen the active mode wins unchanged.
+ */
+export function resolveEffectiveMode(activeMode, isFullscreen) {
+  return isFullscreen ? 'present' : activeMode
+}
+
+/**
  * Decide the initial edit/present mode from URL params + an explicit prop.
  * `search` is a location.search string; `isDev` is import.meta.env.DEV.
  */

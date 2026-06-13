@@ -219,6 +219,18 @@ describe('isValidPatch', () => {
   it('accepts an order-only patch', () => {
     expect(isValidPatch({ order: ['a', 'b'] })).toBe(true)
   })
+  it('accepts a value+base patch (auto-heal baseline)', () => {
+    expect(isValidPatch({ value: 'hi', base: 'was' })).toBe(true)
+  })
+  it('accepts a base-only patch', () => {
+    expect(isValidPatch({ base: 'src' })).toBe(true)
+  })
+  it('rejects mixing base (text) with order', () => {
+    expect(isValidPatch({ base: 'x', order: ['a'] })).toBe(false)
+  })
+  it('rejects an invalid base (non-string)', () => {
+    expect(isValidPatch({ value: 'x', base: 42 })).toBe(false)
+  })
   it('rejects empty patch', () => {
     expect(isValidPatch({})).toBe(false)
   })
@@ -259,6 +271,20 @@ describe('normalizeEntry', () => {
   it('salvages {value, style}', () => {
     expect(normalizeEntry({ value: 'x', style: { color: '#fff' } }))
       .toEqual({ value: 'x', style: { color: '#fff' } })
+  })
+  it('salvages {value, base} (auto-heal baseline)', () => {
+    expect(normalizeEntry({ value: 'x', base: 'src' }))
+      .toEqual({ value: 'x', base: 'src' })
+  })
+  it('salvages {value, style, base}', () => {
+    expect(normalizeEntry({ value: 'x', style: { color: '#fff' }, base: 'src' }))
+      .toEqual({ value: 'x', style: { color: '#fff' }, base: 'src' })
+  })
+  it('drops {value, base} when base is not a string', () => {
+    expect(normalizeEntry({ value: 'x', base: 42 })).toBe(null)
+  })
+  it('drops entries mixing base (text) with order', () => {
+    expect(normalizeEntry({ base: 'x', order: ['a'] })).toBe(null)
   })
   it('salvages style-only', () => {
     expect(normalizeEntry({ style: { color: '#fff' } }))
@@ -318,6 +344,22 @@ describe('mergeEntry', () => {
     expect(mergeEntry({ value: 'old', style: { color: '#fff' } }, { value: 'new' }))
       .toEqual({ value: 'new', style: { color: '#fff' } })
   })
+  it('value patch carries base when provided (records source baseline)', () => {
+    expect(mergeEntry(undefined, { value: 'new', base: 'src' }))
+      .toEqual({ value: 'new', base: 'src' })
+  })
+  it('value-only patch preserves an existing base', () => {
+    expect(mergeEntry({ value: 'old', base: 'src' }, { value: 'new' }))
+      .toEqual({ value: 'new', base: 'src' })
+  })
+  it('base patch updates the baseline, preserving value + style', () => {
+    expect(mergeEntry({ value: 'v', style: { color: '#fff' }, base: 'old-src' }, { base: 'new-src' }))
+      .toEqual({ value: 'v', style: { color: '#fff' }, base: 'new-src' })
+  })
+  it('order patch drops any prior base', () => {
+    expect(mergeEntry({ value: 'v', base: 'src' }, { order: ['a'] }))
+      .toEqual({ order: ['a'] })
+  })
   it('order patch replaces any prior entry entirely', () => {
     expect(mergeEntry({ value: 'old' }, { order: ['a', 'b'] }))
       .toEqual({ order: ['a', 'b'] })
@@ -350,6 +392,14 @@ describe('serializeEntry', () => {
   it('writes style-only entry as object', () => {
     expect(serializeEntry({ style: { color: '#fff' } }))
       .toEqual({ style: { color: '#fff' } })
+  })
+  it('writes {value, base} as object (base forces object form)', () => {
+    expect(serializeEntry({ value: 'hi', base: 'src' }))
+      .toEqual({ value: 'hi', base: 'src' })
+  })
+  it('writes {value, style, base} as object', () => {
+    expect(serializeEntry({ value: 'hi', style: { color: '#fff' }, base: 'src' }))
+      .toEqual({ value: 'hi', style: { color: '#fff' }, base: 'src' })
   })
   it('writes order entry as object', () => {
     expect(serializeEntry({ order: ['a', 'b'] })).toEqual({ order: ['a', 'b'] })
@@ -535,6 +585,36 @@ describe('middleware: facet-patch payloads', () => {
     expect(res.statusCode).toBe(200)
     const written = JSON.parse(readFileSync(target, 'utf8'))
     expect(written['cover.title']).toEqual({ value: 'New', style: { color: '#fff' } })
+  })
+
+  it('value+base patch round-trips as object form (auto-heal baseline persisted)', async () => {
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq(); const res = new FakeRes()
+    await drive(mw, req, res, {
+      field: 'cover.title',
+      patch: { value: 'Edited', base: 'Original source' },
+    })
+    expect(res.statusCode).toBe(200)
+    const reply = JSON.parse(res.body)
+    expect(reply.entry).toEqual({ value: 'Edited', base: 'Original source' })
+    const written = JSON.parse(readFileSync(safeOverridePath(tempRoot), 'utf8'))
+    expect(written['cover.title']).toEqual({ value: 'Edited', base: 'Original source' })
+  })
+
+  it('style-only patch preserves an existing base baseline', async () => {
+    const target = safeOverridePath(tempRoot)
+    await writeOverridesAtomic(target, {
+      'cover.title': { value: 'Edited', base: 'Original source' },
+    })
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+    const req = new FakeReq(); const res = new FakeRes()
+    await drive(mw, req, res, {
+      field: 'cover.title',
+      patch: { style: { color: '#fff' } },
+    })
+    expect(res.statusCode).toBe(200)
+    const written = JSON.parse(readFileSync(target, 'utf8'))
+    expect(written['cover.title']).toEqual({ value: 'Edited', style: { color: '#fff' }, base: 'Original source' })
   })
 
   it('order patch round-trips as list entry', async () => {

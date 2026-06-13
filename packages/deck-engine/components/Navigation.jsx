@@ -3,6 +3,7 @@ import styles from './Navigation.module.css'
 import { useState, useEffect, useRef } from 'react'
 import { exportDeckPdf } from './exportDeckPdf.js'
 import { exportDeckPptx } from './exportDeckPptx.js'
+import SlideEditTools from './SlideEditTools.jsx'
 import {
   DEFAULT_EXPORT_OPTIONS,
   EXPORT_FITS,
@@ -14,8 +15,32 @@ function resolveProp(value, context) {
   return typeof value === 'function' ? value(context) : value
 }
 
+// Standalone = not embedded in the launcher iframe. The launcher provides its
+// own presentation/fullscreen chrome, so the deck only offers a fullscreen
+// button when shown on its own.
+const IS_STANDALONE =
+  typeof window === 'undefined' ? true : (() => {
+    try {
+      return window.self === window.top
+    } catch {
+      return false
+    }
+  })()
+
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.()
+    } else {
+      document.documentElement.requestFullscreen?.()
+    }
+  } catch (error) {
+    console.debug('Fullscreen toggle was not allowed', error)
+  }
+}
+
 export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
-  const { current, totalSlides, go, goTo, selectedCustomer, project, progress, atStart, atEnd, firstVisibleIndex } = useSlides()
+  const { current, totalSlides, go, goTo, selectedCustomer, project, progress, atStart, atEnd, firstVisibleIndex, isFullscreen } = useSlides()
   const [hintVisible, setHintVisible] = useState(true)
   const [idle, setIdle] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -141,6 +166,36 @@ export default function Navigation({ pdfPath = null, pdfLabel = 'Deck PDF' }) {
       )}
 
       <div className={styles.exportGroup} ref={exportMenuRef}>
+        <SlideEditTools
+          buttonClassName={styles.exportBtn}
+          activeClassName={styles.editToolActive}
+          dangerClassName={styles.editToolDanger}
+        />
+        {IS_STANDALONE && (
+          <button
+            className={styles.exportBtn}
+            type="button"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Present fullscreen (hides hidden slides)'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+                <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+                <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+                <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+                <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+              </svg>
+            )}
+          </button>
+        )}
         {resolvedPdfPath ? (
           <a
             className={styles.exportBtn}

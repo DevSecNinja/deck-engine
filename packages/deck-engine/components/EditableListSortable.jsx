@@ -21,13 +21,14 @@
  *     order; never touches text facets on other entries).
  *
  * Edit/drag coordination:
- *   - If the active field lives inside this list (i.e. the user is
- *     editing a text node nested in one of the items), the drag is
- *     prevented until the active field is blurred. The user must finish
- *     their text edit (Enter or Escape) before they can drag.
+ *   - Grabbing a drag handle moves focus off any active contenteditable,
+ *     which fires the Editable's blur → commit. So an in-progress text edit
+ *     is committed (or its failure toasted) as the drag begins; there is no
+ *     separate hard-block. Keyboard drag (Space on the handle) likewise
+ *     blurs the field first.
  */
 
-import { useCallback, useContext, useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -144,15 +145,11 @@ export default function EditableListSortable({
     return m
   }, [items, keyOf])
 
-  // Coordinate edit/drag: if an editable field is currently being edited
-  // anywhere in this list's subtree, cancel the drag until the user
-  // commits or escapes.
-  const wouldStompActiveEdit = useCallback((listRoot) => {
-    if (!ctx || !ctx.activeField || !ctx.activeElementRef) return false
-    const el = ctx.activeElementRef.current
-    if (!el || !listRoot) return false
-    return Boolean(listRoot.contains(el))
-  }, [ctx])
+  // Edit/drag coordination is handled implicitly: grabbing a drag handle
+  // moves focus off whichever contenteditable is active, which fires the
+  // Editable's blur → commit. A failed commit surfaces via the global toast.
+  // No explicit drag-blocking is needed (an earlier hard-block helper was
+  // dead code and is intentionally removed).
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -162,19 +159,6 @@ export default function EditableListSortable({
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-
-  const handleDragStart = (event) => {
-    // We can't reach the list root from the event reliably without a ref,
-    // so defer the active-edit check to dragEnd via a simple opt-out.
-    if (ctx && ctx.activeField) {
-      // Don't block the drag entirely (would feel broken). Instead, the
-      // active field will commit on the next blur, which fires when
-      // dnd-kit moves focus to the handle.
-      // If the active field commit fails the user will see the toast.
-    }
-    // event.active is the item being dragged
-    void event
-  }
 
   const handleDragEnd = async (event) => {
     const { active, over } = event
@@ -201,25 +185,30 @@ export default function EditableListSortable({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={localIds} strategy={verticalListSortingStrategy}>
         <As className={[className ?? 'deckio-editable-list', 'deckio-list'].filter(Boolean).join(' ')} data-deckio-list-field={id || undefined} {...rest}>
-          {localIds.map((itemId, i) => {
-            const item = byId.get(itemId)
-            if (item === undefined) return null
-            return (
-              <SortableItem
-                key={itemId}
-                id={itemId}
-                ItemAs={ItemAs}
-                className={itemClassName}
-              >
-                {children(item, i, items)}
-              </SortableItem>
-            )
-          })}
+          {(() => {
+            // Build the items in their displayed (dragged) order once so the
+            // render prop's 3rd arg matches <EditableList>'s prod shell, which
+            // hands children the full ORDERED array (not the source order).
+            const orderedItems = localIds.map((tid) => byId.get(tid)).filter((it) => it !== undefined)
+            return localIds.map((itemId, i) => {
+              const item = byId.get(itemId)
+              if (item === undefined) return null
+              return (
+                <SortableItem
+                  key={itemId}
+                  id={itemId}
+                  ItemAs={ItemAs}
+                  className={itemClassName}
+                >
+                  {children(item, i, orderedItems)}
+                </SortableItem>
+              )
+            })
+          })()}
         </As>
       </SortableContext>
     </DndContext>

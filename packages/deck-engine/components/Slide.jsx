@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
 import { useSlides } from '../context/SlideContext'
-import SlideEditTools from './SlideEditTools.jsx'
 
 const DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV
 
@@ -13,10 +12,14 @@ export default function Slide({ index, className = '', children }) {
   if (index === current) stateClass = 'active'
   else if (index < current) stateClass = 'exit-left'
 
-  // Only surface "hidden" styling in edit mode — in present mode hidden slides
-  // are skipped entirely, so there is nothing to dim.
+  // Only surface "hidden" styling on the *active* slide in edit mode. Limiting
+  // it to the active slide means an outgoing hidden slide drops the dim/hatch
+  // the instant you navigate away, instead of carrying it through the slide
+  // transition (which read as the overlay "lingering" for ~1s). Off-screen
+  // slides are invisible anyway, so nothing is lost visually. In present mode
+  // hidden slides are skipped entirely, so there is nothing to dim.
   const hiddenSlide = typeof isHidden === 'function' ? isHidden(index) : false
-  const hiddenClass = hiddenSlide && mode === 'edit' ? 'deckio-slide--hidden' : ''
+  const hiddenClass = hiddenSlide && mode === 'edit' && index === current ? 'deckio-slide--hidden' : ''
 
   useEffect(() => {
     if (!DEV || index !== current || !ref.current) return
@@ -39,7 +42,6 @@ export default function Slide({ index, className = '', children }) {
   return (
     <div ref={ref} className={`slide ${stateClass} ${hiddenClass} ${className}`} data-slide={index}>
       {children}
-      {index === current && <SlideEditTools />}
       {DEV && overflow && (
         <div className="slide-overflow-warn">
           ⚠ Content overflows slide — reduce content or use smaller elements

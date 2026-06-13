@@ -1,16 +1,21 @@
 /**
- * SlideEditTools — dev-only in-deck overlay for hide + delete on the active
- * slide. Rendered by <Slide> for the active slide only, and only when inline
- * editing is enabled (InlineEditProvider present + isDev) AND the deck is in
- * edit mode. Inert in production builds and during presentation.
+ * SlideEditTools — dev-only hide + delete controls for the active slide.
+ *
+ * Rendered inside <Navigation>'s export group (top-right, beside the export
+ * button) so it shares the chrome's reveal-on-mouse-move / hide-on-idle
+ * behaviour and never overlaps anything. Only renders when inline editing is
+ * enabled (InlineEditProvider present + isDev) AND the deck is in edit mode —
+ * inert in production, during presentation, and in fullscreen.
  *
  * Operations go through the deterministic slide-op endpoint (callSlideOp),
  * which edits deck.config.js. The resulting file write triggers a Vite reload,
  * so there is no optimistic local state to keep in sync — the reload reflects
  * the new hiddenSlides / slides array.
  *
- * Both buttons are tagged so the export/capture pipeline (modern-screenshot,
- * html2canvas, puppeteer) skips them.
+ * The buttons take their visual style from the host (Navigation passes its
+ * export-button classes) so they sit flush in the group. Both are tagged so
+ * the export/capture pipeline (modern-screenshot, html2canvas, puppeteer)
+ * skips them.
  */
 import { useState, useEffect, useRef } from 'react'
 import { useSlides } from '../context/SlideContext'
@@ -22,7 +27,11 @@ const IGNORE_ATTRS = {
   'data-html2canvas-ignore': 'true',
 }
 
-export default function SlideEditTools() {
+export default function SlideEditTools({
+  buttonClassName = 'deckio-slide-tools__btn',
+  activeClassName = 'is-hidden-slide',
+  dangerClassName = 'deckio-slide-tools__btn--danger',
+}) {
   const slides = useSlides()
   const ie = useInlineEdit()
   const [busy, setBusy] = useState(false)
@@ -68,15 +77,22 @@ export default function SlideEditTools() {
     confirmTimer.current = setTimeout(() => setConfirmingDelete(false), 3000)
   }
 
+  const hideTitle = error
+    ? `Hide failed: ${error}`
+    : hidden
+      ? 'Show this slide in presentation'
+      : 'Hide this slide from presentation'
+
   return (
-    <div className="deckio-slide-tools" {...IGNORE_ATTRS} contentEditable={false}>
+    <>
       <button
         type="button"
-        className={`deckio-slide-tools__btn ${hidden ? 'is-hidden-slide' : ''}`}
+        className={`${buttonClassName} ${hidden ? activeClassName : ''}`}
         onClick={toggleHide}
         disabled={busy}
-        title={hidden ? 'Show this slide in presentation' : 'Hide this slide from presentation'}
+        title={hideTitle}
         aria-label={hidden ? 'Show slide' : 'Hide slide'}
+        {...IGNORE_ATTRS}
       >
         {hidden ? (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
@@ -93,24 +109,21 @@ export default function SlideEditTools() {
 
       <button
         type="button"
-        className={`deckio-slide-tools__btn deckio-slide-tools__btn--danger ${confirmingDelete ? 'is-confirming' : ''}`}
+        className={`${buttonClassName} ${confirmingDelete ? dangerClassName : ''}`}
         onClick={requestDelete}
         disabled={busy}
         title={confirmingDelete ? 'Click again to delete this slide' : 'Delete this slide'}
         aria-label={confirmingDelete ? 'Confirm delete slide' : 'Delete slide'}
+        {...IGNORE_ATTRS}
       >
-        {confirmingDelete ? (
-          <span className="deckio-slide-tools__confirm">Delete?</span>
-        ) : (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        )}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M10 11v6" />
+          <path d="M14 11v6" />
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        </svg>
       </button>
-
-      {hidden && <span className="deckio-slide-tools__badge">Hidden</span>}
-      {error && <span className="deckio-slide-tools__error" role="alert">{error}</span>}
-    </div>
+    </>
   )
 }

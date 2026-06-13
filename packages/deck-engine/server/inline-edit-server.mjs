@@ -281,11 +281,16 @@ export function normalizeEntry(raw) {
   const hasValue = Object.prototype.hasOwnProperty.call(raw, 'value')
   const hasStyle = Object.prototype.hasOwnProperty.call(raw, 'style')
   const hasOrder = Object.prototype.hasOwnProperty.call(raw, 'order')
+  // `base` records the SOURCE text this override was made against, so the
+  // renderer can auto-heal: if the JSX source later changes (e.g. an agent
+  // edits it), a stale override no longer shadows the new source. It is a
+  // text-facet sibling of value/style and never travels with a list order.
+  const hasBase = Object.prototype.hasOwnProperty.call(raw, 'base')
 
   // Defense: a single entry must not mix text + list facets. If both kinds
   // appear we have no way to know which the caller actually meant, so we
   // drop the entry entirely rather than silently picking one and pretending.
-  if (hasOrder && (hasValue || hasStyle)) return null
+  if (hasOrder && (hasValue || hasStyle || hasBase)) return null
 
   // List facet (mutually exclusive with text).
   if (hasOrder) {
@@ -293,7 +298,7 @@ export function normalizeEntry(raw) {
     return { order: raw.order.slice() }
   }
 
-  if (hasValue || hasStyle) {
+  if (hasValue || hasStyle || hasBase) {
     const out = {}
     if (hasValue) {
       if (!isValidValue(raw.value)) return null
@@ -302,6 +307,10 @@ export function normalizeEntry(raw) {
     if (hasStyle) {
       if (!isValidStyle(raw.style)) return null
       out.style = { ...raw.style }
+    }
+    if (hasBase) {
+      if (!isValidValue(raw.base)) return null
+      out.base = raw.base
     }
     return out
   }
@@ -327,22 +336,25 @@ export function normalizeStore(raw) {
 
 /**
  * Patch shape accepted by the middleware. Each facet is optional but at
- * least one must be present. `value` + `style` go together (text); `order`
- * is mutually exclusive with the text facets.
+ * least one must be present. `value`, `style`, and `base` go together
+ * (text facets); `order` is mutually exclusive with the text facets.
+ * `base` is the source text the override was made against (auto-heal).
  */
 export function isValidPatch(patch) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return false
   const keys = Object.keys(patch)
   if (keys.length === 0) return false
   for (const k of keys) {
-    if (k !== 'value' && k !== 'style' && k !== 'order') return false
+    if (k !== 'value' && k !== 'style' && k !== 'order' && k !== 'base') return false
   }
   const hasOrder = Object.prototype.hasOwnProperty.call(patch, 'order')
   const hasTextFacet = Object.prototype.hasOwnProperty.call(patch, 'value')
     || Object.prototype.hasOwnProperty.call(patch, 'style')
+    || Object.prototype.hasOwnProperty.call(patch, 'base')
   if (hasOrder && hasTextFacet) return false
   if (Object.prototype.hasOwnProperty.call(patch, 'value') && !isValidValue(patch.value)) return false
   if (Object.prototype.hasOwnProperty.call(patch, 'style') && !isValidStyle(patch.style)) return false
+  if (Object.prototype.hasOwnProperty.call(patch, 'base') && !isValidValue(patch.base)) return false
   if (hasOrder && !isValidOrder(patch.order)) return false
   return true
 }
@@ -362,19 +374,23 @@ export function mergeEntry(currentEntry, patch) {
   if (Object.prototype.hasOwnProperty.call(patch, 'order')) {
     return { order: patch.order.slice() }
   }
-  const base = currentEntry && !currentEntry.order
+  const merged = currentEntry && !currentEntry.order
     ? {
       ...(currentEntry.value !== undefined ? { value: currentEntry.value } : {}),
       ...(currentEntry.style ? { style: { ...currentEntry.style } } : {}),
+      ...(currentEntry.base !== undefined ? { base: currentEntry.base } : {}),
     }
     : {}
   if (Object.prototype.hasOwnProperty.call(patch, 'value')) {
-    base.value = patch.value
+    merged.value = patch.value
   }
   if (Object.prototype.hasOwnProperty.call(patch, 'style')) {
-    base.style = { ...patch.style }
+    merged.style = { ...patch.style }
   }
-  return base
+  if (Object.prototype.hasOwnProperty.call(patch, 'base')) {
+    merged.base = patch.base
+  }
+  return merged
 }
 
 /**
@@ -385,9 +401,13 @@ export function mergeEntry(currentEntry, patch) {
 export function serializeEntry(entry) {
   if (!entry || typeof entry !== 'object') return null
   if (entry.order) return { order: entry.order.slice() }
-  if (entry.style) {
-    const out = { style: { ...entry.style } }
+  // A `base` marker (or any style) forces the object form; a value-only
+  // entry stays a bare string so simple decks keep tiny, human-editable diffs.
+  if (entry.style || entry.base !== undefined) {
+    const out = {}
     if (entry.value !== undefined) out.value = entry.value
+    if (entry.style) out.style = { ...entry.style }
+    if (entry.base !== undefined) out.base = entry.base
     return out
   }
   if (entry.value !== undefined) return entry.value

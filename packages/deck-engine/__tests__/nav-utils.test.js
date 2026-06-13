@@ -11,6 +11,7 @@ import {
   resolveGoTo,
   snapToVisible,
   displayMetrics,
+  resolveEffectiveMode,
   resolveInitialMode,
 } from '../context/nav-utils.js'
 
@@ -149,5 +150,16 @@ describe('resolveInitialMode', () => {
   it('defaults to edit in dev and present in prod', () => {
     expect(resolveInitialMode('', undefined, true)).toBe('edit')
     expect(resolveInitialMode('', undefined, false)).toBe('present')
+  })
+})
+
+describe('resolveEffectiveMode', () => {
+  it('forces present while fullscreen, regardless of active mode', () => {
+    expect(resolveEffectiveMode('edit', true)).toBe('present')
+    expect(resolveEffectiveMode('present', true)).toBe('present')
+  })
+  it('passes the active mode through when not fullscreen', () => {
+    expect(resolveEffectiveMode('edit', false)).toBe('edit')
+    expect(resolveEffectiveMode('present', false)).toBe('present')
   })
 })

@@ -449,6 +449,43 @@ describe('createInlineEditMiddleware', () => {
     expect(reply.hash).not.toBe(baseHash)
   })
 
+  it('rebase-and-retry: a stale-baseHash 409 returns the live hash, and retrying with it persists the field WITHOUT clobbering the unrelated field that changed', async () => {
+    // This is the server-side contract the client save() retry depends on.
+    // The whole-store baseHash check is coarse — it 409s when ANY field
+    // changed since the client cached its hash — but the merge is
+    // field-scoped. So a client that adopts the returned `hash` and retries
+    // lands its own field and leaves every other field intact. Without that
+    // retry the client would treat the false conflict as fatal and revert
+    // the user's edit ("sometimes text doesn't save").
+    const target = safeOverridePath(tempRoot)
+    await writeOverridesAtomic(target, { 'a.b': 'truth' })
+    const mw = createInlineEditMiddleware({ root: tempRoot })
+
+    // Attempt 1: the client still holds a pre-change hash (an unrelated field
+    // moved underneath it). The server rejects and hands back the live hash.
+    const req1 = new FakeReq()
+    const res1 = new FakeRes()
+    await drive(mw, req1, res1, { field: 'cover.title', value: 'added', baseHash: 'stale-hash' })
+    expect(res1.statusCode).toBe(409)
+    const conflict = JSON.parse(res1.body)
+    expect(conflict.code).toBe(ERROR_CODES.STALE_SOURCE)
+    const liveHash = conflict.hash
+    expect(liveHash).toBe(hashOverrides({ 'a.b': 'truth' }))
+    // The rejected write must not have touched disk.
+    expect(JSON.parse(readFileSync(target, 'utf8'))).toEqual({ 'a.b': 'truth' })
+
+    // Attempt 2 (the client's automatic rebase): identical patch, fresh base.
+    const req2 = new FakeReq()
+    const res2 = new FakeRes()
+    await drive(mw, req2, res2, { field: 'cover.title', value: 'added', baseHash: liveHash })
+    expect(res2.statusCode).toBe(200)
+    expect(JSON.parse(res2.body).ok).toBe(true)
+
+    const after = JSON.parse(readFileSync(target, 'utf8'))
+    expect(after['a.b']).toBe('truth')         // unrelated field preserved
+    expect(after['cover.title']).toBe('added') // user's edit persisted
+  })
+
   it('persists raw text as a JSON string (no HTML/script execution context)', async () => {
     const mw = createInlineEditMiddleware({ root: tempRoot })
     const req = new FakeReq()
