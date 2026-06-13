@@ -5,6 +5,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  lazy,
+  Suspense,
 } from 'react'
 import {
   normalizeHidden,
@@ -16,6 +18,21 @@ import {
   resolveEffectiveMode,
   resolveInitialMode as resolveInitialModeFromSearch,
 } from './nav-utils'
+
+// Dev-only "star us" nudge, lazy-loaded so it never enters the engine's
+// production import graph (built/offline decks ship without it) and never adds
+// to the cost of importing this module (e.g. the index.js re-export smoke
+// tests). It only resolves on the dev server while editing — see the gated
+// render below and the component's own guards.
+const GitHubStarPrompt = lazy(() => import('../components/GitHubStarPrompt.jsx'))
+
+const STAR_PROMPT_DEV = (() => {
+  try {
+    return Boolean(import.meta && import.meta.env && import.meta.env.DEV)
+  } catch {
+    return false
+  }
+})()
 
 /*  ╔══════════════════════════════════════════════════════════════╗
  *  ║                                                              ║
@@ -345,6 +362,14 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
       }}
     >
       {children}
+      {/* Dev-only, throttled "star us" nudge for local authors. Gated to the
+          dev server's edit mode and lazy-loaded, so it never appears in — or is
+          even bundled into — a built, presented, or exported deck. */}
+      {STAR_PROMPT_DEV && effectiveMode === 'edit' && (
+        <Suspense fallback={null}>
+          <GitHubStarPrompt editMode />
+        </Suspense>
+      )}
     </SlideContext.Provider>
   )
 }

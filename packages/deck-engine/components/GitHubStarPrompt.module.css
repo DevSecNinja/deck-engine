@@ -1,0 +1,211 @@
+.root {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10000;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 16px 16px 12px;
+  border-radius: 14px;
+  background: #1c2129;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  animation: deckStarPromptIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-right: 22px;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #d29922;
+  background: rgba(210, 153, 34, 0.18);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #8b949e;
+}
+
+.repo {
+  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #c9d1d9;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: #58a6ff;
+  transition: background 120ms ease, transform 80ms ease;
+}
+
+.primary:hover {
+  background: #388bfd;
+}
+
+.primary:active {
+  transform: translateY(1px);
+}
+
+.secondary {
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: #e6edf3;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.never {
+  display: block;
+  margin: 8px auto 0;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: #6e7681;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.never:hover {
+  color: #8b949e;
+  text-decoration: underline;
+}
+
+/* Light-theme authoring: keep the card legible when the deck runs light. */
+:global(html[data-theme='light']) .root {
+  background: #ffffff;
+  border-color: rgba(31, 35, 40, 0.12);
+  box-shadow: 0 16px 48px rgba(31, 35, 40, 0.18);
+  color: #1f2328;
+}
+
+:global(html[data-theme='light']) .sub {
+  color: #57606a;
+}
+
+:global(html[data-theme='light']) .close {
+  color: #57606a;
+}
+
+:global(html[data-theme='light']) .close:hover {
+  background: rgba(31, 35, 40, 0.06);
+  color: #1f2328;
+}
+
+:global(html[data-theme='light']) .secondary {
+  border-color: rgba(31, 35, 40, 0.15);
+  color: #1f2328;
+}
+
+:global(html[data-theme='light']) .repo {
+  background: rgba(31, 35, 40, 0.06);
+  color: #1f2328;
+}
+
+/* Belt-and-suspenders: never appear in an exported/captured slide image even if
+ * a capture somehow runs while the card is open. */
+:global(html[data-export-mode='capture']) .root {
+  display: none !important;
+}
+
+@keyframes deckStarPromptIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .root {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+  }
+}
