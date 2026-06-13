@@ -18,6 +18,7 @@ import {
   resolveEffectiveMode,
   resolveInitialMode as resolveInitialModeFromSearch,
 } from './nav-utils'
+import { isExportingNow } from './export-state.js'
 
 // Dev-only "star us" nudge, lazy-loaded so it never enters the engine's
 // production import graph (built/offline decks ship without it) and never adds
@@ -256,6 +257,7 @@ export function SlideProvider({ children, totalSlides, project, slides, theme, h
 
   useEffect(() => {
     const handler = (e) => {
+      if (isExportingNow()) return
       if (isInteractiveKeyTarget(e.target)) return
 
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter') {

@@ -370,6 +370,53 @@ export function pauseAnimations(slide) {
   return () => { for (let i = undo.length - 1; i >= 0; i--) undo[i]() }
 }
 
+// Upper bound on synthesized forward-key presses while flushing a slide's
+// progressive disclosure. Comfortably above any realistic step count; the loop
+// also stops early the moment a press no longer mutates the slide.
+const MAX_DISCLOSURE_STEPS = 40
+
+/**
+ * Drive a slide's progressive disclosure to its final, fully-revealed state.
+ *
+ * Slides built with the engine's `useDisclosure` hook already reveal everything
+ * during export (they observe `useIsExporting`). But decks may contain
+ * hand-rolled slides that keep their own step state and only advance on forward
+ * keys. For those we synthesize forward-key presses (→) until the slide stops
+ * changing, so the capture shows the final composition rather than step 0.
+ *
+ * This is safe because keyboard navigation is suppressed while exporting
+ * (SlideContext ignores keys when `isExportingNow()`), so an "overshoot" press
+ * past the last step cannot advance to the next slide — it is simply a no-op,
+ * which the mutation check below detects to end the loop.
+ */
+export async function revealDisclosureSteps(slide) {
+  if (!slide
+    || typeof MutationObserver !== 'function'
+    || typeof KeyboardEvent !== 'function') return
+
+  let mutated = false
+  const observer = new MutationObserver(() => { mutated = true })
+  observer.observe(slide, { subtree: true, childList: true, attributes: true, characterData: true })
+
+  try {
+    for (let i = 0; i < MAX_DISCLOSURE_STEPS; i++) {
+      mutated = false
+      const target = document.activeElement || document.body || document
+      target.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        code: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      }))
+      await waitForPaint()
+      if (!mutated) break
+    }
+  } finally {
+    observer.disconnect()
+  }
+}
+
 export async function captureSlidePng({
   domToPng,
   deck,
@@ -383,6 +430,9 @@ export async function captureSlidePng({
 
   try {
     await waitForPaint()
+    // Flush any progressive disclosure to its final state before measuring/fit,
+    // so busy fully-revealed slides are sized and captured correctly.
+    await revealDisclosureSteps(slide)
     const fitScale = await resolveFitScale(slide, fit)
     document.documentElement.style.setProperty('--deckio-export-fit-scale', String(fitScale))
     await waitForPaint()

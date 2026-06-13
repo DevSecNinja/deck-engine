@@ -282,7 +282,7 @@ html[data-export-mode="capture"] .deckio-inline-edit-toast-root {
 html[data-export-mode="capture"] .deckio-editable {
   outline: 0 !important;
   box-shadow: none !important;
-  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Badges are optimized for live HTML, but SVG/foreignObject capture can round

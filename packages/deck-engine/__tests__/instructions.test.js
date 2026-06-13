@@ -49,3 +49,24 @@ describe('inline editing authoring guidance', () => {
     expect(source).toContain('inline editing, and deck.config.js')
   })
 })
+
+describe('progressive disclosure authoring guidance', () => {
+  it('ships export-safe disclosure instructions that mandate useDisclosure', () => {
+    const source = readEngineFile('instructions', 'progressive-disclosure.instructions.md')
+
+    expect(source).toContain('useDisclosure')
+    // Must warn against the hand-rolled useState + keydown anti-pattern that
+    // exports blank.
+    expect(source).toContain('useState')
+    expect(source).toContain('keydown')
+    expect(source).toMatch(/import \{[^}]*\buseDisclosure\b[^}]*\} from '@deckio\/deck-engine'/)
+  })
+
+  it('ships a deck-add-disclosure skill that teaches the hook', () => {
+    const source = readEngineFile('skills', 'deck-add-disclosure', 'SKILL.md')
+
+    expect(source).toContain('name: deck-add-disclosure')
+    expect(source).toContain('useDisclosure')
+    expect(source).toContain('progressive-disclosure.instructions.md')
+  })
+})

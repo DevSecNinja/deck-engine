@@ -61,12 +61,43 @@ describe('export wiring', () => {
     expect(service).toContain('restoreClippedText()')
   })
 
+  it('does not nuke gradient-clipped editable text with the background shorthand on export', () => {
+    const source = readEngineFile('styles', 'global.css')
+
+    // The export-mode editable reset must only clear the hover/active *color*
+    // layer. Using the `background` shorthand also resets background-image and
+    // background-clip, which turns gradient-clipped <Editable> headlines (e.g.
+    // the GenericThankYouSlide "Thank You" title) fully transparent — and since
+    // clip falls back to border-box, neutralizeClippedText no longer detects
+    // them. Keep this as `background-color`.
+    expect(source).toContain('background-color: transparent !important')
+    expect(source).not.toContain('background: transparent !important')
+  })
+
   it('forces every disclosure step visible during export via the engine hook', () => {
     const steps = readEngineFile('slides', 'GenericStepsSlide.jsx')
+    const hook = readEngineFile('context', 'useDisclosure.js')
     const index = readEngineFile('index.js')
 
-    expect(steps).toContain('useIsExporting')
+    // The blessed steps slide builds on the shared disclosure hook...
+    expect(steps).toContain('useDisclosure')
     expect(steps).toContain('effectiveVisible')
+    // ...which reveals every step while a capture is running.
+    expect(hook).toContain('useIsExporting')
+    expect(hook).toContain('exporting ? safeTotal')
+    expect(index).toContain('useDisclosure')
     expect(index).toContain('useIsExporting')
+  })
+
+  it('drives hand-rolled disclosure slides to their final state during capture', () => {
+    const service = readEngineFile('components', 'exportDeckService.js')
+    const slideContext = readEngineFile('context', 'SlideContext.jsx')
+
+    // Export pump: synthesize forward keys until the slide stops mutating.
+    expect(service).toContain('revealDisclosureSteps(slide)')
+    expect(service).toContain("key: 'ArrowRight'")
+    // Navigation is suppressed during capture so an overshoot press past the
+    // last step is a harmless no-op instead of advancing to the next slide.
+    expect(slideContext).toContain('if (isExportingNow()) return')
   })
 })

@@ -14,12 +14,10 @@
  *   "Add a 6th step about monitoring and observability"
  *   "Make the icons reflect a deployment pipeline"
  */
-import { useState, useEffect } from 'react'
 import Slide from '../components/Slide.jsx'
 import BottomBar from '../components/BottomBar.jsx'
 import EditableList from '../components/EditableList.jsx'
-import { useSlides } from '../context/SlideContext.jsx'
-import { useIsExporting } from '../context/export-state.js'
+import { useDisclosure } from '../context/useDisclosure.js'
 import { markSampleContent } from '../sampleContent.js'
 
 const SAMPLE_STEPS = markSampleContent([
@@ -38,27 +36,7 @@ export default function GenericStepsSlide({
   steps = SAMPLE_STEPS,
   footerText,
 }) {
-  const { current } = useSlides()
-  const exporting = useIsExporting()
-  const [visibleCount, setVisibleCount] = useState(0)
-  const isActive = current === index
-  // During export, reveal every step so the captured image shows the slide's
-  // final state instead of its pre-disclosure (mostly-dimmed) state.
-  const effectiveVisible = exporting ? steps.length : visibleCount
-
-  useEffect(() => { if (isActive) setVisibleCount(0) }, [isActive])
-
-  useEffect(() => {
-    if (!isActive) return
-    const handler = (e) => {
-      const fwd = e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown' || e.key === 'Enter'
-      const bwd = e.key === 'ArrowLeft' || e.key === 'PageUp'
-      if (fwd && visibleCount < steps.length) { e.stopImmediatePropagation(); e.preventDefault(); setVisibleCount(v => v + 1) }
-      else if (bwd && visibleCount > 0) { e.stopImmediatePropagation(); e.preventDefault(); setVisibleCount(v => v - 1) }
-    }
-    document.addEventListener('keydown', handler, { capture: true })
-    return () => document.removeEventListener('keydown', handler, { capture: true })
-  }, [isActive, visibleCount, steps.length])
+  const { step: effectiveVisible, setStep: setVisibleCount } = useDisclosure(steps.length, { index })
 
   return (
     <Slide index={index} className="deck-steps">
