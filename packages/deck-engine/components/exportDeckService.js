@@ -358,7 +358,54 @@ export async function resolveFitScale(slide, fit) {
   return AUTO_FIT_SCALES[AUTO_FIT_SCALES.length - 1]
 }
 
+function isInfiniteAnimation(anim) {
+  try {
+    return anim.effect?.getComputedTiming?.().iterations === Infinity
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Freeze a slide's motion into a single clean still for capture.
+ *
+ * An export is one frame, but a slide may be captured while transitions and
+ * animations are still in flight — most notably the disclosure reveal, where a
+ * just-revealed element is mid-way through a multi-hundred-ms opacity/transform
+ * transition (e.g. `.deck-steps-step` fades 0.15 → 1 over 0.5s). Freezing such a
+ * transition at its current frame bakes the half-faded, washed-out look into the
+ * export. So instead of pausing everything, we **finish** finite animations and
+ * transitions (snapping them to their final, fully-revealed state) and only
+ * **pause** infinite, decorative loops (orbs, glows) at their current frame.
+ *
+ * This is class-name agnostic: it fixes hand-rolled disclosure slides whose
+ * reveal classes the export-mode CSS overrides cannot know about.
+ */
 export function pauseAnimations(slide) {
+  if (slide && typeof slide.getAnimations === 'function') {
+    let anims = []
+    try {
+      anims = slide.getAnimations({ subtree: true })
+    } catch {
+      anims = []
+    }
+    const paused = []
+    for (const anim of anims) {
+      if (isInfiniteAnimation(anim)) {
+        try { anim.pause(); paused.push(anim) } catch { /* ignore */ }
+      } else {
+        // Snap finite transitions/animations (e.g. the in-flight disclosure
+        // reveal the export pump just triggered) to their end state so the
+        // capture shows full opacity, not a mid-fade ghost.
+        try { anim.finish() } catch { /* ignore */ }
+      }
+    }
+    return () => { for (const anim of paused) { try { anim.play() } catch { /* ignore */ } } }
+  }
+
+  // Fallback for environments without the Web Animations API: freeze keyframe
+  // animations in place (transitions cannot be settled here, but this preserves
+  // the prior behavior).
   const undo = []
   const pause = (el) => {
     const orig = el.style.animationPlayState

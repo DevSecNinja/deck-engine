@@ -100,4 +100,20 @@ describe('export wiring', () => {
     // last step is a harmless no-op instead of advancing to the next slide.
     expect(slideContext).toContain('if (isExportingNow()) return')
   })
+
+  it('settles in-flight reveals by finishing finite animations and pausing only infinite loops', () => {
+    const service = readEngineFile('components', 'exportDeckService.js')
+
+    // A disclosure reveal is a multi-hundred-ms opacity/transform transition.
+    // The pump triggers it just before capture, so freezing it mid-flight bakes
+    // a washed-out, half-faded frame into the export. pauseAnimations must
+    // FINISH finite transitions/animations (snap to full opacity) and only
+    // PAUSE infinite decorative loops.
+    expect(service).toContain('getAnimations({ subtree: true })')
+    expect(service).toContain('anim.finish()')
+    expect(service).toContain('isInfiniteAnimation(anim)')
+    expect(service).toContain('anim.pause()')
+    // pauseAnimations still runs in the capture path before rasterizing.
+    expect(service).toContain('const restoreAnimations = pauseAnimations(slide)')
+  })
 })
